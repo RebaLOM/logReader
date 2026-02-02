@@ -495,6 +495,7 @@ namespace logReader
 
             foreach (string line in lines)
             {
+        
                 string[] parts = line.Split(';');
 
                 int priority;
