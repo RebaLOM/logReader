@@ -419,15 +419,14 @@ namespace logReader
 
 
     internal class Program
-    {
-        static IXLWorksheet ws;
-        static int excelRow;
-        static void BuildExcelRow
-            (
+    {      
+       
+        static int BuildExcelRow(
+            IXLWorksheet ws,
+            int excelRow,
             int step,
             string time,
-            List<Device> devices
-            )
+            List<Device> devices)
         {
             int col = 1;
             ws.Cell(excelRow, col++).Value = step;
@@ -439,10 +438,10 @@ namespace logReader
                     ws.Cell(excelRow, col++).Value = data;
                 }
             }
-            excelRow++;
+            return excelRow+1;
         }   
         
-        static void BuildExcelHeaders(List<Device> devices)
+        static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices)
         {
             int col = 1;
             ws.Cell(1, col++).Value = "Шаг";
@@ -455,8 +454,7 @@ namespace logReader
                     ws.Cell(1, col++).Value = header;
                 }
             }
-            excelRow = 2;
-
+            return 2;
         }
 
         static void Main(string[] args)
@@ -487,13 +485,13 @@ namespace logReader
 
             Console.WriteLine("Программа запущена");
 
-            string[] lines = File.ReadAllLines(@"C:\Users\Re\Desktop\canlog.csv");
-            string outputPath = @"C:\Users\Re\Desktop\result.xlsx";
+            string[] lines = File.ReadAllLines(@"C:\Users\tv167\OneDrive\Рабочий стол\canlog.csv");
+            string outputPath = @"C:\Users\tv167\OneDrive\Рабочий стол\result.xlsx";
 
             using var workbook = new XLWorkbook();
-            ws = workbook.Worksheets.Add("Log");
+            var ws = workbook.Worksheets.Add("Log");
 
-            BuildExcelHeaders(devices);
+            int excelRow = BuildExcelHeaders(ws,devices);
 
             foreach (string line in lines)
             {
@@ -520,7 +518,7 @@ namespace logReader
                     if (!firstStep) 
                     {
                         // Записываем результат ПРЕДЫДУЩЕГО шага
-                        BuildExcelRow(currentStep, currentTime, devices);
+                        excelRow = BuildExcelRow(ws, excelRow, currentStep, currentTime, devices);
                     }
 
                     // обновляем текущие значения шага
@@ -532,7 +530,7 @@ namespace logReader
             }
 
             // ДОЗАПИСЫВАЕМ ПОСЛЕДНИЙ ШАГ
-            BuildExcelRow(currentStep, currentTime, devices);
+            excelRow = BuildExcelRow(ws, excelRow, currentStep, currentTime, devices);
             // Сохраняем файл .xlsx
             workbook.SaveAs(outputPath);
         }
