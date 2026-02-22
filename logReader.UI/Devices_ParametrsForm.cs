@@ -20,6 +20,7 @@ namespace logReader.UI
             Dictionary<string, bool[]> paramEnabled)
         {
             InitializeComponent();
+            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             _devices = devices;
             _deviceEnabled = deviceEnabled;
             _paramEnabled = paramEnabled;

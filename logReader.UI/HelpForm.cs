@@ -5,7 +5,8 @@ namespace logReader.UI
         public HelpForm()
         {
             InitializeComponent();
-            
+            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
+
             // Иконка в заголовке формы «Помощь» из встроенных ресурсов
             try
             {

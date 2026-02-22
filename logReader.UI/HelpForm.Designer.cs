@@ -2,6 +2,7 @@ namespace logReader.UI
 {
     partial class HelpForm
     {
+
         private System.ComponentModel.IContainer components = null;
 
         protected override void Dispose(bool disposing)
