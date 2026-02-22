@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationIcon>Resources\CAN_reader.ico</ApplicationIcon>
+		<Win32Icon>Resources\CAN_reader.ico</Win32Icon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\CAN_reader.ico" />
+		<EmbeddedResource Include="Resources\Help.rtf" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\logReader\logReader.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -1,19 +1,27 @@
+<<<<<<< Updated upstream
 ﻿using System.Text;
+=======
+>>>>>>> Stashed changes
 using ClosedXML.Excel;
 
 
 namespace logReader
 {
     // БАЗОВЫЙ КЛАСС 
-    internal class Device
+    public class Device
     {
         public string ID;
         public string[] headers;
         public int[] RawBytes = new int[8];
         public string[] RawBinaries = new string[8];
         public string[] ProcessedData;
+<<<<<<< Updated upstream
         // устройства с которыми мы не работаем
         string[] skip = new string[] { "1803D0EF", "1FEE0110", "1FEE1001", "1FEEFF84", "1FEEFF86" };
+=======
+      
+
+>>>>>>> Stashed changes
         public void ToBinaries(int index)
         {
             RawBinaries[index] = Convert.ToString(RawBytes[index], 2).PadLeft(8, '0');
@@ -30,8 +38,78 @@ namespace logReader
         public virtual void Decode() { }
     }
 
+<<<<<<< Updated upstream
 
 
+=======
+    // СТРУКТУРА ДЛЯ ХРАНЕНИЯ ИНСТРУКЦИИ ДЕКОДИРОВАНИЯ ПОЛЯ
+    public class FieldInstruction
+    {
+        public int FieldIndex;          // Индекс поля (0, 1, 2...)
+        public string Header = "";      // Название заголовка
+        public int ByteLow;             // Младший байт (ОБЯЗАТЕЛЬНОЕ поле, 0-7)
+        public int? ByteHigh;           // Старший байт (ОПЦИОНАЛЬНОЕ поле, может быть null)
+        public double Scale;            // Множитель
+        public double Offset;           // Смещение
+        public string Type = "";        // Тип: NUM (числовое), BIN (бинарное)
+        public int StartBit;            // Начальный бит (только для BIN)
+        public int LenghtBit;           // Длина строки битов от StartBit
+    }
+
+    // ДИНАМИЧЕСКОЕ УСТРОЙСТВО, ЗАГРУЖЕННОЕ ИЗ ФАЙЛА
+    public class DynamicDevice : Device
+    {
+        private List<FieldInstruction> instructions;
+
+        public DynamicDevice(string deviceID, List<FieldInstruction> fieldInstructions)
+            : base(deviceID, fieldInstructions.Count)
+        {
+            instructions = fieldInstructions;
+
+            // Заполняем заголовки
+            foreach (var instr in instructions)
+            {
+                headers[instr.FieldIndex] = instr.Header;
+            }
+        }
+
+        public override void Decode()
+        {
+            foreach (var instr in instructions)
+            {
+                if (instr.Type == "NUM")
+                {
+                    // Числовая обработка
+                    int rawValue;
+
+                    if (instr.ByteHigh.HasValue)
+                    {
+                        // Двухбайтовое значение (big-endian)
+                        rawValue = (RawBytes[instr.ByteHigh.Value] * 256) + RawBytes[instr.ByteLow];
+                    }
+                    else
+                    {
+                        // Однобайтовое значение
+                        rawValue = RawBytes[instr.ByteLow];
+                    }
+
+                    // Применяем формулу: (raw * scale) + offset
+                    double physicalValue = (rawValue * instr.Scale) + instr.Offset;
+                    ProcessedData[instr.FieldIndex] = physicalValue.ToString();
+                }
+                else if (instr.Type == "BIN")
+                {
+                    // Бинарная обработка
+                    ToBinaries(instr.ByteLow);
+                    string BinarBits = RawBinaries[instr.ByteLow].Substring(instr.StartBit, instr.LenghtBit);
+                    ProcessedData[instr.FieldIndex] = Convert.ToInt32(BinarBits, 2).ToString();
+                }
+            }
+        }
+    }
+
+    // СТАТИЧЕСКИЕ УСТРОЙСТВА (существующие в коде)
+>>>>>>> Stashed changes
     internal class Device_180128D0 : Device
     {
         public Device_180128D0() : base("180128D0", 2)
@@ -235,7 +313,11 @@ namespace logReader
             // Общее количество сбоев в работе системы управления двигателем MCU3_DrvCurMotSysFltNum
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
+<<<<<<< Updated upstream
             string faultBits = SystemFault.Substring(2, 6); // Биты 0-5
+=======
+            string faultBits = SystemFault.Substring(0, 6);
+>>>>>>> Stashed changes
             ProcessedData[0] = Convert.ToInt32(faultBits, 2).ToString();
         }
 
@@ -313,7 +395,11 @@ namespace logReader
             // Общее количество сбоев в работе системы управления двигателем MCU3_DrvCurMotSysFltNum
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
+<<<<<<< Updated upstream
             string faultBits = SystemFault.Substring(2, 6); // Биты 0-5
+=======
+            string faultBits = SystemFault.Substring(0, 6);
+>>>>>>> Stashed changes
             ProcessedData[0] = Convert.ToInt32(faultBits, 2).ToString();
         }
 
@@ -418,30 +504,69 @@ namespace logReader
 
 
 
+<<<<<<< Updated upstream
     internal class Program
     {      
        
         static int BuildExcelRow(
+=======
+    public class Program
+    {
+        public static int BuildExcelRow(
+>>>>>>> Stashed changes
             IXLWorksheet ws,
             int excelRow,
             int step,
             string time,
             List<Device> devices)
         {
+            return BuildExcelRow(ws, excelRow, step, time, devices, null, null);
+        }
+
+        public static int BuildExcelRow(
+            IXLWorksheet ws,
+            int excelRow,
+            int step,
+            string time,
+            List<Device> devices,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled)
+        {
             int col = 1;
             ws.Cell(excelRow, col++).Value = step;
             ws.Cell(excelRow, col++).Value = time;
             foreach (var device in devices)
             {
-                foreach (var data in device.ProcessedData)
+                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
+                if (!devOn) continue;
+
+                for (int i = 0; i < device.ProcessedData.Length; i++)
                 {
-                    ws.Cell(excelRow, col++).Value = data;
+                    bool paramOn = paramEnabled == null || !paramEnabled.TryGetValue(device.ID, out var arr)
+                        ? true
+                        : (i < arr.Length && arr[i]);
+                    if (paramOn)
+                        ws.Cell(excelRow, col++).Value = device.ProcessedData[i];
                 }
             }
+<<<<<<< Updated upstream
             return excelRow+1;
         }   
         
         static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices)
+=======
+            return excelRow + 1;
+        }
+
+        public static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices)
+        {
+            return BuildExcelHeaders(ws, devices, null, null);
+        }
+
+        public static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled)
+>>>>>>> Stashed changes
         {
             int col = 1;
             ws.Cell(1, col++).Value = "Шаг";
@@ -449,18 +574,146 @@ namespace logReader
 
             foreach (var device in devices)
             {
-                foreach (var header in device.headers)
+                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
+                if (!devOn) continue;
+
+                for (int i = 0; i < device.headers.Length; i++)
                 {
-                    ws.Cell(1, col++).Value = header;
+                    bool paramOn = paramEnabled == null || !paramEnabled.TryGetValue(device.ID, out var arr)
+                        ? true
+                        : (i < arr.Length && arr[i]);
+                    if (paramOn)
+                        ws.Cell(1, col++).Value = device.headers[i];
                 }
             }
             return 2;
         }
 
+<<<<<<< Updated upstream
+=======
+        // Чтение числа из ячейки Excel
+        static double? GetCellNumber(IXLRow row, int col)
+        {
+            var cell = row.Cell(col);
+            if (cell.IsEmpty()) return null;
+
+            if (cell.TryGetValue(out double d) && !double.IsNaN(d))
+                return d;
+
+            var s = cell.GetString()?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(s)) return null;
+
+            return double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsed)
+                ? parsed
+                : null;
+        }
+
+        // МЕТОД ДЛЯ ЗАГРУЗКИ УСТРОЙСТВ ИЗ EXCEL ФАЙЛА
+        public static List<Device> LoadDevicesFromExcel(string excelPath, Action<string>? log = null)
+        {
+            var dynamicDevices = new List<Device>();
+
+            try
+            {
+                using var workbook = new XLWorkbook(excelPath);
+                var worksheet = workbook.Worksheet(1);
+
+                var deviceGroups = new Dictionary<string, List<FieldInstruction>>();
+
+                int rowCount = worksheet.LastRowUsed()?.RowNumber() ?? 0;
+
+                for (int rowNum = 2; rowNum <= rowCount; rowNum++)
+                {
+                    var row = worksheet.Row(rowNum);
+
+                    string deviceID = row.Cell(1).GetString().Trim();
+                    if (string.IsNullOrWhiteSpace(deviceID))
+                    {
+                        (log ?? (Action<string>)Console.WriteLine)($"Строка {rowNum}: отсутствует DeviceID.");
+                        continue;
+                    }
+
+                    try
+                    {
+                        double? low = GetCellNumber(row, 4);
+                        double? high = GetCellNumber(row, 5);
+
+                        int? byteLow = low.HasValue ? (int?)low.Value : null;
+                        int? byteHigh = high.HasValue ? (int?)high.Value : null;
+
+                        if (!byteLow.HasValue && byteHigh.HasValue)
+                        {
+                            byteLow = byteHigh;
+                            byteHigh = null;
+                        }
+                        if (!byteLow.HasValue)
+                        {
+                            (log ?? (Action<string>)Console.WriteLine)($"Строка {rowNum}: не указан ByteLow и ByteHigh.");
+                            continue;
+                        }
+                        double? BitStart = GetCellNumber(row, 9);
+                        double? BitLenght = GetCellNumber(row, 10);
+
+                        int? startBit = BitStart.HasValue ? (int)BitStart.Value : 0;
+                        int? lengthBit = BitLenght.HasValue ? (int)BitLenght.Value : 0;
+
+                        double? fieldIndexNum = GetCellNumber(row, 2);
+                        int fieldIndex = fieldIndexNum.HasValue ? (int)fieldIndexNum.Value : 0;
+
+                        double scale = GetCellNumber(row, 6) ?? 1;
+                        double offset = GetCellNumber(row, 7) ?? 0;
+
+                        var instruction = new FieldInstruction
+                        {
+                            FieldIndex = fieldIndex,
+                            Header = row.Cell(3).GetString().Trim(),
+                            ByteLow = byteLow.Value,
+                            ByteHigh = byteHigh,
+                            Scale = scale,
+                            Offset = offset,
+                            Type = row.Cell(8).GetString().Trim(),
+                            StartBit = startBit ?? 0,
+                            LenghtBit = lengthBit ?? 0,
+                        };
+
+                        if (!deviceGroups.ContainsKey(deviceID))
+                        {
+                            deviceGroups[deviceID] = new List<FieldInstruction>();
+                        }
+
+                        deviceGroups[deviceID].Add(instruction);
+                    }
+                    catch (Exception ex)
+                    {
+                        (log ?? (Action<string>)Console.WriteLine)($"Ошибка в строке {rowNum}: {ex.Message}");
+                        continue;
+                    }
+                }
+
+                foreach (var kvp in deviceGroups)
+                {
+                    var sortedInstructions = kvp.Value.OrderBy(i => i.FieldIndex).ToList();
+                    for (int i = 0; i < sortedInstructions.Count; i++)
+                        sortedInstructions[i].FieldIndex = i;
+                    dynamicDevices.Add(new DynamicDevice(kvp.Key, sortedInstructions));
+                }
+
+                Console.WriteLine($"Загружено {dynamicDevices.Count} устройств из файла.");
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Ошибка загрузки устройств: {ex.Message}", ex);
+            }
+
+            return dynamicDevices;
+        }
+
+>>>>>>> Stashed changes
         static void Main(string[] args)
         {
             List<Device> devices = new List<Device>
             {
+<<<<<<< Updated upstream
                 new Device_180128D0(),
                 new Device_1801D0EF(),
                 new Device_1802D0EF(),
@@ -478,6 +731,49 @@ namespace logReader
             };
 
             Dictionary<string, Device> deviceByID = devices.ToDictionary(d => d.ID);
+=======
+                /*  new Device_180128D0(),
+                  new Device_1801D0EF(),
+                  new Device_1802D0EF(),
+                  new Device_18FF0101(),
+                  new Device_18FF0201(),
+                  new Device_18FF31F1(),
+                  new Device_18FF35F1(),
+                  new Device_18FF42F1(),
+                  new Device_18FF45F1(),
+                  new Device_1FEEFF85(),
+                  new Device_1FEEFF87(),
+                  new Device_1FEEFF88() */
+            };
+            Console.WriteLine("=== Программа чтения CAN логов ===\n");
+            Console.WriteLine($"Базовых устройств загружено: {devices.Count}");
+
+            // ПРЕДЛОЖЕНИЕ ЗАГРУЗИТЬ ДОПОЛНИТЕЛЬНЫЕ УСТРОЙСТВА
+            Console.Write("\nЖелаете загрузить устройства из Excel файла? (да/нет) (по умолчанию: да): ");
+            string answer = Console.ReadLine()?.Trim().ToLower() ?? "";
+
+            if (answer == "да" || answer == "")
+            {
+                Console.Write("Введите полный путь к Excel файлу с устройствами: ");
+                string excelPath = Console.ReadLine()?.Trim() ?? "";
+
+                if (!string.IsNullOrWhiteSpace(excelPath) && File.Exists(excelPath))
+                {
+                    var additionalDevices = LoadDevicesFromExcel(excelPath);
+                    devices.AddRange(additionalDevices);
+                }
+                else
+                {
+                    Console.WriteLine(" Файл не найден или путь некорректен. Продолжаем с базовыми устройствами.");
+                }
+            }
+
+            Console.WriteLine($"\nВсего устройств для обработки: {devices.Count}\n");
+
+            var deviceByID = new Dictionary<string, Device>();
+            foreach (var d in devices)
+                deviceByID[d.ID] = d;
+>>>>>>> Stashed changes
 
             int currentStep = 0;
             string currentTime = "";
@@ -502,7 +798,8 @@ namespace logReader
                 int.TryParse(parts[3], out priority);
 
                 // ДЕКОД УСТРОЙСТВ 
-                if (priority == 1 && deviceByID.TryGetValue(parts[2], out Device currentDevice))
+                string? deviceKey = parts.Length > 2 ? parts[2] : null;
+                if (priority == 1 && deviceKey != null && deviceByID.TryGetValue(deviceKey, out Device? currentDevice))
                 {
                     for (int i = 0; i < 8; i++)
                         currentDevice.RawBytes[i] = Convert.ToInt32(parts[4 + i], 10);
