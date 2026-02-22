@@ -155,19 +155,18 @@ namespace logReader.UI
             buttonHelp.Text = "Помощь";
             buttonHelp.UseVisualStyleBackColor = true;
             buttonHelp.Click += buttonHelp_Click;
-            //
+            // 
             // buttonDevicesParams
-            //
+            // 
             buttonDevicesParams.Location = new Point(193, 309);
             buttonDevicesParams.Name = "buttonDevicesParams";
-            buttonDevicesParams.Size = new Size(150, 23);
+            buttonDevicesParams.Size = new Size(186, 23);
             buttonDevicesParams.TabIndex = 12;
             buttonDevicesParams.Text = "Устройства и параметры";
             buttonDevicesParams.UseVisualStyleBackColor = true;
             buttonDevicesParams.Click += buttonDevicesParams_Click;
-            //
+            // 
             // MainForm
-            //
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;

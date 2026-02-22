@@ -1,12 +1,9 @@
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-﻿using System.Text;
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using ClosedXML.Excel;
-
 
 namespace logReader
 {
@@ -18,20 +15,12 @@ namespace logReader
         public int[] RawBytes = new int[8];
         public string[] RawBinaries = new string[8];
         public string[] ProcessedData;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        // устройства с которыми мы не работаем
-        string[] skip = new string[] { "1803D0EF", "1FEE0110", "1FEE1001", "1FEEFF84", "1FEEFF86" };
-=======
-=======
->>>>>>> Stashed changes
-      
 
->>>>>>> Stashed changes
         public void ToBinaries(int index)
         {
             RawBinaries[index] = Convert.ToString(RawBytes[index], 2).PadLeft(8, '0');
         }
+
         public Device(string ID, int headersCount)
         {
             this.ID = ID;
@@ -44,10 +33,6 @@ namespace logReader
         public virtual void Decode() { }
     }
 
-<<<<<<< Updated upstream
-
-
-=======
     // СТРУКТУРА ДЛЯ ХРАНЕНИЯ ИНСТРУКЦИИ ДЕКОДИРОВАНИЯ ПОЛЯ
     public class FieldInstruction
     {
@@ -115,29 +100,25 @@ namespace logReader
     }
 
     // СТАТИЧЕСКИЕ УСТРОЙСТВА (существующие в коде)
->>>>>>> Stashed changes
     internal class Device_180128D0 : Device
     {
         public Device_180128D0() : base("180128D0", 2)
         {
             headers[0] = "Текущий максимальный предел крутящего момента";
             headers[1] = "Целевая скорость";
-
         }
 
         public override void Decode()
         {
-            // Текущий максимальный предел крутящего момента
             int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
             double physicalTorque = rawTorque - 10000;
             ProcessedData[0] = physicalTorque.ToString();
 
-            // Целевая скорость
             int rawSpeed = (RawBytes[5] * 256) + RawBytes[4];
             double physicalSpeed = (rawSpeed * 0.5) - 15000;
             ProcessedData[1] = physicalSpeed.ToString();
         }
-    }// Генератор
+    }
 
     internal class Device_1801D0EF : Device
     {
@@ -151,26 +132,22 @@ namespace logReader
 
         public override void Decode()
         {
-            // Напряжение шины
             int BusVoltage = (RawBytes[3] * 256) + RawBytes[2];
             ProcessedData[0] = BusVoltage.ToString();
 
-            // Температура контроллера мотора
             int ControllerTemp = RawBytes[4] - 40;
             ProcessedData[1] = ControllerTemp.ToString();
 
-            // Температура мотора
             int MotorTemp = RawBytes[5] - 40;
             ProcessedData[2] = MotorTemp.ToString();
 
-            // Ток шины
             int BusCurrent = (RawBytes[7] * 256) + RawBytes[6];
             double physicalBusCurrent = (BusCurrent * 0.1) - 20000;
             ProcessedData[3] = physicalBusCurrent.ToString();
         }
-    } // Генератор
+    }
 
-    internal class Device_1802D0EF : Device // Генератор
+    internal class Device_1802D0EF : Device
     {
         public Device_1802D0EF() : base("1802D0EF", 4)
         {
@@ -182,70 +159,61 @@ namespace logReader
 
         public override void Decode()
         {
-            // Трехфазный выходной ток
             int ThreePhaseCurrent = (RawBytes[1] * 256) + RawBytes[0];
             double physicalThreePhaseCurrent = (ThreePhaseCurrent * 0.1);
             ProcessedData[0] = physicalThreePhaseCurrent.ToString();
 
-            // Частота вращения двигателя / текущий крутящий момент двигателя
             int MotorTorque = (RawBytes[3] * 256) + RawBytes[2];
             double physicalMotorTorque = MotorTorque - 30000;
             ProcessedData[1] = physicalMotorTorque.ToString();
 
-            // Текущая скорость вращения, фактический крутящий момент
             int ActualTorque = (RawBytes[5] * 256) + RawBytes[4] - 10000;
             ProcessedData[2] = ActualTorque.ToString();
 
-            // Текущая скорость вращения, верхний предел крутящего момента
             int MaxTorque = (RawBytes[7] * 256) + RawBytes[6] - 10000;
             ProcessedData[3] = MaxTorque.ToString();
         }
-    }// Генератор
+    }
 
-    internal class Device_18FF0101 : Device // Генератор
+    internal class Device_18FF0101 : Device
     {
         public Device_18FF0101() : base("18FF0101", 2)
         {
             headers[0] = "Команда управления скоростью";
             headers[1] = "Команда управления крутящим моментом";
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // команда управления скоростью V2M1_DrvSpdConCmd
             int rawSpeed = (RawBytes[1] * 256) + RawBytes[0];
             double physicalSpeed = (rawSpeed * 0.5) - 15000;
             ProcessedData[0] = physicalSpeed.ToString();
 
-            // Команда управления крутящим моментом V2M1_DrvTorqConCmd    
             int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
             double physicalTorque = (rawTorque * 0.1) - 3200;
             ProcessedData[1] = physicalTorque.ToString();
         }
-    }// Мотор
+    }
 
-    internal class Device_18FF0201 : Device // Генератор
+    internal class Device_18FF0201 : Device
     {
         public Device_18FF0201() : base("18FF0201", 2)
         {
             headers[0] = "Команда управления скоростью";
             headers[1] = "Команда управления крутящим моментом";
-
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // команда управления скоростью V2M1_DrvSpdConCmd
             int rawSpeed = (RawBytes[1] * 256) + RawBytes[0];
             double physicalSpeed = (rawSpeed * 0.5) - 15000;
             ProcessedData[0] = physicalSpeed.ToString();
 
-            // Команда управления крутящим моментом V2M1_DrvTorqConCmd    
             int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
             double physicalTorque = (rawTorque * 0.1) - 3200;
             ProcessedData[1] = physicalTorque.ToString();
         }
-    }// Мотор
+    }
 
     internal class Device_18FF31F1 : Device
     {
@@ -254,25 +222,22 @@ namespace logReader
             headers[0] = "Фактическая скорость вращения двигателя";
             headers[1] = "Фактический крутящий момент двигателя";
             headers[2] = "Максимальный выходной крутящий момент двигателя";
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // Фактическая частота вращения двигателя MCU1_DrvMotorActSpd
             int rawSpeed = (RawBytes[1] * 256) + RawBytes[0];
             double physicalSpeed = (rawSpeed * 0.5) - 15000;
             ProcessedData[0] = physicalSpeed.ToString();
 
-            // Фактический крутящий момент двигателя mcu1_drvmotoractorque
             int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
             double physicalTorque = (rawTorque * 0.1) - 3200;
             ProcessedData[1] = physicalTorque.ToString();
 
-            // Максимальный выходной крутящий момент двигателя CAN MCU1_DrvMotorMaxAvilTorqPec
             double MaxTorque = (RawBytes[4] * 0.5);
             ProcessedData[2] = MaxTorque.ToString();
         }
-    }// Мотор
+    }
 
     internal class Device_18FF32F1 : Device
     {
@@ -282,56 +247,41 @@ namespace logReader
             headers[1] = "Ток шины постоянного тока";
             headers[2] = "Температура двигателя";
             headers[3] = "Температура преобразователя";
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // Напряжение на шине постоянного тока MCU2_DrvDcVoltage
             int DcVoltage = (RawBytes[1] * 256) + RawBytes[0];
             double physicalDcVoltage = DcVoltage * 0.2;
             ProcessedData[0] = physicalDcVoltage.ToString();
 
-            // Ток в шине постоянного тока MCU2_DrvDcCurrent
             int DcCurrent = (RawBytes[4] * 256) + RawBytes[3];
             double physicalDcCurrent = (DcCurrent * 0.4) - 800;
             ProcessedData[1] = physicalDcCurrent.ToString();
 
-            // температура двигателя mcu2_drvмоторная температура
             int MotorTemperature = RawBytes[6] - 40;
             ProcessedData[2] = MotorTemperature.ToString();
 
-            //Температура преобразователя MCU2_DrvMCUTemperature
             int InverterTemperature = RawBytes[7] - 40;
             ProcessedData[3] = InverterTemperature.ToString();
         }
-
-    }// Мотор
+    }
 
     internal class Device_18FF35F1 : Device
     {
         public Device_18FF35F1() : base("18FF35F1", 1)
         {
             headers[0] = "Сбои СУ двигателя";
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // Общее количество сбоев в работе системы управления двигателем MCU3_DrvCurMotSysFltNum
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            string faultBits = SystemFault.Substring(2, 6); // Биты 0-5
-=======
-            string faultBits = SystemFault.Substring(0, 6);
->>>>>>> Stashed changes
-=======
-            string faultBits = SystemFault.Substring(0, 6);
->>>>>>> Stashed changes
+            string faultBits = SystemFault.Substring(0, 6); // биты 0-5
             ProcessedData[0] = Convert.ToInt32(faultBits, 2).ToString();
         }
-
-    }// Ошибки
+    }
 
     internal class Device_18FF41F1 : Device
     {
@@ -343,21 +293,18 @@ namespace logReader
         }
         public override void Decode()
         {
-            // Фактическая частота вращения двигателя MCU1_DrvMotorActSpd
             int rawSpeed = (RawBytes[1] * 256) + RawBytes[0];
             double physicalSpeed = (rawSpeed * 0.5) - 15000;
             ProcessedData[0] = physicalSpeed.ToString();
 
-            // Фактический крутящий момент двигателя mcu1_drvmotoractorque
             int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
             double physicalTorque = (rawTorque * 0.1) - 3200;
             ProcessedData[1] = physicalTorque.ToString();
 
-            // Максимальный выходной крутящий момент двигателя CAN MCU1_DrvMotorMaxAvilTorqPec
             double MaxTorque = (RawBytes[4] * 0.5);
             ProcessedData[2] = MaxTorque.ToString();
         }
-    }// Мотор
+    }
 
     internal class Device_18FF42F1 : Device
     {
@@ -367,57 +314,41 @@ namespace logReader
             headers[1] = "Ток шины постоянного тока";
             headers[2] = "Температура двигателя";
             headers[3] = "Температура преобразователя";
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // Напряжение на шине постоянного тока MCU2_DrvDcVoltage
             int DcVoltage = (RawBytes[1] * 256) + RawBytes[0];
             double physicalDcVoltage = DcVoltage * 0.2;
             ProcessedData[0] = physicalDcVoltage.ToString();
 
-            // Ток в шине постоянного тока MCU2_DrvDcCurrent
             int DcCurrent = (RawBytes[4] * 256) + RawBytes[3];
             double physicalDcCurrent = (DcCurrent * 0.4) - 800;
             ProcessedData[1] = physicalDcCurrent.ToString();
 
-            // температура двигателя mcu2_drvмоторная температура
             int MotorTemperature = RawBytes[6] - 40;
             ProcessedData[2] = MotorTemperature.ToString();
 
-            //Температура преобразователя MCU2_DrvMCUTemperature
             int InverterTemperature = RawBytes[7] - 40;
             ProcessedData[3] = InverterTemperature.ToString();
         }
-
-    }// Мотор
+    }
 
     internal class Device_18FF45F1 : Device
     {
         public Device_18FF45F1() : base("18FF45F1", 1)
         {
             headers[0] = "Сбои СУ двигателя";
-
-        } // Мотор
+        }
 
         public override void Decode()
         {
-            // Общее количество сбоев в работе системы управления двигателем MCU3_DrvCurMotSysFltNum
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            string faultBits = SystemFault.Substring(2, 6); // Биты 0-5
-=======
-            string faultBits = SystemFault.Substring(0, 6);
->>>>>>> Stashed changes
-=======
-            string faultBits = SystemFault.Substring(0, 6);
->>>>>>> Stashed changes
+            string faultBits = SystemFault.Substring(0, 6); // биты 0-5
             ProcessedData[0] = Convert.ToInt32(faultBits, 2).ToString();
         }
-
-    }// Ошибки
+    }
 
     internal class Device_1FEEFF85 : Device
     {
@@ -428,28 +359,26 @@ namespace logReader
             headers[2] = "Минимальная температура ячейки";
             headers[3] = "Максимальная температура ячейки";
             headers[4] = "Состояние заряда SOC, %";
-        } // Батарея
+        }
 
         public override void Decode()
         {
-            // Минимальное напряжение на блоке в мВ
             int MinCellVoltage = (RawBytes[0] * 256) + RawBytes[1];
             ProcessedData[0] = MinCellVoltage.ToString();
-            // Максимальное напряжение на блоке в мВ
+
             int MaxCellVoltage = (RawBytes[2] * 256) + RawBytes[3];
             ProcessedData[1] = MaxCellVoltage.ToString();
-            // Минимальная температура ячейки
+
             int MinCellTemperature = RawBytes[4] + 40;
             ProcessedData[2] = MinCellTemperature.ToString();
-            // Максимальная температура ячейки
+
             int MaxCellTemperature = RawBytes[5] + 40;
             ProcessedData[3] = MaxCellTemperature.ToString();
-            // Состояние заряда SOC в процентах
+
             int StateOfCharge = RawBytes[6];
             ProcessedData[4] = StateOfCharge.ToString();
         }
-
-    } // Батарея
+    }
 
     internal class Device_1FEEFF87 : Device
     {
@@ -459,27 +388,23 @@ namespace logReader
             headers[1] = "Напряжение на выходе контакторов, В";
             headers[2] = "Напряжение батареи, В";
             headers[3] = "Дисбаланс батареи, мВ";
-
-
-        } // Батарея
+        }
 
         public override void Decode()
         {
-            //Напряжение на входе контакторов в В
             int PackVoltage = (RawBytes[1] * 256) + RawBytes[0];
             ProcessedData[0] = PackVoltage.ToString();
-            // Напряжение на выходе контакторов в В
+
             int OutputVoltage = (RawBytes[3] * 256) + RawBytes[2];
             ProcessedData[1] = OutputVoltage.ToString();
-            // Напряжение батареи, вычисленное суммированием напряжений ячеек в В
+
             int BatteryVoltage = (RawBytes[5] * 256) + RawBytes[4];
             ProcessedData[2] = BatteryVoltage.ToString();
-            // Дисбаланс батареи в мВ
+
             int BatteryImbalance = (RawBytes[7] * 256) + RawBytes[6];
             ProcessedData[3] = BatteryImbalance.ToString();
         }
-
-    } // батарея
+    }
 
     internal class Device_1FEEFF88 : Device
     {
@@ -490,50 +415,30 @@ namespace logReader
             headers[2] = "Сопротивление изоляции (текущее)";
             headers[3] = "Сопротивление изоляции (выключено)";
             headers[4] = "Счетчик измерений сопротивления изоляции";
-
-        } // Батарея
+        }
 
         public override void Decode()
         {
-            // Температура охлаждающей жидкости на входе системы
             int CoolantTempIn = RawBytes[0] + 40;
             ProcessedData[0] = CoolantTempIn.ToString();
-            // Температура охлаждающей жидкости на выходе системы
+
             int CoolantTempOut = RawBytes[1] + 40;
             ProcessedData[1] = CoolantTempOut.ToString();
-            // Сопротивление изоляции (текущее)
+
             int InsulationResistance = (RawBytes[3] * 256) + RawBytes[2];
             ProcessedData[2] = InsulationResistance.ToString();
-            // Сопротивление изоляции при выключенном состоянии
+
             int InsulationResistanceOff = (RawBytes[5] * 256) + RawBytes[4];
             ProcessedData[3] = InsulationResistanceOff.ToString();
-            // Счетчик измерений сопротивления изоляции
+
             int InsulationResistanceCount = (RawBytes[7] * 256) + RawBytes[6];
             ProcessedData[4] = InsulationResistanceCount.ToString();
         }
+    }
 
-<<<<<<< Updated upstream
-    } // батарея
-
-
-
-
-
-<<<<<<< Updated upstream
-    internal class Program
-    {      
-       
-        static int BuildExcelRow(
-=======
     public class Program
     {
         public static int BuildExcelRow(
->>>>>>> Stashed changes
-=======
-    public class Program
-    {
-        public static int BuildExcelRow(
->>>>>>> Stashed changes
             IXLWorksheet ws,
             int excelRow,
             int step,
@@ -569,12 +474,6 @@ namespace logReader
                         ws.Cell(excelRow, col++).Value = device.ProcessedData[i];
                 }
             }
-<<<<<<< Updated upstream
-            return excelRow+1;
-        }   
-        
-        static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices)
-=======
             return excelRow + 1;
         }
 
@@ -586,10 +485,6 @@ namespace logReader
         public static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices,
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         {
             int col = 1;
             ws.Cell(1, col++).Value = "Шаг";
@@ -612,11 +507,6 @@ namespace logReader
             return 2;
         }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
         // Чтение числа из ячейки Excel
         static double? GetCellNumber(IXLRow row, int col)
         {
@@ -629,7 +519,7 @@ namespace logReader
             var s = cell.GetString()?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(s)) return null;
 
-            return double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsed)
+            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed)
                 ? parsed
                 : null;
         }
@@ -734,14 +624,11 @@ namespace logReader
             return dynamicDevices;
         }
 
->>>>>>> Stashed changes
         static void Main(string[] args)
         {
             List<Device> devices = new List<Device>
             {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                new Device_180128D0(),
+             /* new Device_180128D0(),
                 new Device_1801D0EF(),
                 new Device_1802D0EF(),
                 new Device_18FF0101(),
@@ -754,39 +641,9 @@ namespace logReader
                 new Device_18FF45F1(),
                 new Device_1FEEFF85(),
                 new Device_1FEEFF87(),
-                new Device_1FEEFF88()
+                new Device_1FEEFF88() */
             };
 
-            Dictionary<string, Device> deviceByID = devices.ToDictionary(d => d.ID);
-=======
-                /*  new Device_180128D0(),
-                  new Device_1801D0EF(),
-                  new Device_1802D0EF(),
-                  new Device_18FF0101(),
-                  new Device_18FF0201(),
-                  new Device_18FF31F1(),
-                  new Device_18FF35F1(),
-                  new Device_18FF42F1(),
-                  new Device_18FF45F1(),
-                  new Device_1FEEFF85(),
-                  new Device_1FEEFF87(),
-                  new Device_1FEEFF88() */
-            };
-=======
-                /*  new Device_180128D0(),
-                  new Device_1801D0EF(),
-                  new Device_1802D0EF(),
-                  new Device_18FF0101(),
-                  new Device_18FF0201(),
-                  new Device_18FF31F1(),
-                  new Device_18FF35F1(),
-                  new Device_18FF42F1(),
-                  new Device_18FF45F1(),
-                  new Device_1FEEFF85(),
-                  new Device_1FEEFF87(),
-                  new Device_1FEEFF88() */
-            };
->>>>>>> Stashed changes
             Console.WriteLine("=== Программа чтения CAN логов ===\n");
             Console.WriteLine($"Базовых устройств загружено: {devices.Count}");
 
@@ -815,7 +672,6 @@ namespace logReader
             var deviceByID = new Dictionary<string, Device>();
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
->>>>>>> Stashed changes
 
             int currentStep = 0;
             string currentTime = "";
@@ -823,39 +679,57 @@ namespace logReader
 
             Console.WriteLine("Программа запущена");
 
-            string[] lines = File.ReadAllLines(@"C:\Users\tv167\OneDrive\Рабочий стол\canlog.csv");
+            string[] lines;
+            try
+            {
+                lines = File.ReadAllLines(@"C:\Users\tv167\OneDrive\Рабочий стол\canlog.csv");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Не удалось прочитать файл canlog.csv: {ex.Message}");
+                return;
+            }
+
             string outputPath = @"C:\Users\tv167\OneDrive\Рабочий стол\result.xlsx";
 
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add("Log");
 
-            int excelRow = BuildExcelHeaders(ws,devices);
+            int excelRow = BuildExcelHeaders(ws, devices);
 
             foreach (string line in lines)
             {
-        
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
                 string[] parts = line.Split(';');
 
-                int priority;
+                if (parts.Length < 5) continue; // защита от коротких строк
+
+                int priority = 0;
                 int.TryParse(parts[3], out priority);
 
                 // ДЕКОД УСТРОЙСТВ 
                 string? deviceKey = parts.Length > 2 ? parts[2] : null;
                 if (priority == 1 && deviceKey != null && deviceByID.TryGetValue(deviceKey, out Device? currentDevice))
                 {
-                    for (int i = 0; i < 8; i++)
-                        currentDevice.RawBytes[i] = Convert.ToInt32(parts[4 + i], 10);
+                    for (int i = 0; i < 8 && (4 + i) < parts.Length; i++)
+                    {
+                        if (int.TryParse(parts[4 + i], out int val))
+                            currentDevice.RawBytes[i] = val;
+                        else
+                            currentDevice.RawBytes[i] = 0;
+                    }
 
                     currentDevice.Decode();
                 }
 
                 // ОБРАБОТКА ШАГОВ
-                if (parts[0] != "") 
+                if (!string.IsNullOrEmpty(parts[0]))
                 {
-                    int newStep = int.Parse(parts[0]);
-                    string newTime = parts[1];
+                    if (!int.TryParse(parts[0], out int newStep)) continue;
+                    string newTime = parts.Length > 1 ? parts[1] : "";
 
-                    if (!firstStep) 
+                    if (!firstStep)
                     {
                         // Записываем результат ПРЕДЫДУЩЕГО шага
                         excelRow = BuildExcelRow(ws, excelRow, currentStep, currentTime, devices);
@@ -872,9 +746,15 @@ namespace logReader
             // ДОЗАПИСЫВАЕМ ПОСЛЕДНИЙ ШАГ
             excelRow = BuildExcelRow(ws, excelRow, currentStep, currentTime, devices);
             // Сохраняем файл .xlsx
-            workbook.SaveAs(outputPath);
+            try
+            {
+                workbook.SaveAs(outputPath);
+                Console.WriteLine($"Результат сохранён в {outputPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при сохранении файла: {ex.Message}");
+            }
         }
-
     }
 }
-          
