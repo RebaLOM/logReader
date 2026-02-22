@@ -2,36 +2,24 @@ namespace logReader.UI
 {
     partial class MainForm
     {
-        /// <summary>
-        ///  Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        ///  Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
-            {
                 components.Dispose();
-            }
             base.Dispose(disposing);
         }
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        ///  Required method for Designer support - do not modify
-        ///  the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             labelCANlog = new Label();
             labelDevices = new Label();
             labelResult = new Label();
+            labelFilterStatus = new Label();
             textBoxCanLog = new TextBox();
             textBoxDevices = new TextBox();
             textBoxOutput = new TextBox();
@@ -49,27 +37,7 @@ namespace logReader.UI
             labelCANlog.AutoSize = true;
             labelCANlog.Location = new Point(12, 9);
             labelCANlog.Name = "labelCANlog";
-            labelCANlog.Size = new Size(132, 15);
-            labelCANlog.TabIndex = 0;
             labelCANlog.Text = "Файл CAN-логов (.csv)";
-            // 
-            // labelDevices
-            // 
-            labelDevices.AutoSize = true;
-            labelDevices.Location = new Point(12, 99);
-            labelDevices.Name = "labelDevices";
-            labelDevices.Size = new Size(120, 15);
-            labelDevices.TabIndex = 1;
-            labelDevices.Text = "Файл посылок (.xlsx)";
-            // 
-            // labelResult
-            // 
-            labelResult.AutoSize = true;
-            labelResult.Location = new Point(12, 182);
-            labelResult.Name = "labelResult";
-            labelResult.Size = new Size(74, 15);
-            labelResult.TabIndex = 2;
-            labelResult.Text = "Сохранить в";
             // 
             // textBoxCanLog
             // 
@@ -77,53 +45,98 @@ namespace logReader.UI
             textBoxCanLog.Location = new Point(12, 27);
             textBoxCanLog.Name = "textBoxCanLog";
             textBoxCanLog.Size = new Size(776, 23);
-            textBoxCanLog.TabIndex = 3;
-            // 
-            // textBoxDevices
-            // 
-            textBoxDevices.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxDevices.Location = new Point(12, 117);
-            textBoxDevices.Name = "textBoxDevices";
-            textBoxDevices.Size = new Size(776, 23);
-            textBoxDevices.TabIndex = 4;
-            // 
-            // textBoxOutput
-            // 
-            textBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxOutput.Location = new Point(12, 200);
-            textBoxOutput.Name = "textBoxOutput";
-            textBoxOutput.Size = new Size(776, 23);
-            textBoxOutput.TabIndex = 5;
             // 
             // buttonCANlog
             // 
             buttonCANlog.Location = new Point(12, 56);
             buttonCANlog.Name = "buttonCANlog";
             buttonCANlog.Size = new Size(75, 23);
-            buttonCANlog.TabIndex = 6;
             buttonCANlog.Text = "Обзор";
             buttonCANlog.UseVisualStyleBackColor = true;
             buttonCANlog.Click += buttonCANlog_Click;
             // 
+            // labelDevices
+            // 
+            labelDevices.AutoSize = true;
+            labelDevices.Location = new Point(12, 92);
+            labelDevices.Name = "labelDevices";
+            labelDevices.Text = "Файл посылок (.xlsx)";
+            // 
+            // textBoxDevices
+            // 
+            textBoxDevices.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxDevices.Location = new Point(12, 110);
+            textBoxDevices.Name = "textBoxDevices";
+            textBoxDevices.TextChanged += textBoxDevices_TextChanged;
+            textBoxDevices.Size = new Size(776, 23);
+            // 
             // buttonDevices
             // 
-            buttonDevices.Location = new Point(12, 146);
+            buttonDevices.Location = new Point(12, 139);
             buttonDevices.Name = "buttonDevices";
             buttonDevices.Size = new Size(75, 23);
-            buttonDevices.TabIndex = 7;
             buttonDevices.Text = "Обзор";
             buttonDevices.UseVisualStyleBackColor = true;
             buttonDevices.Click += buttonDevices_Click;
             // 
+            // labelResult
+            // 
+            labelResult.AutoSize = true;
+            labelResult.Location = new Point(12, 175);
+            labelResult.Name = "labelResult";
+            labelResult.Text = "Сохранить в";
+            // 
+            // textBoxOutput
+            // 
+            textBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxOutput.Location = new Point(12, 193);
+            textBoxOutput.Name = "textBoxOutput";
+            textBoxOutput.Size = new Size(776, 23);
+            // 
             // buttonOutput
             // 
-            buttonOutput.Location = new Point(12, 229);
+            buttonOutput.Location = new Point(12, 222);
             buttonOutput.Name = "buttonOutput";
             buttonOutput.Size = new Size(75, 23);
-            buttonOutput.TabIndex = 8;
             buttonOutput.Text = "Обзор";
             buttonOutput.UseVisualStyleBackColor = true;
             buttonOutput.Click += buttonOutput_Click;
+            // 
+            // labelFilterStatus — показывает сколько устройств/параметров отключено
+            // 
+            labelFilterStatus.AutoSize = true;
+            labelFilterStatus.Location = new Point(389, 312);
+            labelFilterStatus.Name = "labelFilterStatus";
+            labelFilterStatus.Text = "Фильтры: не заданы";
+            labelFilterStatus.ForeColor = Color.DarkGray;
+            labelFilterStatus.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            // 
+            // buttonProcess
+            // 
+            buttonProcess.Location = new Point(12, 308);
+            buttonProcess.Name = "buttonProcess";
+            buttonProcess.Size = new Size(94, 23);
+            buttonProcess.Text = "Обработать";
+            buttonProcess.UseVisualStyleBackColor = true;
+            buttonProcess.Click += buttonProcess_Click;
+            // 
+            // buttonHelp
+            // 
+            buttonHelp.Location = new Point(112, 308);
+            buttonHelp.Name = "buttonHelp";
+            buttonHelp.Size = new Size(75, 23);
+            buttonHelp.Text = "Помощь";
+            buttonHelp.UseVisualStyleBackColor = true;
+            buttonHelp.Click += buttonHelp_Click;
+            // 
+            // buttonDevicesParams
+            // 
+            buttonDevicesParams.Location = new Point(193, 308);
+            buttonDevicesParams.Name = "buttonDevicesParams";
+            buttonDevicesParams.Size = new Size(186, 23);
+            buttonDevicesParams.Text = "Устройства и параметры";
+            buttonDevicesParams.UseVisualStyleBackColor = true;
+            buttonDevicesParams.Click += buttonDevicesParams_Click;
             // 
             // textBoxLog
             // 
@@ -134,43 +147,13 @@ namespace logReader.UI
             textBoxLog.ReadOnly = true;
             textBoxLog.ScrollBars = ScrollBars.Vertical;
             textBoxLog.Size = new Size(800, 100);
-            textBoxLog.TabIndex = 9;
-            // 
-            // buttonProcess
-            // 
-            buttonProcess.Location = new Point(12, 309);
-            buttonProcess.Name = "buttonProcess";
-            buttonProcess.Size = new Size(94, 23);
-            buttonProcess.TabIndex = 10;
-            buttonProcess.Text = "Обработать";
-            buttonProcess.UseVisualStyleBackColor = true;
-            buttonProcess.Click += buttonProcess_Click;
-            // 
-            // buttonHelp
-            // 
-            buttonHelp.Location = new Point(112, 309);
-            buttonHelp.Name = "buttonHelp";
-            buttonHelp.Size = new Size(75, 23);
-            buttonHelp.TabIndex = 11;
-            buttonHelp.Text = "Помощь";
-            buttonHelp.UseVisualStyleBackColor = true;
-            buttonHelp.Click += buttonHelp_Click;
-            // 
-            // buttonDevicesParams
-            // 
-            buttonDevicesParams.Location = new Point(193, 309);
-            buttonDevicesParams.Name = "buttonDevicesParams";
-            buttonDevicesParams.Size = new Size(186, 23);
-            buttonDevicesParams.TabIndex = 12;
-            buttonDevicesParams.Text = "Устройства и параметры";
-            buttonDevicesParams.UseVisualStyleBackColor = true;
-            buttonDevicesParams.Click += buttonDevicesParams_Click;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(labelFilterStatus);
             Controls.Add(buttonDevicesParams);
             Controls.Add(buttonHelp);
             Controls.Add(buttonProcess);
@@ -196,6 +179,7 @@ namespace logReader.UI
         private Label labelCANlog;
         private Label labelDevices;
         private Label labelResult;
+        private Label labelFilterStatus;
         private TextBox textBoxCanLog;
         private TextBox textBoxDevices;
         private TextBox textBoxOutput;

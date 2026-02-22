@@ -1,3 +1,4 @@
+using System.Text;
 using ClosedXML.Excel;
 using logReader;
 
@@ -30,8 +31,20 @@ namespace logReader.UI
                 log("Ошибка: устройства не загружены.");
                 return;
             }
-
             log($"Загружено устройств: {devices.Count}");
+
+            if (!File.Exists(csvPath))
+            {
+                log($"Ошибка: файл лога не найден: {csvPath}");
+                return;
+            }
+
+            string? outputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+            {
+                log($"Ошибка: директория для сохранения не существует: {outputDir}");
+                return;
+            }
 
             var deviceByID = new Dictionary<string, Device>();
             foreach (var d in devices)
@@ -43,39 +56,74 @@ namespace logReader.UI
 
             log("Чтение CAN лога...");
 
-            string[] lines = File.ReadAllLines(csvPath);
+            string[] lines;
+            try
+            {
+                
+                lines = File.ReadAllLines(csvPath, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                log($"Ошибка чтения файла: {ex.Message}");
+                return;
+            }
 
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add("Log");
 
-            int excelRow = logReader.Program.BuildExcelHeaders(ws, devices, deviceEnabled, paramEnabled);
+            int excelRow = logReader.Program.BuildExcelHeaders(
+                ws, devices, deviceEnabled, paramEnabled);
+
+            int processedLines = 0;
+            int skippedLines = 0;
 
             foreach (string line in lines)
             {
+               
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
                 string[] parts = line.Split(';');
 
-                if (parts.Length < 12)
-                    continue;
+               
+                if (parts.Length < 3) { skippedLines++; continue; }
 
-                int priority;
-                int.TryParse(parts[3], out priority);
+                
+                int priority = 0;
+                if (parts.Length > 3)
+                    int.TryParse(parts[3], out priority);
 
-                if (priority == 1 && deviceByID.TryGetValue(parts[2], out Device? currentDevice))
+                if (priority == 1
+                    && parts.Length >= 12
+                    && deviceByID.TryGetValue(parts[2], out Device? currentDevice))
                 {
                     for (int i = 0; i < 8; i++)
-                        currentDevice.RawBytes[i] = Convert.ToInt32(parts[4 + i], 10);
-
+                    {
+                        
+                        currentDevice.RawBytes[i] =
+                            int.TryParse(parts[4 + i], out int val) ? val : 0;
+                    }
                     currentDevice.Decode();
+                    processedLines++;
                 }
 
-                if (parts[0] != "")
+                
+                if (!string.IsNullOrWhiteSpace(parts[0]))
                 {
-                    int newStep = int.Parse(parts[0]);
-                    string newTime = parts[1];
+                    
+                    if (!int.TryParse(parts[0], out int newStep))
+                    {
+                        skippedLines++;
+                        continue;
+                    }
+
+                    
+                    string newTime = parts.Length > 1 ? parts[1] : "";
 
                     if (!firstStep)
                     {
-                        excelRow = logReader.Program.BuildExcelRow(ws, excelRow, currentStep, currentTime, devices, deviceEnabled, paramEnabled);
+                        excelRow = logReader.Program.BuildExcelRow(
+                            ws, excelRow, currentStep, currentTime,
+                            devices, deviceEnabled, paramEnabled);
                     }
 
                     currentStep = newStep;
@@ -84,11 +132,26 @@ namespace logReader.UI
                 }
             }
 
-            excelRow = logReader.Program.BuildExcelRow(ws, excelRow, currentStep, currentTime, devices, deviceEnabled, paramEnabled);
+            // Дозаписываем последний шаг
+            if (!firstStep)
+            {
+                excelRow = logReader.Program.BuildExcelRow(
+                    ws, excelRow, currentStep, currentTime,
+                    devices, deviceEnabled, paramEnabled);
+            }
 
-            workbook.SaveAs(outputPath);
+            if (skippedLines > 0)
+                log($"Пропущено некорректных строк: {skippedLines}");
 
-            log("Обработка завершена.");
+            try
+            {
+                workbook.SaveAs(outputPath);
+                log("Обработка завершена.");
+            }
+            catch (Exception ex)
+            {
+                log($"Ошибка сохранения файла: {ex.Message}");
+            }
         }
     }
 }

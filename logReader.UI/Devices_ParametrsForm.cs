@@ -13,7 +13,6 @@ namespace logReader.UI
         private const int PARAM_H = 28;
         private const int GB_MARGIN = 8;
 
-        // Внутренний контейнер — обычный Panel с ручной высотой
         private Panel _innerPanel = null!;
 
         public Devices_ParametrsForm(List<Device> devices,
@@ -28,12 +27,10 @@ namespace logReader.UI
             Shown += (_, _) => BuildDevicePanels();
         }
 
-        // ─── Ширина доступная для GroupBox ────────────────────────────────
         private int GbWidth() =>
             scrollPanel.ClientSize.Width
             - SystemInformation.VerticalScrollBarWidth - 12;
 
-        // ─── Высота одного GroupBox ───────────────────────────────────────
         private int GbHeight(int paramCount) =>
             22 + HEADER_H + 2 + paramCount * PARAM_H + 10;
 
@@ -45,11 +42,9 @@ namespace logReader.UI
             int yOffset = 6;
             int totalH = 6;
 
-            // Считаем итоговую высоту
             foreach (var d in _devices)
                 totalH += GbHeight(d.headers.Length) + GB_MARGIN;
 
-            // Создаём контейнер с фиксированной высотой — скролл работает от неё
             _innerPanel = new Panel
             {
                 Top = 0,
@@ -89,7 +84,6 @@ namespace logReader.UI
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
             };
 
-            // ── Шапка устройства ─────────────────────────────────────────
             var headerPanel = new Panel
             {
                 Left = 6,
@@ -102,7 +96,7 @@ namespace logReader.UI
 
             headerPanel.Controls.Add(new Label
             {
-                Text = "Устройство:  " + device.ID,
+                Text = "Посылка:  " + device.ID,
                 Left = 8,
                 Top = 0,
                 Height = HEADER_H,
@@ -115,7 +109,7 @@ namespace logReader.UI
             var btnDevice = new CheckBox
             {
                 Tag = device.ID,
-                Text = devOn ? "✔  Включено" : "✖  Выключено",
+                Text = devOn ? "Включено" : "Выключено",
                 Checked = devOn,
                 Appearance = Appearance.Button,
                 Left = headerPanel.Width - 120,
@@ -132,7 +126,6 @@ namespace logReader.UI
             headerPanel.Controls.Add(btnDevice);
             gb.Controls.Add(headerPanel);
 
-            // ── Разделитель ───────────────────────────────────────────────
             gb.Controls.Add(new Panel
             {
                 Left = 6,
@@ -143,7 +136,6 @@ namespace logReader.UI
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
             });
 
-            // ── Параметры ─────────────────────────────────────────────────
             int paramTop = 18 + HEADER_H + 2;
 
             for (int i = 0; i < device.headers.Length; i++)
@@ -198,7 +190,43 @@ namespace logReader.UI
             return gb;
         }
 
-        // ─── Resize: обновляем ширины ─────────────────────────────────────
+        // ─── Поиск ────────────────────────────────────────────────────────
+        private void textBoxSearch_TextChanged(object? sender, EventArgs e)
+        {
+            string query = textBoxSearch.Text.Trim().ToLowerInvariant();
+            ApplyFilter(query);
+        }
+
+        private void ApplyFilter(string query)
+        {
+            if (_innerPanel == null) return;
+
+            _innerPanel.SuspendLayout();
+
+            int yOffset = 6;
+            int totalH = 6;
+
+            foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
+            {
+                string deviceId = gb.Tag as string ?? "";
+                bool visible = string.IsNullOrEmpty(query)
+                               || deviceId.ToLowerInvariant().Contains(query);
+
+                gb.Visible = visible;
+
+                if (visible)
+                {
+                    gb.Top = yOffset;
+                    yOffset += gb.Height + GB_MARGIN;
+                    totalH += gb.Height + GB_MARGIN;
+                }
+            }
+
+            _innerPanel.Height = Math.Max(totalH, scrollPanel.ClientSize.Height);
+            _innerPanel.ResumeLayout();
+        }
+
+        // ─── Resize ───────────────────────────────────────────────────────
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
@@ -211,15 +239,14 @@ namespace logReader.UI
 
             foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
                 gb.Width = gbW;
-            // Внутренние панели с Anchor=Left|Right пересчитаются сами
         }
 
-        // ─── Обработчики ──────────────────────────────────────────────────
+        // ─── Обработчики кнопок ───────────────────────────────────────────
         private void DeviceToggle_CheckedChanged(object? sender, EventArgs e)
         {
             if (sender is not CheckBox cb || cb.Tag is not string deviceId) return;
             bool isOn = cb.Checked;
-            cb.Text = isOn ? "✔  Включено" : "✖  Выключено";
+            cb.Text = isOn ? "Включено" : "Выключено";
             cb.BackColor = isOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
             _deviceEnabled[deviceId] = isOn;
         }
@@ -240,18 +267,18 @@ namespace logReader.UI
                 _paramEnabled[deviceId][idx] = isOn;
         }
 
-        // ─── Включить / выключить всё ─────────────────────────────────────
         private void SetAll(bool value)
         {
             if (_innerPanel == null) return;
 
             foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
             {
+                // применяем только к видимым (отфильтрованным) устройствам
+                if (!gb.Visible) continue;
+
                 foreach (var panel in gb.Controls.OfType<Panel>())
-                {
                     foreach (var cb in panel.Controls.OfType<CheckBox>())
                         cb.Checked = value;
-                }
             }
         }
 
