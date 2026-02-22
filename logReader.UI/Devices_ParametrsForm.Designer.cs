@@ -17,21 +17,12 @@ namespace logReader.UI
         {
             scrollPanel = new Panel();
             panelButtons = new Panel();
-            buttonDisableAll = new Button();
             buttonEnableAll = new Button();
+            buttonDisableAll = new Button();
             panelButtons.SuspendLayout();
             SuspendLayout();
             // 
-            // scrollPanel
-            // 
-            scrollPanel.AutoScroll = true;
-            scrollPanel.Dock = DockStyle.Fill;
-            scrollPanel.Location = new Point(0, 0);
-            scrollPanel.Name = "scrollPanel";
-            scrollPanel.Padding = new Padding(4);
-            scrollPanel.TabIndex = 0;
-            // 
-            // panelButtons
+            // panelButtons — прибит к низу, создаём первым чтобы Fill правильно отработал
             // 
             panelButtons.Controls.Add(buttonEnableAll);
             panelButtons.Controls.Add(buttonDisableAll);
@@ -55,17 +46,25 @@ namespace logReader.UI
             // 
             buttonDisableAll.Location = new Point(150, 10);
             buttonDisableAll.Name = "buttonDisableAll";
-            buttonDisableAll.Size = new Size(130, 28);
+            buttonDisableAll.Size = new Size(140, 28);
             buttonDisableAll.TabIndex = 1;
             buttonDisableAll.Text = "✖ Выключить все";
             buttonDisableAll.UseVisualStyleBackColor = true;
             buttonDisableAll.Click += buttonDisableAll_Click;
             // 
+            // scrollPanel — Fill, занимает всё оставшееся пространство
+            // 
+            scrollPanel.AutoScroll = true;
+            scrollPanel.Dock = DockStyle.Fill;
+            scrollPanel.Name = "scrollPanel";
+            scrollPanel.TabIndex = 0;
+            // 
             // Devices_ParametrsForm
+            // ВАЖНО: Bottom-docked панель должна быть добавлена ДО Fill-панели
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(560, 600);
+            ClientSize = new Size(580, 620);
             MinimumSize = new Size(480, 400);
             Controls.Add(scrollPanel);
             Controls.Add(panelButtons);

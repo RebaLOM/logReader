@@ -9,6 +9,13 @@ namespace logReader.UI
         private readonly Dictionary<string, bool> _deviceEnabled;
         private readonly Dictionary<string, bool[]> _paramEnabled;
 
+        private const int HEADER_H = 34;
+        private const int PARAM_H = 28;
+        private const int GB_MARGIN = 8;
+
+        // Внутренний контейнер — обычный Panel с ручной высотой
+        private Panel _innerPanel = null!;
+
         public Devices_ParametrsForm(List<Device> devices,
             Dictionary<string, bool> deviceEnabled,
             Dictionary<string, bool[]> paramEnabled)
@@ -17,19 +24,42 @@ namespace logReader.UI
             _devices = devices;
             _deviceEnabled = deviceEnabled;
             _paramEnabled = paramEnabled;
-            BuildDevicePanels();
+
+            Shown += (_, _) => BuildDevicePanels();
         }
+
+        // ─── Ширина доступная для GroupBox ────────────────────────────────
+        private int GbWidth() =>
+            scrollPanel.ClientSize.Width
+            - SystemInformation.VerticalScrollBarWidth - 12;
+
+        // ─── Высота одного GroupBox ───────────────────────────────────────
+        private int GbHeight(int paramCount) =>
+            22 + HEADER_H + 2 + paramCount * PARAM_H + 10;
 
         private void BuildDevicePanels()
         {
             scrollPanel.Controls.Clear();
-            scrollPanel.SuspendLayout();
 
-            int yOffset = 8;
+            int gbW = GbWidth();
+            int yOffset = 6;
+            int totalH = 6;
+
+            // Считаем итоговую высоту
+            foreach (var d in _devices)
+                totalH += GbHeight(d.headers.Length) + GB_MARGIN;
+
+            // Создаём контейнер с фиксированной высотой — скролл работает от неё
+            _innerPanel = new Panel
+            {
+                Top = 0,
+                Left = 0,
+                Width = scrollPanel.ClientSize.Width,
+                Height = totalH,
+            };
 
             foreach (var device in _devices)
             {
-                // Инициализируем состояние если нет
                 if (!_deviceEnabled.ContainsKey(device.ID))
                     _deviceEnabled[device.ID] = true;
                 if (!_paramEnabled.ContainsKey(device.ID))
@@ -38,196 +68,194 @@ namespace logReader.UI
                 bool devOn = _deviceEnabled[device.ID];
                 bool[] paramArr = _paramEnabled[device.ID];
 
-                // ── Контейнер устройства ──────────────────────────────────
-                var groupBox = new GroupBox
-                {
-                    Text = "",
-                    Left = 8,
-                    Top = yOffset,
-                    Width = scrollPanel.ClientSize.Width - 24,
-                    Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                    Padding = new Padding(6, 4, 6, 6),
-                    Tag = device.ID
-                };
+                var gb = CreateGroupBox(device, devOn, paramArr, gbW, yOffset);
+                _innerPanel.Controls.Add(gb);
 
-                int innerY = 22;
+                yOffset += GbHeight(device.headers.Length) + GB_MARGIN;
+            }
 
-                // ── Заголовок: ID устройства + кнопка вкл/выкл ───────────
-                var headerPanel = new Panel
+            scrollPanel.Controls.Add(_innerPanel);
+        }
+
+        private GroupBox CreateGroupBox(Device device, bool devOn, bool[] paramArr, int gbW, int top)
+        {
+            var gb = new GroupBox
+            {
+                Tag = device.ID,
+                Left = 6,
+                Top = top,
+                Width = gbW,
+                Height = GbHeight(device.headers.Length),
+                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
+            };
+
+            // ── Шапка устройства ─────────────────────────────────────────
+            var headerPanel = new Panel
+            {
+                Left = 6,
+                Top = 18,
+                Height = HEADER_H,
+                Width = gb.ClientSize.Width - 12,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                BackColor = Color.FromArgb(220, 228, 242)
+            };
+
+            headerPanel.Controls.Add(new Label
+            {
+                Text = "Устройство:  " + device.ID,
+                Left = 8,
+                Top = 0,
+                Height = HEADER_H,
+                Width = headerPanel.Width - 130,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font(Font, FontStyle.Bold)
+            });
+
+            var btnDevice = new CheckBox
+            {
+                Tag = device.ID,
+                Text = devOn ? "✔  Включено" : "✖  Выключено",
+                Checked = devOn,
+                Appearance = Appearance.Button,
+                Left = headerPanel.Width - 120,
+                Top = 5,
+                Width = 116,
+                Height = 24,
+                Anchor = AnchorStyles.Right,
+                BackColor = devOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168),
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            btnDevice.FlatAppearance.BorderSize = 0;
+            btnDevice.CheckedChanged += DeviceToggle_CheckedChanged;
+            headerPanel.Controls.Add(btnDevice);
+            gb.Controls.Add(headerPanel);
+
+            // ── Разделитель ───────────────────────────────────────────────
+            gb.Controls.Add(new Panel
+            {
+                Left = 6,
+                Top = 18 + HEADER_H,
+                Width = gb.ClientSize.Width - 12,
+                Height = 1,
+                BackColor = Color.Silver,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
+            });
+
+            // ── Параметры ─────────────────────────────────────────────────
+            int paramTop = 18 + HEADER_H + 2;
+
+            for (int i = 0; i < device.headers.Length; i++)
+            {
+                bool paramOn = i < paramArr.Length ? paramArr[i] : true;
+
+                var paramPanel = new Panel
                 {
+                    Tag = (device.ID, i),
                     Left = 6,
-                    Top = innerY,
-                    Height = 32,
-                    Width = groupBox.ClientSize.Width - 12,
-                    Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                    BackColor = Color.FromArgb(230, 235, 245)
+                    Top = paramTop + i * PARAM_H,
+                    Height = PARAM_H - 1,
+                    Width = gb.ClientSize.Width - 12,
+                    Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                    BackColor = i % 2 == 0 ? Color.White : Color.FromArgb(246, 246, 252)
                 };
 
-                var lblDevice = new Label
+                paramPanel.Controls.Add(new Label
                 {
-                    Text = $"Устройство: {device.ID}",
+                    Text = device.headers[i],
                     Left = 8,
-                    Top = 7,
-                    AutoSize = true,
-                    Font = new Font(Font, FontStyle.Bold),
-                    Tag = device.ID
-                };
+                    Top = 0,
+                    Height = paramPanel.Height,
+                    Width = paramPanel.Width - 82,
+                    Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoEllipsis = true
+                });
 
-                var btnToggleDevice = new CheckBox
+                var btnParam = new CheckBox
                 {
-                    Text = devOn ? "Включено" : "Выключено",
-                    Checked = devOn,
+                    Tag = (device.ID, i),
+                    Text = paramOn ? "Вкл" : "Выкл",
+                    Checked = paramOn,
                     Appearance = Appearance.Button,
-                    Left = headerPanel.Width - 120,
-                    Top = 4,
-                    Width = 110,
-                    Height = 24,
+                    Left = paramPanel.Width - 70,
+                    Top = 2,
+                    Width = 66,
+                    Height = 22,
                     Anchor = AnchorStyles.Right,
-                    Tag = device.ID,
-                    BackColor = devOn ? Color.FromArgb(180, 220, 180) : Color.FromArgb(220, 180, 180),
+                    BackColor = paramOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200),
                     FlatStyle = FlatStyle.Flat,
                     TextAlign = ContentAlignment.MiddleCenter
                 };
-                btnToggleDevice.FlatAppearance.BorderSize = 0;
-                btnToggleDevice.CheckedChanged += DeviceToggle_CheckedChanged;
+                btnParam.FlatAppearance.BorderSize = 0;
+                btnParam.CheckedChanged += ParamToggle_CheckedChanged;
 
-                headerPanel.Controls.Add(lblDevice);
-                headerPanel.Controls.Add(btnToggleDevice);
-                groupBox.Controls.Add(headerPanel);
-
-                innerY += headerPanel.Height + 6;
-
-                // ── Разделительная линия ─────────────────────────────────
-                var separator = new Panel
-                {
-                    Left = 6,
-                    Top = innerY,
-                    Width = groupBox.ClientSize.Width - 12,
-                    Height = 1,
-                    BackColor = Color.Silver,
-                    Anchor = AnchorStyles.Left | AnchorStyles.Right
-                };
-                groupBox.Controls.Add(separator);
-                innerY += 6;
-
-                // ── Параметры ────────────────────────────────────────────
-                for (int i = 0; i < device.headers.Length; i++)
-                {
-                    bool paramOn = i < paramArr.Length ? paramArr[i] : true;
-
-                    var paramPanel = new Panel
-                    {
-                        Left = 6,
-                        Top = innerY,
-                        Height = 28,
-                        Width = groupBox.ClientSize.Width - 12,
-                        Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                        BackColor = i % 2 == 0 ? Color.White : Color.FromArgb(245, 245, 250),
-                        Tag = (device.ID, i)
-                    };
-
-                    var lblParam = new Label
-                    {
-                        Text = device.headers[i],
-                        Left = 10,
-                        Top = 6,
-                        Width = paramPanel.Width - 140,
-                        Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                        AutoEllipsis = true
-                    };
-
-                    var btnToggleParam = new CheckBox
-                    {
-                        Text = paramOn ? "Вкл" : "Выкл",
-                        Checked = paramOn,
-                        Appearance = Appearance.Button,
-                        Left = paramPanel.Width - 75,
-                        Top = 2,
-                        Width = 65,
-                        Height = 22,
-                        Anchor = AnchorStyles.Right,
-                        Tag = (device.ID, i),
-                        BackColor = paramOn ? Color.FromArgb(200, 230, 200) : Color.FromArgb(230, 200, 200),
-                        FlatStyle = FlatStyle.Flat,
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    btnToggleParam.FlatAppearance.BorderSize = 0;
-                    btnToggleParam.CheckedChanged += ParamToggle_CheckedChanged;
-
-                    paramPanel.Controls.Add(lblParam);
-                    paramPanel.Controls.Add(btnToggleParam);
-                    groupBox.Controls.Add(paramPanel);
-
-                    innerY += 30;
-                }
-
-                innerY += 8;
-                groupBox.Height = innerY;
-                scrollPanel.Controls.Add(groupBox);
-                yOffset += groupBox.Height + 10;
+                paramPanel.Controls.Add(btnParam);
+                gb.Controls.Add(paramPanel);
             }
 
-            scrollPanel.ResumeLayout();
+            return gb;
         }
 
+        // ─── Resize: обновляем ширины ─────────────────────────────────────
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (_innerPanel == null || scrollPanel == null) return;
+
+            int newW = scrollPanel.ClientSize.Width;
+            int gbW = GbWidth();
+
+            _innerPanel.Width = newW;
+
+            foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
+                gb.Width = gbW;
+            // Внутренние панели с Anchor=Left|Right пересчитаются сами
+        }
+
+        // ─── Обработчики ──────────────────────────────────────────────────
         private void DeviceToggle_CheckedChanged(object? sender, EventArgs e)
         {
             if (sender is not CheckBox cb || cb.Tag is not string deviceId) return;
-
             bool isOn = cb.Checked;
-            cb.Text = isOn ? "Включено" : "Выключено";
-            cb.BackColor = isOn ? Color.FromArgb(180, 220, 180) : Color.FromArgb(220, 180, 180);
-
+            cb.Text = isOn ? "✔  Включено" : "✖  Выключено";
+            cb.BackColor = isOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
             _deviceEnabled[deviceId] = isOn;
         }
 
         private void ParamToggle_CheckedChanged(object? sender, EventArgs e)
         {
-            if (sender is not CheckBox cb || cb.Tag is not (string deviceId, int paramIdx)) return;
-
+            if (sender is not CheckBox cb || cb.Tag is not (string deviceId, int idx)) return;
             bool isOn = cb.Checked;
             cb.Text = isOn ? "Вкл" : "Выкл";
-            cb.BackColor = isOn ? Color.FromArgb(200, 230, 200) : Color.FromArgb(230, 200, 200);
+            cb.BackColor = isOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
 
             if (!_paramEnabled.ContainsKey(deviceId))
             {
                 var dev = _devices.First(d => d.ID == deviceId);
                 _paramEnabled[deviceId] = Enumerable.Repeat(true, dev.headers.Length).ToArray();
             }
-
-            if (paramIdx < _paramEnabled[deviceId].Length)
-                _paramEnabled[deviceId][paramIdx] = isOn;
+            if (idx < _paramEnabled[deviceId].Length)
+                _paramEnabled[deviceId][idx] = isOn;
         }
 
-        private void SetAllDevices(bool value)
+        // ─── Включить / выключить всё ─────────────────────────────────────
+        private void SetAll(bool value)
         {
-            foreach (Control ctrl in scrollPanel.Controls)
+            if (_innerPanel == null) return;
+
+            foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
             {
-                if (ctrl is not GroupBox gb || gb.Tag is not string deviceId) continue;
-
-                // Кнопка устройства
-                var headerPanel = gb.Controls.OfType<Panel>().FirstOrDefault();
-                if (headerPanel != null)
+                foreach (var panel in gb.Controls.OfType<Panel>())
                 {
-                    var devBtn = headerPanel.Controls.OfType<CheckBox>().FirstOrDefault();
-                    if (devBtn != null)
-                    {
-                        devBtn.Checked = value;
-                        // CheckedChanged обновит _deviceEnabled
-                    }
-                }
-
-                // Кнопки параметров
-                foreach (var paramPanel in gb.Controls.OfType<Panel>().Skip(1))
-                {
-                    if (paramPanel.Tag is not (string, int)) continue;
-                    var paramBtn = paramPanel.Controls.OfType<CheckBox>().FirstOrDefault();
-                    if (paramBtn != null) paramBtn.Checked = value;
+                    foreach (var cb in panel.Controls.OfType<CheckBox>())
+                        cb.Checked = value;
                 }
             }
         }
 
-        private void buttonEnableAll_Click(object sender, EventArgs e) => SetAllDevices(true);
-        private void buttonDisableAll_Click(object sender, EventArgs e) => SetAllDevices(false);
+        private void buttonEnableAll_Click(object sender, EventArgs e) => SetAll(true);
+        private void buttonDisableAll_Click(object sender, EventArgs e) => SetAll(false);
     }
 }
