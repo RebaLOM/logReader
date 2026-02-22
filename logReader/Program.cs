@@ -1,5 +1,8 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ﻿using System.Text;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 using ClosedXML.Excel;
@@ -16,9 +19,12 @@ namespace logReader
         public string[] RawBinaries = new string[8];
         public string[] ProcessedData;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         // устройства с которыми мы не работаем
         string[] skip = new string[] { "1803D0EF", "1FEE0110", "1FEE1001", "1FEEFF84", "1FEEFF86" };
 =======
+=======
+>>>>>>> Stashed changes
       
 
 >>>>>>> Stashed changes
@@ -314,7 +320,11 @@ namespace logReader
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             string faultBits = SystemFault.Substring(2, 6); // Биты 0-5
+=======
+            string faultBits = SystemFault.Substring(0, 6);
+>>>>>>> Stashed changes
 =======
             string faultBits = SystemFault.Substring(0, 6);
 >>>>>>> Stashed changes
@@ -396,7 +406,11 @@ namespace logReader
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             string faultBits = SystemFault.Substring(2, 6); // Биты 0-5
+=======
+            string faultBits = SystemFault.Substring(0, 6);
+>>>>>>> Stashed changes
 =======
             string faultBits = SystemFault.Substring(0, 6);
 >>>>>>> Stashed changes
@@ -498,6 +512,7 @@ namespace logReader
             ProcessedData[4] = InsulationResistanceCount.ToString();
         }
 
+<<<<<<< Updated upstream
     } // батарея
 
 
@@ -509,6 +524,11 @@ namespace logReader
     {      
        
         static int BuildExcelRow(
+=======
+    public class Program
+    {
+        public static int BuildExcelRow(
+>>>>>>> Stashed changes
 =======
     public class Program
     {
@@ -566,6 +586,9 @@ namespace logReader
         public static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices,
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         {
             int col = 1;
@@ -590,7 +613,10 @@ namespace logReader
         }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
         // Чтение числа из ячейки Excel
         static double? GetCellNumber(IXLRow row, int col)
         {
@@ -714,6 +740,7 @@ namespace logReader
             List<Device> devices = new List<Device>
             {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 new Device_180128D0(),
                 new Device_1801D0EF(),
                 new Device_1802D0EF(),
@@ -745,6 +772,21 @@ namespace logReader
                   new Device_1FEEFF87(),
                   new Device_1FEEFF88() */
             };
+=======
+                /*  new Device_180128D0(),
+                  new Device_1801D0EF(),
+                  new Device_1802D0EF(),
+                  new Device_18FF0101(),
+                  new Device_18FF0201(),
+                  new Device_18FF31F1(),
+                  new Device_18FF35F1(),
+                  new Device_18FF42F1(),
+                  new Device_18FF45F1(),
+                  new Device_1FEEFF85(),
+                  new Device_1FEEFF87(),
+                  new Device_1FEEFF88() */
+            };
+>>>>>>> Stashed changes
             Console.WriteLine("=== Программа чтения CAN логов ===\n");
             Console.WriteLine($"Базовых устройств загружено: {devices.Count}");
 
