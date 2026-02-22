@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationIcon>CAN_reader.ico</ApplicationIcon>
+		<Win32Icon>CAN_reader.ico</Win32Icon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Remove="CAN_reader.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="CAN_reader.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\logReader\logReader.csproj" />
+	</ItemGroup>
+
+</Project>

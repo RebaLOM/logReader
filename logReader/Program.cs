@@ -1,18 +1,16 @@
-using System.Text;
 using ClosedXML.Excel;
 
 namespace logReader
 {
     // БАЗОВЫЙ КЛАСС 
-    internal class Device
+    public class Device
     {
         public string ID;
         public string[] headers;
         public int[] RawBytes = new int[8];
         public string[] RawBinaries = new string[8];
         public string[] ProcessedData;
-        // устройства с которыми мы не работаем
-        string[] skip = new string[] { "1803D0EF", "1FEE0110", "1FEE1001", "1FEEFF84", "1FEEFF86" };
+      
 
         public void ToBinaries(int index)
         {
@@ -32,7 +30,7 @@ namespace logReader
     }
 
     // СТРУКТУРА ДЛЯ ХРАНЕНИЯ ИНСТРУКЦИИ ДЕКОДИРОВАНИЯ ПОЛЯ
-    internal class FieldInstruction
+    public class FieldInstruction
     {
         public int FieldIndex;          // Индекс поля (0, 1, 2...)
         public string Header;           // Название заголовка
@@ -41,10 +39,12 @@ namespace logReader
         public double Scale;            // Множитель
         public double Offset;           // Смещение
         public string Type;             // Тип: NUM (числовое), BIN (бинарное)
+        public int StartBit;            // Начальный бит (только для BIN)
+        public int LenghtBit;           // Длина строки битов от StartBit
     }
 
     // ДИНАМИЧЕСКОЕ УСТРОЙСТВО, ЗАГРУЖЕННОЕ ИЗ ФАЙЛА
-    internal class DynamicDevice : Device
+    public class DynamicDevice : Device
     {
         private List<FieldInstruction> instructions;
 
@@ -88,7 +88,8 @@ namespace logReader
                 {
                     // Бинарная обработка
                     ToBinaries(instr.ByteLow);
-                    ProcessedData[instr.FieldIndex] = RawBinaries[instr.ByteLow];
+                    string BinarBits = RawBinaries[instr.ByteLow].Substring(instr.StartBit, instr.LenghtBit);
+                    ProcessedData[instr.FieldIndex] = Convert.ToInt32(BinarBits, 2).ToString();
                 }
             }
         }
@@ -245,7 +246,7 @@ namespace logReader
         {
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
-            string faultBits = SystemFault.Substring(2, 6);
+            string faultBits = SystemFault.Substring(0, 6);
             ProcessedData[0] = Convert.ToInt32(faultBits, 2).ToString();
         }
     }
@@ -289,7 +290,7 @@ namespace logReader
         {
             ToBinaries(1);
             string SystemFault = RawBinaries[1];
-            string faultBits = SystemFault.Substring(2, 6);
+            string faultBits = SystemFault.Substring(0, 6);
             ProcessedData[0] = Convert.ToInt32(faultBits, 2).ToString();
         }
     }
@@ -380,9 +381,9 @@ namespace logReader
         }
     }
 
-    internal class Program
+    public class Program
     {
-        static int BuildExcelRow(
+        public static int BuildExcelRow(
             IXLWorksheet ws,
             int excelRow,
             int step,
@@ -402,7 +403,7 @@ namespace logReader
             return excelRow + 1;
         }
 
-        static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices)
+        public static int BuildExcelHeaders(IXLWorksheet ws, List<Device> devices)
         {
             int col = 1;
             ws.Cell(1, col++).Value = "Шаг";
@@ -418,7 +419,7 @@ namespace logReader
             return 2;
         }
 
-        // Унифицированное чтение числа из ячейки Excel
+        // Чтение числа из ячейки Excel
         static double? GetCellNumber(IXLRow row, int col)
         {
             var cell = row.Cell(col);
@@ -436,7 +437,7 @@ namespace logReader
         }
 
         // МЕТОД ДЛЯ ЗАГРУЗКИ УСТРОЙСТВ ИЗ EXCEL ФАЙЛА
-        static List<Device> LoadDevicesFromExcel(string excelPath)
+        public static List<Device> LoadDevicesFromExcel(string excelPath, Action<string>? log = null)
         {
             var dynamicDevices = new List<Device>();
 
@@ -456,7 +457,7 @@ namespace logReader
                     string deviceID = row.Cell(1).GetString().Trim();
                     if (string.IsNullOrWhiteSpace(deviceID))
                     {
-                        Console.WriteLine($" Строка {rowNum}: отсутствует DeviceID.");
+                        (log ?? (Action<string>)Console.WriteLine)($"Строка {rowNum}: отсутствует DeviceID.");
                         continue;
                     }
 
@@ -475,9 +476,14 @@ namespace logReader
                         }
                         if (!byteLow.HasValue)
                         {
-                            Console.WriteLine($" Строка {rowNum}: не указан ByteLow.");
+                            (log ?? (Action<string>)Console.WriteLine)($"Строка {rowNum}: не указан ByteLow и ByteHigh.");
                             continue;
                         }
+                        double? BitStart = GetCellNumber(row, 9);
+                        double? BitLenght = GetCellNumber(row, 10);
+
+                        int? startBit = BitStart.HasValue ? (int)BitStart.Value : 0;
+                        int? lengthBit = BitLenght.HasValue ? (int)BitLenght.Value : 0;
 
                         double? fieldIndexNum = GetCellNumber(row, 2);
                         int fieldIndex = fieldIndexNum.HasValue ? (int)fieldIndexNum.Value : 0;
@@ -493,7 +499,9 @@ namespace logReader
                             ByteHigh = byteHigh,
                             Scale = scale,
                             Offset = offset,
-                            Type = row.Cell(8).GetString().Trim()
+                            Type = row.Cell(8).GetString().Trim(),
+                            StartBit = startBit ?? 0,
+                            LenghtBit = lengthBit ?? 0,
                         };
 
                         if (!deviceGroups.ContainsKey(deviceID))
@@ -505,7 +513,7 @@ namespace logReader
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($" Ошибка в строке {rowNum}: {ex.Message}");
+                        (log ?? (Action<string>)Console.WriteLine)($"Ошибка в строке {rowNum}: {ex.Message}");
                         continue;
                     }
                 }
@@ -518,11 +526,11 @@ namespace logReader
                     dynamicDevices.Add(new DynamicDevice(kvp.Key, sortedInstructions));
                 }
 
-                Console.WriteLine($" Загружено {dynamicDevices.Count} устройств из файла.");
+                Console.WriteLine($"Загружено {dynamicDevices.Count} устройств из файла.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($" Ошибка загрузки устройств: {ex.Message}");
+                throw new InvalidOperationException($"Ошибка загрузки устройств: {ex.Message}", ex);
             }
 
             return dynamicDevices;
@@ -533,28 +541,27 @@ namespace logReader
             // СТАТИЧЕСКИЕ УСТРОЙСТВА (встроенные в код)
             List<Device> devices = new List<Device>
             {
-                new Device_180128D0(),
-                new Device_1801D0EF(),
-                new Device_1802D0EF(),
-                new Device_18FF0101(),
-                new Device_18FF0201(),
-                new Device_18FF31F1(),
-                new Device_18FF35F1(),
-                new Device_18FF42F1(),
-                new Device_18FF45F1(),
-                new Device_1FEEFF85(),
-                new Device_1FEEFF87(),
-                new Device_1FEEFF88()
+                /*  new Device_180128D0(),
+                  new Device_1801D0EF(),
+                  new Device_1802D0EF(),
+                  new Device_18FF0101(),
+                  new Device_18FF0201(),
+                  new Device_18FF31F1(),
+                  new Device_18FF35F1(),
+                  new Device_18FF42F1(),
+                  new Device_18FF45F1(),
+                  new Device_1FEEFF85(),
+                  new Device_1FEEFF87(),
+                  new Device_1FEEFF88() */
             };
-
             Console.WriteLine("=== Программа чтения CAN логов ===\n");
             Console.WriteLine($"Базовых устройств загружено: {devices.Count}");
 
             // ПРЕДЛОЖЕНИЕ ЗАГРУЗИТЬ ДОПОЛНИТЕЛЬНЫЕ УСТРОЙСТВА
-            Console.Write("\nЖелаете загрузить дополнительные устройства из Excel файла? (да/нет) (по умолчанию: нет): ");
+            Console.Write("\nЖелаете загрузить устройства из Excel файла? (да/нет) (по умолчанию: да): ");
             string answer = Console.ReadLine()?.Trim().ToLower();
 
-            if (answer == "да")
+            if (answer == "да" || answer == "")
             {
                 Console.Write("Введите полный путь к Excel файлу с устройствами: ");
                 string excelPath = Console.ReadLine()?.Trim();
@@ -582,8 +589,8 @@ namespace logReader
 
             Console.WriteLine("Начинаем обработку логов...");
 
-            string[] lines = File.ReadAllLines(@"C:\Users\Re\Desktop\canlog.csv");
-            string outputPath = @"C:\Users\Re\Desktop\result.xlsx";
+            string[] lines = File.ReadAllLines(@"C:\Users\tv167\OneDrive\Рабочий стол\canlog.csv");
+            string outputPath = @"C:\Users\tv167\OneDrive\Рабочий стол\result.xlsx";
 
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add("Log");
