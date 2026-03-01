@@ -309,8 +309,16 @@ namespace logReader.UI
                     }
                 });
 
-                Log("Файл успешно создан.");
-                buttonOpenOutput.Visible = true;
+                if (File.Exists(textBoxOutput.Text))
+                {
+                    Log("Файл успешно создан.");
+                    buttonOpenOutput.Visible = true;
+                }
+                else
+                {
+                    Log("Обработка завершилась с ошибкой: выходной файл не был создан.");
+                    buttonOpenOutput.Visible = false;
+                }
             }
             catch (Exception ex)
             {
