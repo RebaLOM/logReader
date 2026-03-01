@@ -14,6 +14,14 @@ namespace logReader.UI
             @"^\s*\d+\)\s+([\d.]+)\s+\w+\s+([0-9A-Fa-f]+)\s+\d+\s+((?:[0-9A-Fa-f]{2}\s*)+)",
             RegexOptions.Compiled);
 
+        private static bool TryParseHexCanByte(string rawHex, out int value)
+        {
+            if (!int.TryParse(rawHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
+                return false;
+
+            return value >= 0 && value <= byte.MaxValue;
+        }
+
         public void Process(
             string csvPath,
             List<Device> devices,
@@ -28,16 +36,13 @@ namespace logReader.UI
                 return;
             }
 
-            string[] lines;
+            List<string> lines;
             try
             {
-                lines = File.ReadAllLines(csvPath, Encoding.UTF8);
+                Encoding encoding = LogFileEncoding.Detect(csvPath);
+                lines = File.ReadLines(csvPath, encoding).ToList();
             }
-            catch (Exception ex)
-            {
-                log($"Ошибка чтения файла: {ex.Message}");
-                return;
-            }
+            catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
 
             // Читаем время старта из заголовка
             DateTime? startTime = ParseStartTime(lines);
@@ -49,16 +54,13 @@ namespace logReader.UI
             // Для каждого устройства храним список (время как доля суток для Excel, данные[])
             var deviceData = new Dictionary<string, List<(double TimeVal, string[] Values)>>();
 
-            int processedLines = 0;
-            int skippedLines = 0;
-
             foreach (var line in lines)
             {
                 if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith(';'))
                     continue;
 
                 var match = _lineRegex.Match(line);
-                if (!match.Success) { skippedLines++; continue; }
+                if (!match.Success) { continue; }
 
                 double timeMs = double.TryParse(match.Groups[1].Value,
                     NumberStyles.Float, CultureInfo.InvariantCulture, out double t) ? t : 0;
@@ -76,10 +78,24 @@ namespace logReader.UI
                 var hexParts = match.Groups[3].Value.Trim().Split(
                     new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
-                for (int i = 0; i < 8 && i < hexParts.Length; i++)
+                if (hexParts.Length < 8)
+                    continue;
+
+                bool validPayload = true;
+                for (int i = 0; i < 8; i++)
                 {
-                    device.RawBytes[i] = Convert.ToInt32(hexParts[i], 16);
+                    if (!TryParseHexCanByte(hexParts[i], out int value))
+                    {
+                        validPayload = false;
+                        break;
+                    }
+
+                    device.RawBytes[i] = value;
                 }
+
+                if (!validPayload)
+                    continue;
+
                 device.Decode();
 
                 if (!deviceData.ContainsKey(id))
@@ -90,7 +106,6 @@ namespace logReader.UI
                 DateTime absTime = (startTime ?? DateTime.MinValue).AddMilliseconds(timeMs);
                 double timeVal = absTime.TimeOfDay.TotalDays;
                 deviceData[id].Add((timeVal, (string[])device.ProcessedData.Clone()));
-                processedLines++;
             }
 
             if (deviceData.Count == 0)
@@ -177,7 +192,6 @@ namespace logReader.UI
             }
 
             // Данные — каждое устройство в своих колонках независимо
-            int maxRows = deviceData.Values.Max(d => d.Count);
             col = 1;
             foreach (var device in devices)
             {
@@ -238,7 +252,7 @@ namespace logReader.UI
         // Парсит время начала из заголовка .trc файла.
         // Приоритет: строка ";   Start time: 01.09.2025 16:42:14.469.0"
         // Запасной вариант: ";$STARTTIME=45901.6960007986" (OLE Automation Date)
-        private static DateTime? ParseStartTime(string[] lines)
+        private static DateTime? ParseStartTime(IEnumerable<string> lines)
         {
             DateTime? fallback = null;
 

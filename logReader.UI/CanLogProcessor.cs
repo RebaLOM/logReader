@@ -6,6 +6,14 @@ namespace logReader.UI
 {
     internal class CanLogProcessor
     {
+        private static bool TryParseCanByte(string raw, out int value)
+        {
+            if (!int.TryParse(raw, out value))
+                return false;
+
+            return value >= 0 && value <= byte.MaxValue;
+        }
+
         public void Process(
             string csvPath,
             string devicesPath,
@@ -39,21 +47,26 @@ namespace logReader.UI
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
-            string[] lines;
-            try { lines = File.ReadAllLines(csvPath, Encoding.UTF8); }
-            catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
+            Encoding encoding = LogFileEncoding.Detect(csvPath);
 
             // ── Проход 1: определяем какие устройства есть в логе ────────
             var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (string line in lines)
+            try
             {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var p = line.Split(';');
-                if (p.Length < 4) continue;
-                if (int.TryParse(p[3], out int pri) && pri == 1 && p.Length >= 12)
-                    if (deviceByID.ContainsKey(p[2]))
-                        seenIDs.Add(p[2]);
+                foreach (string line in File.ReadLines(csvPath, encoding))
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    var p = line.Split(';');
+                    if (p.Length < 4) continue;
+                    if (int.TryParse(p[3], out int pri) && pri == 1 && p.Length >= 12)
+                    {
+                        string id = p[2].Trim();
+                        if (deviceByID.ContainsKey(id))
+                            seenIDs.Add(id);
+                    }
+                }
             }
+            catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
 
             var activeDevices = devices
                 .Where(d => seenIDs.Contains(d.ID))
@@ -77,7 +90,7 @@ namespace logReader.UI
             bool firstStep = true;
             int writtenRows = 0;
 
-            foreach (string line in lines)
+            foreach (string line in File.ReadLines(csvPath, encoding))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 var parts = line.Split(';');
@@ -86,13 +99,24 @@ namespace logReader.UI
                 int priority = 0;
                 if (parts.Length > 3) int.TryParse(parts[3], out priority);
 
+                string id = parts[2].Trim();
                 if (priority == 1 && parts.Length >= 12
-                    && deviceByID.TryGetValue(parts[2], out Device? dev)
-                    && seenIDs.Contains(parts[2]))
+                    && deviceByID.TryGetValue(id, out Device? dev)
+                    && seenIDs.Contains(id))
                 {
+                    bool validPayload = true;
                     for (int i = 0; i < 8; i++)
-                        dev.RawBytes[i] = int.TryParse(parts[4 + i], out int v) ? v : 0;
-                    dev.Decode();
+                    {
+                        if (!TryParseCanByte(parts[4 + i], out int value))
+                        {
+                            validPayload = false;
+                            break;
+                        }
+                        dev.RawBytes[i] = value;
+                    }
+
+                    if (validPayload)
+                        dev.Decode();
                 }
 
                 if (!string.IsNullOrWhiteSpace(parts[0]))

@@ -35,8 +35,8 @@ namespace logReader.UI
 
             try
             {
-                var lines = File.ReadAllLines(_csvPath, System.Text.Encoding.UTF8);
-                foreach (var line in lines)
+                var encoding = LogFileEncoding.Detect(_csvPath);
+                foreach (var line in File.ReadLines(_csvPath, encoding))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
@@ -197,11 +197,11 @@ namespace logReader.UI
         // ─── Поиск ────────────────────────────────────────────────────────
         private void textBoxSearch_TextChanged(object? sender, EventArgs e)
         {
-            string query = textBoxSearch.Text.Trim().ToLowerInvariant();
+            string query = textBoxSearch.Text.Trim();
 
             var filtered = string.IsNullOrEmpty(query)
                 ? _packets
-                : _packets.Where(p => p.ID.ToLowerInvariant().Contains(query)).ToList();
+                : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
 
             labelCount.Text = string.IsNullOrEmpty(query)
                 ? $"Всего уникальных ID: {_packets.Count}"
@@ -217,10 +217,10 @@ namespace logReader.UI
             if (_packets.Count == 0 || scrollPanel == null) return;
 
             // Пересобираем с учётом текущего фильтра
-            string query = textBoxSearch.Text.Trim().ToLowerInvariant();
+            string query = textBoxSearch.Text.Trim();
             var current = string.IsNullOrEmpty(query)
                 ? _packets
-                : _packets.Where(p => p.ID.ToLowerInvariant().Contains(query)).ToList();
+                : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
 
             BuildList(current);
         }
