@@ -20,10 +20,12 @@ namespace logReader.UI
             labelDevices = new Label();
             labelResult = new Label();
             labelFilterStatus = new Label();
+            buttonOpenOutput = new Button();
             textBoxCanLog = new TextBox();
             textBoxDevices = new TextBox();
             textBoxOutput = new TextBox();
             buttonCANlog = new Button();
+            buttonViewLog = new Button();
             buttonDevices = new Button();
             buttonOutput = new Button();
             textBoxLog = new TextBox();
@@ -37,7 +39,7 @@ namespace logReader.UI
             labelCANlog.AutoSize = true;
             labelCANlog.Location = new Point(12, 9);
             labelCANlog.Name = "labelCANlog";
-            labelCANlog.Text = "Файл CAN-логов (.csv)";
+            labelCANlog.Text = "Файл логов (.csv | .trc)";
             // 
             // textBoxCanLog
             // 
@@ -54,6 +56,15 @@ namespace logReader.UI
             buttonCANlog.Text = "Обзор";
             buttonCANlog.UseVisualStyleBackColor = true;
             buttonCANlog.Click += buttonCANlog_Click;
+            // 
+            // buttonViewLog
+            // 
+            buttonViewLog.Location = new Point(93, 56);
+            buttonViewLog.Name = "buttonViewLog";
+            buttonViewLog.Size = new Size(100, 23);
+            buttonViewLog.Text = "Посылки";
+            buttonViewLog.UseVisualStyleBackColor = true;
+            buttonViewLog.Click += buttonViewLog_Click;
             // 
             // labelDevices
             // 
@@ -79,6 +90,16 @@ namespace logReader.UI
             buttonDevices.UseVisualStyleBackColor = true;
             buttonDevices.Click += buttonDevices_Click;
             // 
+            // buttonOpenOutput — появляется после успешной обработки
+            // 
+            buttonOpenOutput.Location = new Point(93, 222);
+            buttonOpenOutput.Name = "buttonOpenOutput";
+            buttonOpenOutput.Size = new Size(75, 23);
+            buttonOpenOutput.Text = "Открыть";
+            buttonOpenOutput.Visible = false;
+            buttonOpenOutput.UseVisualStyleBackColor = true;
+            buttonOpenOutput.Click += buttonOpenOutput_Click;
+            // 
             // labelResult
             // 
             labelResult.AutoSize = true;
@@ -91,6 +112,7 @@ namespace logReader.UI
             textBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxOutput.Location = new Point(12, 193);
             textBoxOutput.Name = "textBoxOutput";
+            textBoxOutput.TextChanged += textBoxOutput_TextChanged;
             textBoxOutput.Size = new Size(776, 23);
             // 
             // buttonOutput
@@ -105,7 +127,7 @@ namespace logReader.UI
             // labelFilterStatus — показывает сколько устройств/параметров отключено
             // 
             labelFilterStatus.AutoSize = true;
-            labelFilterStatus.Location = new Point(389, 312);
+            labelFilterStatus.Location = new Point(285, 143);
             labelFilterStatus.Name = "labelFilterStatus";
             labelFilterStatus.Text = "Фильтры: не заданы";
             labelFilterStatus.ForeColor = Color.DarkGray;
@@ -129,9 +151,9 @@ namespace logReader.UI
             buttonHelp.UseVisualStyleBackColor = true;
             buttonHelp.Click += buttonHelp_Click;
             // 
-            // buttonDevicesParams
+            // buttonDevicesParams — рядом с кнопкой Обзор у файла посылок
             // 
-            buttonDevicesParams.Location = new Point(193, 308);
+            buttonDevicesParams.Location = new Point(93, 139);
             buttonDevicesParams.Name = "buttonDevicesParams";
             buttonDevicesParams.Size = new Size(186, 23);
             buttonDevicesParams.Text = "Устройства и параметры";
@@ -158,8 +180,10 @@ namespace logReader.UI
             Controls.Add(buttonHelp);
             Controls.Add(buttonProcess);
             Controls.Add(textBoxLog);
+            Controls.Add(buttonOpenOutput);
             Controls.Add(buttonOutput);
             Controls.Add(buttonDevices);
+            Controls.Add(buttonViewLog);
             Controls.Add(buttonCANlog);
             Controls.Add(textBoxOutput);
             Controls.Add(textBoxDevices);
@@ -169,7 +193,7 @@ namespace logReader.UI
             Controls.Add(labelCANlog);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "MainForm";
-            Text = "CanReader";
+            Text = "LogReader";
             ResumeLayout(false);
             PerformLayout();
         }
@@ -184,8 +208,10 @@ namespace logReader.UI
         private TextBox textBoxDevices;
         private TextBox textBoxOutput;
         private Button buttonCANlog;
+        private Button buttonViewLog;
         private Button buttonDevices;
         private Button buttonOutput;
+        private Button buttonOpenOutput;
         private TextBox textBoxLog;
         private Button buttonProcess;
         private Button buttonHelp;

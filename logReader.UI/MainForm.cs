@@ -13,6 +13,7 @@ namespace logReader.UI
         {
             InitializeComponent();
             UpdateFilterLabel();
+            buttonOpenOutput.Visible = false;
         }
 
         // ─── Обновить подпись с количеством активных фильтров ─────────────
@@ -43,8 +44,7 @@ namespace logReader.UI
             }
             else
             {
-                labelFilterStatus.Text = $"Устройства: {enabledDevices}/{totalDevices}" +
-                    $"  Параметры: {enabledParams}/{totalParams}";
+                labelFilterStatus.Text = $"Устройства: {enabledDevices}/{totalDevices}  Параметры: {enabledParams}/{totalParams}";
                 labelFilterStatus.ForeColor = Color.Black;
             }
         }
@@ -52,9 +52,20 @@ namespace logReader.UI
         private void buttonCANlog_Click(object sender, EventArgs e)
         {
             using OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "CSV files (*.csv)|*.csv";
+            ofd.Filter = "Лог файлы (*.csv;*.trc)|*.csv;*.trc|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc";
             if (ofd.ShowDialog() == DialogResult.OK)
                 textBoxCanLog.Text = ofd.FileName;
+        }
+
+        private void buttonViewLog_Click(object sender, EventArgs e)
+        {
+            if (!File.Exists(textBoxCanLog.Text))
+            {
+                Log("Ошибка: сначала укажите файл лога (.csv или .trc).");
+                return;
+            }
+            var viewForm = new CanLogViewForm(textBoxCanLog.Text);
+            viewForm.ShowDialog(this);
         }
 
         private void buttonDevices_Click(object sender, EventArgs e)
@@ -110,7 +121,39 @@ namespace logReader.UI
             using SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
             if (sfd.ShowDialog() == DialogResult.OK)
+            {
                 textBoxOutput.Text = sfd.FileName;
+                buttonOpenOutput.Visible = false;
+            }
+        }
+
+        private static bool IsPCanLog(string path) =>
+            Path.GetExtension(path).Equals(".trc", StringComparison.OrdinalIgnoreCase);
+
+        private void textBoxOutput_TextChanged(object sender, EventArgs e)
+        {
+            buttonOpenOutput.Visible = false;
+        }
+
+        private void buttonOpenOutput_Click(object sender, EventArgs e)
+        {
+            if (!File.Exists(textBoxOutput.Text))
+            {
+                Log("Файл не найден.");
+                return;
+            }
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = textBoxOutput.Text,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Log("Не удалось открыть файл: " + ex.Message);
+            }
         }
 
         private void buttonHelp_Click(object sender, EventArgs e)
@@ -168,7 +211,7 @@ namespace logReader.UI
 
             if (!File.Exists(textBoxCanLog.Text))
             {
-                Log("Ошибка: CAN лог не найден.");
+                Log("Ошибка: файл лога не найден.");
                 return;
             }
             if (!File.Exists(textBoxDevices.Text))
@@ -182,6 +225,7 @@ namespace logReader.UI
                 return;
             }
 
+            // Проверяем что директория для сохранения существует
             string? outputDir = Path.GetDirectoryName(textBoxOutput.Text);
             if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
             {
@@ -189,9 +233,26 @@ namespace logReader.UI
                 return;
             }
 
+            // Защита: выходной файл не должен совпадать с входными
+            string outFull = Path.GetFullPath(textBoxOutput.Text);
+            string logFull = Path.GetFullPath(textBoxCanLog.Text);
+            string devFull = Path.GetFullPath(textBoxDevices.Text);
+
+            if (outFull.Equals(logFull, StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.");
+                return;
+            }
+            if (outFull.Equals(devFull, StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Ошибка: файл вывода совпадает с файлом посылок. Укажите другой путь.");
+                return;
+            }
+
+            // Проверяем что выходной файл не заблокирован другой программой (например Excel)
             if (File.Exists(textBoxOutput.Text))
             {
-                try { using var fs = File.OpenWrite(textBoxOutput.Text); }
+                try { using var fs = new FileStream(textBoxOutput.Text, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
                 catch
                 {
                     Log("Ошибка: выходной файл уже открыт в другой программе. Закройте его и попробуйте снова.");
@@ -210,22 +271,46 @@ namespace logReader.UI
                 }
 
                 var allDevices = _cachedDevices;
-                var hasFilter = _deviceEnabled.Count > 0 || _paramEnabled.Count > 0;
+                // Передаём фильтры только если что-то реально выключено
+                bool anyDeviceOff = _deviceEnabled.Any(kv => !kv.Value);
+                bool anyParamOff = _paramEnabled.Any(kv => kv.Value.Any(v => !v));
+                var hasFilter = anyDeviceOff || anyParamOff;
+
+                string logPath = textBoxCanLog.Text;
+                bool isPCan = IsPCanLog(logPath);
+                if (isPCan) Log("Формат: pCAN Viewer");
+                else Log("Формат: CAN лог");
 
                 await Task.Run(() =>
                 {
-                    var processor = new CanLogProcessor();
-                    processor.Process(
-                        textBoxCanLog.Text,
-                        allDevices,
-                        textBoxOutput.Text,
-                        Log,
-                        hasFilter ? _deviceEnabled : null,
-                        hasFilter ? _paramEnabled : null
-                    );
+                    if (isPCan)
+                    {
+                        var processor = new PCanLogProcessor();
+                        processor.Process(
+                            logPath,
+                            allDevices,
+                            textBoxOutput.Text,
+                            Log,
+                            hasFilter ? _deviceEnabled : null,
+                            hasFilter ? _paramEnabled : null
+                        );
+                    }
+                    else
+                    {
+                        var processor = new CanLogProcessor();
+                        processor.Process(
+                            logPath,
+                            allDevices,
+                            textBoxOutput.Text,
+                            Log,
+                            hasFilter ? _deviceEnabled : null,
+                            hasFilter ? _paramEnabled : null
+                        );
+                    }
                 });
 
                 Log("Файл успешно создан.");
+                buttonOpenOutput.Visible = true;
             }
             catch (Exception ex)
             {

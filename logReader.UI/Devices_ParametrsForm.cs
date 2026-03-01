@@ -9,9 +9,18 @@ namespace logReader.UI
         private readonly Dictionary<string, bool> _deviceEnabled;
         private readonly Dictionary<string, bool[]> _paramEnabled;
 
-        private const int HEADER_H = 34;
-        private const int PARAM_H = 28;
         private const int GB_MARGIN = 8;
+
+        // Все размеры вычисляются от шрифта — корректно работают при любом DPI/масштабе
+        private int HeaderH => Font.Height + 18;
+        private int ParamH => Font.Height + 12;
+        private int BtnH => Font.Height + 6;
+        private int GbTitleH => Font.Height + 8;
+
+        // Ширина кнопок измеряется по самому длинному тексту + отступы
+        // TextRenderer.MeasureText учитывает текущий DPI и шрифт
+        private int DeviceBtnW => TextRenderer.MeasureText("Выключено", Font).Width + 20;
+        private int ParamBtnW => TextRenderer.MeasureText("Выкл", Font).Width + 20;
 
         private Panel _innerPanel = null!;
 
@@ -20,11 +29,11 @@ namespace logReader.UI
             Dictionary<string, bool[]> paramEnabled)
         {
             InitializeComponent();
-            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             _devices = devices;
             _deviceEnabled = deviceEnabled;
             _paramEnabled = paramEnabled;
 
+            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             Shown += (_, _) => BuildDevicePanels();
         }
 
@@ -33,7 +42,7 @@ namespace logReader.UI
             - SystemInformation.VerticalScrollBarWidth - 12;
 
         private int GbHeight(int paramCount) =>
-            22 + HEADER_H + 2 + paramCount * PARAM_H + 10;
+            GbTitleH + HeaderH + 2 + paramCount * ParamH + GbTitleH;
 
         private void BuildDevicePanels()
         {
@@ -89,7 +98,7 @@ namespace logReader.UI
             {
                 Left = 6,
                 Top = 18,
-                Height = HEADER_H,
+                Height = HeaderH,
                 Width = gb.ClientSize.Width - 12,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
                 BackColor = Color.FromArgb(220, 228, 242)
@@ -97,47 +106,46 @@ namespace logReader.UI
 
             headerPanel.Controls.Add(new Label
             {
-                Text = "Посылка:  " + device.ID,
+                Text = "Устройство:  " + device.ID,
                 Left = 8,
                 Top = 0,
-                Height = HEADER_H,
-                Width = headerPanel.Width - 130,
+                Height = HeaderH,
+                Width = headerPanel.Width - DeviceBtnW - 16,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Font = new Font(Font, FontStyle.Bold)
             });
 
-            var btnDevice = new CheckBox
+            int devW = DeviceBtnW;
+            var btnDevice = new Button
             {
                 Tag = device.ID,
                 Text = devOn ? "Включено" : "Выключено",
-                Checked = devOn,
-                Appearance = Appearance.Button,
-                Left = headerPanel.Width - 120,
-                Top = 5,
-                Width = 116,
-                Height = 24,
+                Left = headerPanel.Width - devW - 4,
+                Top = (HeaderH - BtnH) / 2,
+                Width = devW,
+                Height = BtnH,
                 Anchor = AnchorStyles.Right,
                 BackColor = devOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168),
                 FlatStyle = FlatStyle.Flat,
-                TextAlign = ContentAlignment.MiddleCenter
+                UseVisualStyleBackColor = false
             };
             btnDevice.FlatAppearance.BorderSize = 0;
-            btnDevice.CheckedChanged += DeviceToggle_CheckedChanged;
+            btnDevice.Click += DeviceBtn_Click;
             headerPanel.Controls.Add(btnDevice);
             gb.Controls.Add(headerPanel);
 
             gb.Controls.Add(new Panel
             {
                 Left = 6,
-                Top = 18 + HEADER_H,
+                Top = 18 + HeaderH,
                 Width = gb.ClientSize.Width - 12,
                 Height = 1,
                 BackColor = Color.Silver,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
             });
 
-            int paramTop = 18 + HEADER_H + 2;
+            int paramTop = 18 + HeaderH + 2;
 
             for (int i = 0; i < device.headers.Length; i++)
             {
@@ -147,8 +155,8 @@ namespace logReader.UI
                 {
                     Tag = (device.ID, i),
                     Left = 6,
-                    Top = paramTop + i * PARAM_H,
-                    Height = PARAM_H - 1,
+                    Top = paramTop + i * ParamH,
+                    Height = ParamH,
                     Width = gb.ClientSize.Width - 12,
                     Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
                     BackColor = i % 2 == 0 ? Color.White : Color.FromArgb(246, 246, 252)
@@ -159,30 +167,30 @@ namespace logReader.UI
                     Text = device.headers[i],
                     Left = 8,
                     Top = 0,
-                    Height = paramPanel.Height,
-                    Width = paramPanel.Width - 82,
+                    Height = ParamH,
+                    Width = paramPanel.Width - ParamBtnW - 16,
                     Anchor = AnchorStyles.Left | AnchorStyles.Right,
                     TextAlign = ContentAlignment.MiddleLeft,
                     AutoEllipsis = true
                 });
 
-                var btnParam = new CheckBox
+                int prmW = ParamBtnW;
+                int btnTop = (ParamH - BtnH) / 2;
+                var btnParam = new Button
                 {
                     Tag = (device.ID, i),
                     Text = paramOn ? "Вкл" : "Выкл",
-                    Checked = paramOn,
-                    Appearance = Appearance.Button,
-                    Left = paramPanel.Width - 70,
-                    Top = 2,
-                    Width = 66,
-                    Height = 22,
+                    Left = paramPanel.Width - prmW - 4,
+                    Top = btnTop,
+                    Width = prmW,
+                    Height = BtnH,
                     Anchor = AnchorStyles.Right,
                     BackColor = paramOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200),
                     FlatStyle = FlatStyle.Flat,
-                    TextAlign = ContentAlignment.MiddleCenter
+                    UseVisualStyleBackColor = false
                 };
                 btnParam.FlatAppearance.BorderSize = 0;
-                btnParam.CheckedChanged += ParamToggle_CheckedChanged;
+                btnParam.Click += ParamBtn_Click;
 
                 paramPanel.Controls.Add(btnParam);
                 gb.Controls.Add(paramPanel);
@@ -243,29 +251,31 @@ namespace logReader.UI
         }
 
         // ─── Обработчики кнопок ───────────────────────────────────────────
-        private void DeviceToggle_CheckedChanged(object? sender, EventArgs e)
+        private void DeviceBtn_Click(object? sender, EventArgs e)
         {
-            if (sender is not CheckBox cb || cb.Tag is not string deviceId) return;
-            bool isOn = cb.Checked;
-            cb.Text = isOn ? "Включено" : "Выключено";
-            cb.BackColor = isOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
+            if (sender is not Button btn || btn.Tag is not string deviceId) return;
+            // Инвертируем текущее состояние
+            bool isOn = !_deviceEnabled.GetValueOrDefault(deviceId, true);
+            btn.Text = isOn ? "Включено" : "Выключено";
+            btn.BackColor = isOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
             _deviceEnabled[deviceId] = isOn;
         }
 
-        private void ParamToggle_CheckedChanged(object? sender, EventArgs e)
+        private void ParamBtn_Click(object? sender, EventArgs e)
         {
-            if (sender is not CheckBox cb || cb.Tag is not (string deviceId, int idx)) return;
-            bool isOn = cb.Checked;
-            cb.Text = isOn ? "Вкл" : "Выкл";
-            cb.BackColor = isOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
+            if (sender is not Button btn || btn.Tag is not (string deviceId, int idx)) return;
 
             if (!_paramEnabled.ContainsKey(deviceId))
             {
                 var dev = _devices.First(d => d.ID == deviceId);
                 _paramEnabled[deviceId] = Enumerable.Repeat(true, dev.headers.Length).ToArray();
             }
-            if (idx < _paramEnabled[deviceId].Length)
-                _paramEnabled[deviceId][idx] = isOn;
+
+            bool isOn = !_paramEnabled[deviceId][idx];
+            btn.Text = isOn ? "Вкл" : "Выкл";
+            btn.BackColor = isOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
+
+            _paramEnabled[deviceId][idx] = isOn;
         }
 
         private void SetAll(bool value)
@@ -274,12 +284,40 @@ namespace logReader.UI
 
             foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
             {
-                // применяем только к видимым (отфильтрованным) устройствам
                 if (!gb.Visible) continue;
 
                 foreach (var panel in gb.Controls.OfType<Panel>())
-                    foreach (var cb in panel.Controls.OfType<CheckBox>())
-                        cb.Checked = value;
+                {
+                    foreach (var btn in panel.Controls.OfType<Button>())
+                    {
+                        // Определяем тип кнопки по тегу и обновляем только если состояние отличается
+                        if (btn.Tag is string deviceId)
+                        {
+                            bool current = _deviceEnabled.GetValueOrDefault(deviceId, true);
+                            if (current != value)
+                            {
+                                btn.Text = value ? "Включено" : "Выключено";
+                                btn.BackColor = value ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
+                                _deviceEnabled[deviceId] = value;
+                            }
+                        }
+                        else if (btn.Tag is (string dId, int idx))
+                        {
+                            if (!_paramEnabled.ContainsKey(dId))
+                            {
+                                var dev = _devices.First(d => d.ID == dId);
+                                _paramEnabled[dId] = Enumerable.Repeat(true, dev.headers.Length).ToArray();
+                            }
+                            bool current = _paramEnabled[dId][idx];
+                            if (current != value)
+                            {
+                                btn.Text = value ? "Вкл" : "Выкл";
+                                btn.BackColor = value ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
+                                _paramEnabled[dId][idx] = value;
+                            }
+                        }
+                    }
+                }
             }
         }
 

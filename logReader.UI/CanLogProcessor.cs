@@ -24,20 +24,9 @@ namespace logReader.UI
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null)
         {
-            log("Начало обработки...");
+            if (devices.Count == 0) { log("Ошибка: устройства не загружены."); return; }
 
-            if (devices.Count == 0)
-            {
-                log("Ошибка: устройства не загружены.");
-                return;
-            }
-            log($"Загружено устройств: {devices.Count}");
-
-            if (!File.Exists(csvPath))
-            {
-                log($"Ошибка: файл лога не найден: {csvPath}");
-                return;
-            }
+            if (!File.Exists(csvPath)) { log($"Ошибка: файл лога не найден: {csvPath}"); return; }
 
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
@@ -46,84 +35,77 @@ namespace logReader.UI
                 return;
             }
 
-            var deviceByID = new Dictionary<string, Device>();
+            var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
-            int currentStep = 0;
-            string currentTime = "";
-            bool firstStep = true;
-
-            log("Чтение CAN лога...");
-
             string[] lines;
-            try
+            try { lines = File.ReadAllLines(csvPath, Encoding.UTF8); }
+            catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
+
+            // ── Проход 1: определяем какие устройства есть в логе ────────
+            var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string line in lines)
             {
-                
-                lines = File.ReadAllLines(csvPath, Encoding.UTF8);
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var p = line.Split(';');
+                if (p.Length < 4) continue;
+                if (int.TryParse(p[3], out int pri) && pri == 1 && p.Length >= 12)
+                    if (deviceByID.ContainsKey(p[2]))
+                        seenIDs.Add(p[2]);
             }
-            catch (Exception ex)
+
+            var activeDevices = devices
+                .Where(d => seenIDs.Contains(d.ID))
+                .ToList();
+
+            if (activeDevices.Count == 0)
             {
-                log($"Ошибка чтения файла: {ex.Message}");
+                log("Нет совпадающих устройств — проверьте файл посылок.");
                 return;
             }
 
+            // ── Проход 2: декодируем и пишем Excel ───────────────────────
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add("Log");
 
             int excelRow = logReader.Program.BuildExcelHeaders(
-                ws, devices, deviceEnabled, paramEnabled);
+                ws, activeDevices, deviceEnabled, paramEnabled);
 
-            int processedLines = 0;
-            int skippedLines = 0;
+            int currentStep = 0;
+            string currentTime = "";
+            bool firstStep = true;
+            int writtenRows = 0;
 
             foreach (string line in lines)
             {
-               
                 if (string.IsNullOrWhiteSpace(line)) continue;
+                var parts = line.Split(';');
+                if (parts.Length < 3) { continue; }
 
-                string[] parts = line.Split(';');
-
-               
-                if (parts.Length < 3) { skippedLines++; continue; }
-
-                
                 int priority = 0;
-                if (parts.Length > 3)
-                    int.TryParse(parts[3], out priority);
+                if (parts.Length > 3) int.TryParse(parts[3], out priority);
 
-                if (priority == 1
-                    && parts.Length >= 12
-                    && deviceByID.TryGetValue(parts[2], out Device? currentDevice))
+                if (priority == 1 && parts.Length >= 12
+                    && deviceByID.TryGetValue(parts[2], out Device? dev)
+                    && seenIDs.Contains(parts[2]))
                 {
                     for (int i = 0; i < 8; i++)
-                    {
-                        
-                        currentDevice.RawBytes[i] =
-                            int.TryParse(parts[4 + i], out int val) ? val : 0;
-                    }
-                    currentDevice.Decode();
-                    processedLines++;
+                        dev.RawBytes[i] = int.TryParse(parts[4 + i], out int v) ? v : 0;
+                    dev.Decode();
                 }
 
-                
                 if (!string.IsNullOrWhiteSpace(parts[0]))
                 {
-                    
-                    if (!int.TryParse(parts[0], out int newStep))
-                    {
-                        skippedLines++;
-                        continue;
-                    }
-
-                    
+                    if (!int.TryParse(parts[0], out int newStep)) { continue; }
                     string newTime = parts.Length > 1 ? parts[1] : "";
 
                     if (!firstStep)
                     {
                         excelRow = logReader.Program.BuildExcelRow(
                             ws, excelRow, currentStep, currentTime,
-                            devices, deviceEnabled, paramEnabled);
+                            activeDevices, deviceEnabled, paramEnabled);
+                        writtenRows++;
                     }
 
                     currentStep = newStep;
@@ -132,26 +114,18 @@ namespace logReader.UI
                 }
             }
 
-            // Дозаписываем последний шаг
             if (!firstStep)
             {
-                excelRow = logReader.Program.BuildExcelRow(
+                logReader.Program.BuildExcelRow(
                     ws, excelRow, currentStep, currentTime,
-                    devices, deviceEnabled, paramEnabled);
+                    activeDevices, deviceEnabled, paramEnabled);
+                writtenRows++;
             }
 
-            if (skippedLines > 0)
-                log($"Пропущено некорректных строк: {skippedLines}");
+            ws.Columns().AdjustToContents();
 
-            try
-            {
-                workbook.SaveAs(outputPath);
-                log("Обработка завершена.");
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка сохранения файла: {ex.Message}");
-            }
+            try { workbook.SaveAs(outputPath); log("Обработка завершена."); }
+            catch (Exception ex) { log($"Ошибка сохранения файла: {ex.Message}"); }
         }
     }
 }

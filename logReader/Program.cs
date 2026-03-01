@@ -373,6 +373,96 @@ namespace logReader
 
     public class Program
     {
+        // Цвета для чередования групп устройств в заголовке
+        private static readonly XLColor[] DeviceColors =
+        {
+            XLColor.FromArgb(198, 214, 240), // синий
+            XLColor.FromArgb(198, 232, 210), // зелёный
+            XLColor.FromArgb(255, 229, 190), // оранжевый
+            XLColor.FromArgb(230, 210, 240), // фиолетовый
+            XLColor.FromArgb(255, 210, 210), // красный
+            XLColor.FromArgb(210, 245, 245), // голубой
+        };
+
+        public static int BuildExcelHeaders(
+            IXLWorksheet ws, List<Device> devices)
+            => BuildExcelHeaders(ws, devices, null, null);
+
+        public static int BuildExcelHeaders(
+            IXLWorksheet ws, List<Device> devices,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled)
+        {
+            // Строка 1 — общий заголовок (Шаг, Время, затем ID устройства растянутый на его параметры)
+            // Строка 2 — имена параметров
+
+            int col = 1;
+            int colorIdx = 0;
+
+            // Шаг и Время — занимают обе строки
+            StyleMergedHeader(ws, 1, col, "Шаг", XLColor.FromArgb(180, 180, 180));
+            StyleMergedHeader(ws, 2, col, "Шаг", XLColor.FromArgb(180, 180, 180));
+            ws.Cell(1, col).Value = "Шаг";
+            ws.Column(col).Width = 8;
+            col++;
+
+            StyleMergedHeader(ws, 1, col, "Время", XLColor.FromArgb(180, 180, 180));
+            StyleMergedHeader(ws, 2, col, "Время", XLColor.FromArgb(180, 180, 180));
+            ws.Cell(1, col).Value = "Время";
+            ws.Column(col).Width = 14;
+            col++;
+
+            foreach (var device in devices)
+            {
+                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
+                if (!devOn) continue;
+
+                // Собираем активные параметры
+                var activeParams = new List<string>();
+                for (int i = 0; i < device.headers.Length; i++)
+                {
+                    bool paramOn = paramEnabled == null
+                        || !paramEnabled.TryGetValue(device.ID, out var arr)
+                        || (i < arr.Length && arr[i]);
+                    if (paramOn) activeParams.Add(device.headers[i]);
+                }
+                if (activeParams.Count == 0) continue;
+
+                XLColor bg = DeviceColors[colorIdx % DeviceColors.Length];
+                colorIdx++;
+
+                // Строка 1 — ID устройства, растянутый на все его колонки
+                int devStartCol = col;
+                int devEndCol = col + activeParams.Count - 1;
+
+                if (devStartCol == devEndCol)
+                {
+                    ws.Cell(1, devStartCol).Value = device.ID;
+                }
+                else
+                {
+                    ws.Range(1, devStartCol, 1, devEndCol).Merge();
+                    ws.Cell(1, devStartCol).Value = device.ID;
+                }
+                StyleDeviceHeader(ws.Cell(1, devStartCol), bg);
+
+                // Строка 2 — имена параметров
+                foreach (var header in activeParams)
+                {
+                    var cell = ws.Cell(2, col);
+                    cell.Value = header;
+                    StyleParamHeader(cell, bg);
+                    ws.Column(col).Width = Math.Max(header.Length * 1.1, 12);
+                    col++;
+                }
+            }
+
+            // Заморозить первые две строки
+            ws.SheetView.FreezeRows(2);
+
+            return 3; // данные начинаются со строки 3
+        }
+
         public static int BuildExcelRow(
             IXLWorksheet ws, int excelRow, int step, string time, List<Device> devices)
             => BuildExcelRow(ws, excelRow, step, time, devices, null, null);
@@ -397,41 +487,49 @@ namespace logReader
                     bool paramOn = paramEnabled == null
                         || !paramEnabled.TryGetValue(device.ID, out var arr)
                         || (i < arr.Length && arr[i]);
-                    if (paramOn)
-                        ws.Cell(excelRow, col++).Value = device.ProcessedData[i];
+                    if (!paramOn) continue;
+
+                    string val = device.ProcessedData[i];
+                    if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
+                        ws.Cell(excelRow, col++).Value = d;
+                    else
+                        ws.Cell(excelRow, col++).Value = val;
                 }
             }
             return excelRow + 1;
         }
 
-        public static int BuildExcelHeaders(
-            IXLWorksheet ws, List<Device> devices)
-            => BuildExcelHeaders(ws, devices, null, null);
-
-        public static int BuildExcelHeaders(
-            IXLWorksheet ws, List<Device> devices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled)
+        private static void StyleMergedHeader(IXLWorksheet ws, int row, int col, string _, XLColor bg)
         {
-            int col = 1;
-            ws.Cell(1, col++).Value = "Шаг";
-            ws.Cell(1, col++).Value = "Время";
+            var cell = ws.Cell(row, col);
+            cell.Style.Fill.BackgroundColor = bg;
+            cell.Style.Font.Bold = true;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        }
 
-            foreach (var device in devices)
-            {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn) continue;
+        private static void StyleDeviceHeader(IXLCell cell, XLColor bg)
+        {
+            var darker = XLColor.FromArgb(
+                Math.Max(bg.Color.R - 30, 0),
+                Math.Max(bg.Color.G - 30, 0),
+                Math.Max(bg.Color.B - 30, 0));
+            cell.Style.Fill.BackgroundColor = darker;
+            cell.Style.Font.Bold = true;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        }
 
-                for (int i = 0; i < device.headers.Length; i++)
-                {
-                    bool paramOn = paramEnabled == null
-                        || !paramEnabled.TryGetValue(device.ID, out var arr)
-                        || (i < arr.Length && arr[i]);
-                    if (paramOn)
-                        ws.Cell(1, col++).Value = device.headers[i];
-                }
-            }
-            return 2;
+        private static void StyleParamHeader(IXLCell cell, XLColor bg)
+        {
+            cell.Style.Fill.BackgroundColor = bg;
+            cell.Style.Font.Bold = true;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            cell.Style.Alignment.WrapText = true;
         }
 
         static double? GetCellNumber(IXLRow row, int col)

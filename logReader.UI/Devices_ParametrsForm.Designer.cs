@@ -42,7 +42,7 @@ namespace logReader.UI
             buttonEnableAll.Name = "buttonEnableAll";
             buttonEnableAll.Size = new Size(130, 28);
             buttonEnableAll.TabIndex = 0;
-            buttonEnableAll.Text = "Включить всё";
+            buttonEnableAll.Text = "Включить все";
             buttonEnableAll.UseVisualStyleBackColor = true;
             buttonEnableAll.Click += buttonEnableAll_Click;
             // 
@@ -52,7 +52,7 @@ namespace logReader.UI
             buttonDisableAll.Name = "buttonDisableAll";
             buttonDisableAll.Size = new Size(140, 28);
             buttonDisableAll.TabIndex = 1;
-            buttonDisableAll.Text = "Выключить всё";
+            buttonDisableAll.Text = "Выключить все";
             buttonDisableAll.UseVisualStyleBackColor = true;
             buttonDisableAll.Click += buttonDisableAll_Click;
             // 
@@ -79,6 +79,7 @@ namespace logReader.UI
             textBoxSearch.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             textBoxSearch.Size = new Size(490, 23);
             textBoxSearch.Name = "textBoxSearch";
+            textBoxSearch.PlaceholderText = "Поиск по ID устройства...";
             textBoxSearch.TabIndex = 0;
             textBoxSearch.TextChanged += textBoxSearch_TextChanged;
             // 
