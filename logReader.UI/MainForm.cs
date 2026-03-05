@@ -53,8 +53,16 @@ namespace logReader.UI
         {
             using OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Лог файлы (*.csv;*.trc)|*.csv;*.trc|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc";
-            if (ofd.ShowDialog() == DialogResult.OK)
-                textBoxCanLog.Text = ofd.FileName;
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+            textBoxCanLog.Text = ofd.FileName;
+
+            // Автоподстановка пути вывода если поле пустое
+            if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
+            {
+                string dir = Path.GetDirectoryName(ofd.FileName) ?? "";
+                string name = Path.GetFileNameWithoutExtension(ofd.FileName) + "_result.xlsx";
+                textBoxOutput.Text = Path.Combine(dir, name);
+            }
         }
 
         private void buttonViewLog_Click(object sender, EventArgs e)
@@ -107,10 +115,11 @@ namespace logReader.UI
                 _deviceEnabled = new();
                 _paramEnabled = new();
             }
-            catch
+            catch (Exception ex)
             {
                 _cachedDevices = null;
                 _cachedDevicesPath = "";
+                Log($"Ошибка загрузки файла посылок: {ex.Message}");
             }
 
             UpdateFilterLabel();
@@ -261,6 +270,8 @@ namespace logReader.UI
             }
 
             buttonProcess.Enabled = false;
+            buttonProcess.Text = "Обработка...";
+            Cursor = Cursors.WaitCursor;
 
             try
             {
@@ -326,6 +337,8 @@ namespace logReader.UI
             }
 
             buttonProcess.Enabled = true;
+            buttonProcess.Text = "Обработать";
+            Cursor = Cursors.Default;
         }
     }
 }

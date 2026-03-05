@@ -6,12 +6,12 @@
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<ApplicationIcon>Resources\CAN_reader.ico</ApplicationIcon>
-		<Win32Icon>Resources\CAN_reader.ico</Win32Icon>
+		<ApplicationIcon>Resources\logger.ico</ApplicationIcon>
+		<Win32Icon>Resources\logger.ico</Win32Icon>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="Resources\CAN_reader.ico" />
+		<EmbeddedResource Include="Resources\logger.ico" />
 		<EmbeddedResource Include="Resources\Help.rtf" />
 	</ItemGroup>
 

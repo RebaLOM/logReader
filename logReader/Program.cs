@@ -374,7 +374,7 @@ namespace logReader
     public class Program
     {
         // Цвета для чередования групп устройств в заголовке
-        private static readonly XLColor[] DeviceColors =
+        public static readonly XLColor[] DeviceColors =
         {
             XLColor.FromArgb(198, 214, 240), // синий
             XLColor.FromArgb(198, 232, 210), // зелёный
@@ -382,6 +382,10 @@ namespace logReader
             XLColor.FromArgb(230, 210, 240), // фиолетовый
             XLColor.FromArgb(255, 210, 210), // красный
             XLColor.FromArgb(210, 245, 245), // голубой
+            XLColor.FromArgb(255, 240, 180), // жёлтый
+            XLColor.FromArgb(200, 240, 220), // мятный
+            XLColor.FromArgb(240, 210, 200), // персиковый
+            XLColor.FromArgb(220, 220, 240), // лавандовый
         };
 
         public static int BuildExcelHeaders(
@@ -400,16 +404,14 @@ namespace logReader
             int colorIdx = 0;
 
             // Шаг и Время — занимают обе строки
-            StyleMergedHeader(ws, 1, col, "Шаг", XLColor.FromArgb(180, 180, 180));
-            StyleMergedHeader(ws, 2, col, "Шаг", XLColor.FromArgb(180, 180, 180));
+            StyleMergedHeader(ws, 1, col, XLColor.FromArgb(180, 180, 180));
+            StyleMergedHeader(ws, 2, col, XLColor.FromArgb(180, 180, 180));
             ws.Cell(1, col).Value = "Шаг";
-            ws.Column(col).Width = 8;
             col++;
 
-            StyleMergedHeader(ws, 1, col, "Время", XLColor.FromArgb(180, 180, 180));
-            StyleMergedHeader(ws, 2, col, "Время", XLColor.FromArgb(180, 180, 180));
+            StyleMergedHeader(ws, 1, col, XLColor.FromArgb(180, 180, 180));
+            StyleMergedHeader(ws, 2, col, XLColor.FromArgb(180, 180, 180));
             ws.Cell(1, col).Value = "Время";
-            ws.Column(col).Width = 14;
             col++;
 
             foreach (var device in devices)
@@ -452,7 +454,6 @@ namespace logReader
                     var cell = ws.Cell(2, col);
                     cell.Value = header;
                     StyleParamHeader(cell, bg);
-                    ws.Column(col).Width = Math.Max(header.Length * 1.1, 12);
                     col++;
                 }
             }
@@ -499,7 +500,7 @@ namespace logReader
             return excelRow + 1;
         }
 
-        private static void StyleMergedHeader(IXLWorksheet ws, int row, int col, string _, XLColor bg)
+        private static void StyleMergedHeader(IXLWorksheet ws, int row, int col, XLColor bg)
         {
             var cell = ws.Cell(row, col);
             cell.Style.Fill.BackgroundColor = bg;
@@ -662,7 +663,6 @@ namespace logReader
                     dynamicDevices.Add(new DynamicDevice(kvp.Key, sorted));
                 }
 
-                logger($"Загружено {dynamicDevices.Count} устройств из файла.");
             }
             catch (Exception ex) when (ex is not FileNotFoundException)
             {
@@ -672,10 +672,10 @@ namespace logReader
             return dynamicDevices;
         }
 
-        // Main() оставлен для справки, но не используется в UI-версии
         static void Main(string[] args)
         {
             Console.WriteLine("Используйте UI-версию приложения (logReader.UI).");
         }
+
     }
 }

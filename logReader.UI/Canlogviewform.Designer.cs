@@ -32,7 +32,7 @@
             panelTop.Dock = DockStyle.Top;
             panelTop.Location = new Point(0, 0);
             panelTop.Name = "panelTop";
-            panelTop.Size = new Size(560, 44);
+            panelTop.Size = new Size(560, 68);
             panelTop.TabIndex = 0;
             // 
             // labelSearch
@@ -50,16 +50,16 @@
             textBoxSearch.Location = new Point(58, 10);
             textBoxSearch.Name = "textBoxSearch";
             textBoxSearch.PlaceholderText = "Поиск по ID посылки...";
-            textBoxSearch.Size = new Size(700, 23);
+            textBoxSearch.Size = new Size(480, 23);
             textBoxSearch.TabIndex = 0;
             textBoxSearch.TextChanged += textBoxSearch_TextChanged;
             // 
-            // labelCount
+            // labelCount — вторая строка, всегда видна
             // 
-            labelCount.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            labelCount.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             labelCount.AutoSize = true;
             labelCount.ForeColor = Color.DimGray;
-            labelCount.Location = new Point(410, 13);
+            labelCount.Location = new Point(10, 46);
             labelCount.Name = "labelCount";
             labelCount.Size = new Size(0, 15);
             labelCount.TabIndex = 1;
@@ -68,9 +68,9 @@
             // 
             scrollPanel.AutoScroll = true;
             scrollPanel.Dock = DockStyle.Fill;
-            scrollPanel.Location = new Point(0, 44);
+            scrollPanel.Location = new Point(0, 68);
             scrollPanel.Name = "scrollPanel";
-            scrollPanel.Size = new Size(560, 476);
+            scrollPanel.Size = new Size(560, 452);
             scrollPanel.TabIndex = 1;
             // 
             // CanLogViewForm
@@ -83,7 +83,7 @@
             MinimumSize = new Size(420, 340);
             Name = "CanLogViewForm";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Посылки CAN-лога";
+            Text = "Посылки лога";
             panelTop.ResumeLayout(false);
             panelTop.PerformLayout();
             ResumeLayout(false);

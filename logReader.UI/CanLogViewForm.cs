@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Linq;
+using System.Text;
 
 namespace logReader.UI
 {
@@ -72,7 +73,8 @@ namespace logReader.UI
                              .Select(kv => (kv.Key, kv.Value))
                              .ToList();
 
-            labelCount.Text = $"Всего уникальных ID: {_packets.Count}";
+            int totalPackets = _packets.Sum(p => p.Count);
+            labelCount.Text = $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}";
             BuildList(_packets);
         }
 
@@ -203,9 +205,11 @@ namespace logReader.UI
                 ? _packets
                 : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
 
+            int totalPackets = _packets.Sum(p => p.Count);
+            int filteredPackets = filtered.Sum(p => p.Count);
             labelCount.Text = string.IsNullOrEmpty(query)
-                ? $"Всего уникальных ID: {_packets.Count}"
-                : $"Найдено: {filtered.Count} из {_packets.Count}";
+                ? $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}"
+                : $"Найдено ID: {filtered.Count} из {_packets.Count}   Посылок: {filteredPackets:N0} из {totalPackets:N0}";
 
             BuildList(filtered);
         }
