@@ -32,6 +32,7 @@ namespace logReader.UI
             buttonProcess = new Button();
             buttonHelp = new Button();
             buttonDevicesParams = new Button();
+            buttonDevicesCreateOrAdd = new Button();
             SuspendLayout();
             // 
             // labelCANlog
@@ -64,11 +65,12 @@ namespace logReader.UI
             // labelFilterStatus
             // 
             labelFilterStatus.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            labelFilterStatus.AutoSize = true;
+            labelFilterStatus.AutoEllipsis = true;
+            labelFilterStatus.AutoSize = false;
             labelFilterStatus.ForeColor = Color.DarkGray;
             labelFilterStatus.Location = new Point(285, 143);
             labelFilterStatus.Name = "labelFilterStatus";
-            labelFilterStatus.Size = new Size(118, 15);
+            labelFilterStatus.Size = new Size(407, 15);
             labelFilterStatus.TabIndex = 0;
             labelFilterStatus.Text = "Фильтры: не заданы";
             // 
@@ -190,12 +192,24 @@ namespace logReader.UI
             buttonDevicesParams.UseVisualStyleBackColor = true;
             buttonDevicesParams.Click += buttonDevicesParams_Click;
             // 
+            // buttonDevicesCreateOrAdd
+            // 
+            buttonDevicesCreateOrAdd.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            buttonDevicesCreateOrAdd.Location = new Point(698, 139);
+            buttonDevicesCreateOrAdd.Name = "buttonDevicesCreateOrAdd";
+            buttonDevicesCreateOrAdd.Size = new Size(90, 23);
+            buttonDevicesCreateOrAdd.TabIndex = 16;
+            buttonDevicesCreateOrAdd.Text = "Создать";
+            buttonDevicesCreateOrAdd.UseVisualStyleBackColor = true;
+            buttonDevicesCreateOrAdd.Click += buttonDevicesCreateOrAdd_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
             Controls.Add(labelFilterStatus);
+            Controls.Add(buttonDevicesCreateOrAdd);
             Controls.Add(buttonDevicesParams);
             Controls.Add(buttonHelp);
             Controls.Add(buttonProcess);
@@ -237,5 +251,6 @@ namespace logReader.UI
         private Button buttonProcess;
         private Button buttonHelp;
         private Button buttonDevicesParams;
+        private Button buttonDevicesCreateOrAdd;
     }
 }

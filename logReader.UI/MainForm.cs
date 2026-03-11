@@ -12,11 +12,53 @@ namespace logReader.UI
         public MainForm()
         {
             InitializeComponent();
+            UpdateDevicesCreateAddButtonState();
             UpdateFilterLabel();
             buttonOpenOutput.Visible = false;
         }
 
         // ─── Обновить подпись с количеством активных фильтров ─────────────
+        private bool IsDevicesExcelFileSelectedAndExists()
+        {
+            string path = textBoxDevices.Text;
+            return !string.IsNullOrWhiteSpace(path)
+                && File.Exists(path)
+                && Path.GetExtension(path).Equals(".xlsx", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void UpdateDevicesCreateAddButtonState()
+        {
+            buttonDevicesCreateOrAdd.Text = IsDevicesExcelFileSelectedAndExists()
+                ? "Добавить"
+                : "Создать";
+        }
+
+        private void EnsureFiltersMatchDevices()
+        {
+            if (_cachedDevices == null) return;
+
+            foreach (var d in _cachedDevices)
+            {
+                if (!_deviceEnabled.ContainsKey(d.ID))
+                    _deviceEnabled[d.ID] = true;
+
+                if (!_paramEnabled.TryGetValue(d.ID, out var arr))
+                {
+                    _paramEnabled[d.ID] = Enumerable.Repeat(true, d.headers.Length).ToArray();
+                    continue;
+                }
+
+                if (arr.Length == d.headers.Length) continue;
+
+                var resized = new bool[d.headers.Length];
+                int copyLen = Math.Min(arr.Length, resized.Length);
+                Array.Copy(arr, resized, copyLen);
+                for (int i = copyLen; i < resized.Length; i++)
+                    resized[i] = true;
+                _paramEnabled[d.ID] = resized;
+            }
+        }
+
         private void UpdateFilterLabel()
         {
             int totalDevices = _cachedDevices?.Count ?? 0;
@@ -34,7 +76,10 @@ namespace logReader.UI
                     if (!devOn) return 0; // устройство выключено — все его параметры тоже
                     if (!_paramEnabled.TryGetValue(d.ID, out var arr))
                         return d.headers.Length;
-                    return arr.Count(v => v);
+                    int len = Math.Min(arr.Length, d.headers.Length);
+                    int enabled = arr.Take(len).Count(v => v);
+                    enabled += d.headers.Length - len;
+                    return enabled;
                 });
 
             if (totalDevices == 0)
@@ -96,6 +141,7 @@ namespace logReader.UI
 
         private void textBoxDevices_TextChanged(object sender, EventArgs e)
         {
+            UpdateDevicesCreateAddButtonState();
             // Автоматически загружаем устройства и обновляем статус при смене файла
             if (!File.Exists(textBoxDevices.Text))
             {
@@ -123,6 +169,80 @@ namespace logReader.UI
             }
 
             UpdateFilterLabel();
+        }
+
+        private void buttonDevicesCreateOrAdd_Click(object sender, EventArgs e)
+        {
+            if (IsDevicesExcelFileSelectedAndExists())
+                AddDeviceFieldsToExistingFile();
+            else
+                CreateNewDevicesFile();
+
+            UpdateDevicesCreateAddButtonState();
+        }
+
+        private void CreateNewDevicesFile()
+        {
+            using SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
+            sfd.DefaultExt = "xlsx";
+            sfd.AddExtension = true;
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                logReader.DeviceExcelFile.CreateDevicesExcelTemplate(sfd.FileName);
+
+                _cachedDevices = null;
+                _cachedDevicesPath = "";
+                _deviceEnabled = new();
+                _paramEnabled = new();
+                UpdateFilterLabel();
+
+                textBoxDevices.Text = sfd.FileName;
+                Log("Файл устройств создан.");
+            }
+            catch (Exception ex)
+            {
+                Log("Ошибка создания файла устройств: " + ex.Message);
+            }
+        }
+
+        private void AddDeviceFieldsToExistingFile()
+        {
+            string path = textBoxDevices.Text;
+            if (!IsDevicesExcelFileSelectedAndExists())
+            {
+                Log("Ошибка: Excel файл устройств не найден.");
+                return;
+            }
+
+            // Проверяем что файл не заблокирован (например Excel)
+            try { using var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+            catch
+            {
+                Log("Ошибка: файл устройств уже открыт в другой программе. Закройте его и попробуйте снова.");
+                return;
+            }
+
+            using var form = new DeviceFieldsAddForm();
+            if (form.ShowDialog(this) != DialogResult.OK) return;
+
+            try
+            {
+                logReader.DeviceExcelFile.AppendDeviceFields(path, form.DeviceId, form.Rows);
+
+                _cachedDevices = logReader.Program.LoadDevicesFromExcel(path, Log);
+                _cachedDevicesPath = path;
+                EnsureFiltersMatchDevices();
+                UpdateFilterLabel();
+
+                Log("Данные добавлены в файл устройств.");
+            }
+            catch (Exception ex)
+            {
+                Log("Ошибка добавления данных в файл устройств: " + ex.Message);
+            }
         }
 
         private void buttonOutput_Click(object sender, EventArgs e)
@@ -192,6 +312,7 @@ namespace logReader.UI
                     return;
                 }
 
+                EnsureFiltersMatchDevices();
                 var form = new Devices_ParametrsForm(_cachedDevices, _deviceEnabled, _paramEnabled);
                 form.ShowDialog(this);
 

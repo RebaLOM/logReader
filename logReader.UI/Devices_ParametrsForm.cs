@@ -67,11 +67,24 @@ namespace logReader.UI
             {
                 if (!_deviceEnabled.ContainsKey(device.ID))
                     _deviceEnabled[device.ID] = true;
-                if (!_paramEnabled.ContainsKey(device.ID))
-                    _paramEnabled[device.ID] = Enumerable.Repeat(true, device.headers.Length).ToArray();
+
+                if (!_paramEnabled.TryGetValue(device.ID, out var paramArr))
+                {
+                    paramArr = Enumerable.Repeat(true, device.headers.Length).ToArray();
+                    _paramEnabled[device.ID] = paramArr;
+                }
+                else if (paramArr.Length != device.headers.Length)
+                {
+                    var resized = new bool[device.headers.Length];
+                    int copyLen = Math.Min(paramArr.Length, resized.Length);
+                    Array.Copy(paramArr, resized, copyLen);
+                    for (int i = copyLen; i < resized.Length; i++)
+                        resized[i] = true;
+                    paramArr = resized;
+                    _paramEnabled[device.ID] = resized;
+                }
 
                 bool devOn = _deviceEnabled[device.ID];
-                bool[] paramArr = _paramEnabled[device.ID];
 
                 var gb = CreateGroupBox(device, devOn, paramArr, gbW, yOffset);
                 _innerPanel.Controls.Add(gb);
@@ -265,17 +278,31 @@ namespace logReader.UI
         {
             if (sender is not Button btn || btn.Tag is not (string deviceId, int idx)) return;
 
-            if (!_paramEnabled.ContainsKey(deviceId))
+            if (!_paramEnabled.TryGetValue(deviceId, out var arr))
             {
                 var dev = _devices.First(d => d.ID == deviceId);
-                _paramEnabled[deviceId] = Enumerable.Repeat(true, dev.headers.Length).ToArray();
+                arr = Enumerable.Repeat(true, dev.headers.Length).ToArray();
+                _paramEnabled[deviceId] = arr;
+            }
+            else if (idx >= arr.Length)
+            {
+                var dev = _devices.First(d => d.ID == deviceId);
+                if (idx >= dev.headers.Length) return;
+
+                var resized = new bool[dev.headers.Length];
+                int copyLen = Math.Min(arr.Length, resized.Length);
+                Array.Copy(arr, resized, copyLen);
+                for (int i = copyLen; i < resized.Length; i++)
+                    resized[i] = true;
+                arr = resized;
+                _paramEnabled[deviceId] = arr;
             }
 
-            bool isOn = !_paramEnabled[deviceId][idx];
+            bool isOn = !arr[idx];
             btn.Text = isOn ? "Вкл" : "Выкл";
             btn.BackColor = isOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
 
-            _paramEnabled[deviceId][idx] = isOn;
+            arr[idx] = isOn;
         }
 
         private void SetAll(bool value)
