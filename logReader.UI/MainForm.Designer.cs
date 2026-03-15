@@ -31,6 +31,7 @@ namespace logReader.UI
             textBoxLog = new TextBox();
             buttonProcess = new Button();
             buttonHelp = new Button();
+            buttonTrcToAsc = new Button();
             buttonDevicesParams = new Button();
             buttonDevicesCreateOrAdd = new Button();
             SuspendLayout();
@@ -42,7 +43,7 @@ namespace logReader.UI
             labelCANlog.Name = "labelCANlog";
             labelCANlog.Size = new Size(128, 15);
             labelCANlog.TabIndex = 15;
-            labelCANlog.Text = "Файл логов (.csv | .trc)";
+            labelCANlog.Text = "Файл логов (.csv | .trc | .asc)";
             // 
             // labelDevices
             // 
@@ -182,6 +183,16 @@ namespace logReader.UI
             buttonHelp.UseVisualStyleBackColor = true;
             buttonHelp.Click += buttonHelp_Click;
             // 
+            // buttonTrcToAsc
+            // 
+            buttonTrcToAsc.Location = new Point(200, 308);
+            buttonTrcToAsc.Name = "buttonTrcToAsc";
+            buttonTrcToAsc.Size = new Size(90, 23);
+            buttonTrcToAsc.TabIndex = 17;
+            buttonTrcToAsc.Text = "TRC -> ASC";
+            buttonTrcToAsc.UseVisualStyleBackColor = true;
+            buttonTrcToAsc.Click += buttonTrcToAsc_Click;
+            // 
             // buttonDevicesParams
             // 
             buttonDevicesParams.Location = new Point(93, 139);
@@ -211,6 +222,7 @@ namespace logReader.UI
             Controls.Add(labelFilterStatus);
             Controls.Add(buttonDevicesCreateOrAdd);
             Controls.Add(buttonDevicesParams);
+            Controls.Add(buttonTrcToAsc);
             Controls.Add(buttonHelp);
             Controls.Add(buttonProcess);
             Controls.Add(textBoxLog);
@@ -250,6 +262,7 @@ namespace logReader.UI
         private TextBox textBoxLog;
         private Button buttonProcess;
         private Button buttonHelp;
+        private Button buttonTrcToAsc;
         private Button buttonDevicesParams;
         private Button buttonDevicesCreateOrAdd;
     }

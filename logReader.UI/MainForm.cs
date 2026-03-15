@@ -97,7 +97,7 @@ namespace logReader.UI
         private void buttonCANlog_Click(object sender, EventArgs e)
         {
             using OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "Лог файлы (*.csv;*.trc)|*.csv;*.trc|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc";
+            ofd.Filter = "Лог файлы (*.csv;*.trc;*.asc)|*.csv;*.trc;*.asc|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc|ASC (*.asc)|*.asc";
             if (ofd.ShowDialog() != DialogResult.OK) return;
             textBoxCanLog.Text = ofd.FileName;
 
@@ -114,7 +114,7 @@ namespace logReader.UI
         {
             if (!File.Exists(textBoxCanLog.Text))
             {
-                Log("Ошибка: сначала укажите файл лога (.csv или .trc).");
+                Log("Ошибка: сначала укажите файл лога (.csv, .trc или .asc).");
                 return;
             }
             var viewForm = new CanLogViewForm(textBoxCanLog.Text);
@@ -259,6 +259,9 @@ namespace logReader.UI
         private static bool IsPCanLog(string path) =>
             Path.GetExtension(path).Equals(".trc", StringComparison.OrdinalIgnoreCase);
 
+        private static bool IsAscLog(string path) =>
+            Path.GetExtension(path).Equals(".asc", StringComparison.OrdinalIgnoreCase);
+
         private void textBoxOutput_TextChanged(object sender, EventArgs e)
         {
             buttonOpenOutput.Visible = false;
@@ -289,6 +292,77 @@ namespace logReader.UI
         {
             var helpForm = new HelpForm();
             helpForm.Show(this);
+        }
+
+        private async void buttonTrcToAsc_Click(object sender, EventArgs e)
+        {
+            textBoxLog.Clear();
+
+            string trcPath = textBoxCanLog.Text;
+            if (string.IsNullOrWhiteSpace(trcPath) || !File.Exists(trcPath))
+            {
+                Log("Ошибка: файл лога не найден.");
+                return;
+            }
+            if (!Path.GetExtension(trcPath).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Ошибка: для конвертации нужен файл .trc.");
+                return;
+            }
+
+            using SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "ASC (*.asc)|*.asc";
+            sfd.DefaultExt = "asc";
+            sfd.AddExtension = true;
+            sfd.FileName = Path.GetFileNameWithoutExtension(trcPath) + ".asc";
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            string outPath = sfd.FileName;
+            string? outDir = Path.GetDirectoryName(outPath);
+            if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
+            {
+                Log($"Ошибка: директория для сохранения не существует: {outDir}");
+                return;
+            }
+
+            string outFull = Path.GetFullPath(outPath);
+            string inFull = Path.GetFullPath(trcPath);
+            if (outFull.Equals(inFull, StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.");
+                return;
+            }
+
+            if (File.Exists(outPath))
+            {
+                try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+                catch
+                {
+                    Log("Ошибка: выходной файл уже открыт в другой программе. Закройте его и попробуйте снова.");
+                    return;
+                }
+            }
+
+            buttonTrcToAsc.Enabled = false;
+            buttonTrcToAsc.Text = "Конвертация...";
+            Cursor = Cursors.WaitCursor;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    var converter = new TrcToAscConverter();
+                    converter.Convert(trcPath, outPath, Log);
+                });
+            }
+            catch (Exception ex)
+            {
+                Log("Критическая ошибка: " + ex.Message);
+            }
+
+            buttonTrcToAsc.Enabled = true;
+            buttonTrcToAsc.Text = "TRC -> ASC";
+            Cursor = Cursors.Default;
         }
 
         private void buttonDevicesParams_Click(object sender, EventArgs e)
@@ -410,7 +484,10 @@ namespace logReader.UI
 
                 string logPath = textBoxCanLog.Text;
                 bool isPCan = IsPCanLog(logPath);
+                bool isAsc = IsAscLog(logPath);
+
                 if (isPCan) Log("Формат: pCAN Viewer");
+                else if (isAsc) Log("Формат: ASC");
                 else Log("Формат: CAN лог");
 
                 await Task.Run(() =>
@@ -418,6 +495,18 @@ namespace logReader.UI
                     if (isPCan)
                     {
                         var processor = new PCanLogProcessor();
+                        processor.Process(
+                            logPath,
+                            allDevices,
+                            textBoxOutput.Text,
+                            Log,
+                            hasFilter ? _deviceEnabled : null,
+                            hasFilter ? _paramEnabled : null
+                        );
+                    }
+                    else if (isAsc)
+                    {
+                        var processor = new AscLogProcessor();
                         processor.Process(
                             logPath,
                             allDevices,

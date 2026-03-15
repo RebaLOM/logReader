@@ -279,4 +279,4 @@ namespace logReader.UI
             return fallback;
         }
     }
-}
+} 

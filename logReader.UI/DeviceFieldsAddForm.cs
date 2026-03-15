@@ -7,6 +7,10 @@ namespace logReader.UI
     {
         private const int MaxRows = 64;
 
+        private static readonly Color ReadOnlyBackColor = Color.FromArgb(210, 210, 210);
+        private static readonly Color ReadOnlySelectionBackColor = Color.FromArgb(195, 195, 195);
+        private static readonly Color ReadOnlyForeColor = Color.DimGray;
+
         private const string ColHeader = "colHeader";
         private const string ColLowByte = "colLowByte";
         private const string ColHighByte = "colHighByte";
@@ -124,6 +128,26 @@ namespace logReader.UI
             _grid.EditMode = DataGridViewEditMode.EditOnEnter;
             _grid.ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableWithoutHeaderText;
             _grid.DataError += (_, e) => e.ThrowException = false;
+            _grid.DefaultCellStyle.BackColor = Color.White;
+
+            _grid.CellFormatting += (_, e) =>
+            {
+                if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+                var cell = _grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+
+                if (cell.ReadOnly)
+                {
+                    e.CellStyle.BackColor = ReadOnlyBackColor;
+                    e.CellStyle.ForeColor = ReadOnlyForeColor;
+                    e.CellStyle.SelectionBackColor = ReadOnlySelectionBackColor;
+                    e.CellStyle.SelectionForeColor = ReadOnlyForeColor;
+                }
+                else
+                {
+                    e.CellStyle.BackColor = Color.White;
+                    e.CellStyle.ForeColor = Color.Black;
+                }
+            };
 
             var list0to7 = new List<string> { "" };
             for (int i = 0; i <= 7; i++) list0to7.Add(i.ToString(CultureInfo.InvariantCulture));
@@ -160,15 +184,6 @@ namespace logReader.UI
 
             _grid.Columns.Add(new DataGridViewComboBoxColumn
             {
-                Name = ColType,
-                HeaderText = "Type",
-                DataSource = typeList,
-                FlatStyle = FlatStyle.Flat,
-                FillWeight = 9
-            });
-
-            _grid.Columns.Add(new DataGridViewTextBoxColumn
-            {
                 Name = ColScale,
                 HeaderText = "Scale",
                 FillWeight = 10
@@ -179,6 +194,15 @@ namespace logReader.UI
                 Name = ColOffset,
                 HeaderText = "Offset",
                 FillWeight = 10
+            });
+
+            _grid.Columns.Add(new DataGridViewComboBoxColumn
+            {
+                Name = ColType,
+                HeaderText = "Type",
+                DataSource = typeList,
+                FlatStyle = FlatStyle.Flat,
+                FillWeight = 9
             });
 
             _grid.Columns.Add(new DataGridViewComboBoxColumn
@@ -273,11 +297,23 @@ namespace logReader.UI
             ApplyReadOnlyStyle(offsetCell);
             ApplyReadOnlyStyle(startCell);
             ApplyReadOnlyStyle(lenCell);
+
+            _grid.InvalidateRow(rowIndex);
         }
 
         private static void ApplyReadOnlyStyle(DataGridViewCell cell)
         {
-            cell.Style.BackColor = cell.ReadOnly ? SystemColors.Control : Color.White;
+            cell.Style.BackColor = cell.ReadOnly ? ReadOnlyBackColor : Color.White;
+            cell.Style.ForeColor = cell.ReadOnly ? ReadOnlyForeColor : Color.Black;
+            cell.Style.SelectionBackColor = cell.ReadOnly ? ReadOnlySelectionBackColor : cell.Style.SelectionBackColor;
+            cell.Style.SelectionForeColor = cell.ReadOnly ? ReadOnlyForeColor : cell.Style.SelectionForeColor;
+
+            if (cell is DataGridViewComboBoxCell cb)
+            {
+                cb.DisplayStyle = cell.ReadOnly
+                    ? DataGridViewComboBoxDisplayStyle.Nothing
+                    : DataGridViewComboBoxDisplayStyle.DropDownButton;
+            }
         }
 
         private void OnOk()

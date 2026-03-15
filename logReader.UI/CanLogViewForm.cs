@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using System.Text;
 
 namespace logReader.UI
 {
@@ -27,7 +26,9 @@ namespace logReader.UI
         private void LoadAndBuild()
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            bool isTrc = Path.GetExtension(_csvPath).Equals(".trc", StringComparison.OrdinalIgnoreCase);
+            string ext = Path.GetExtension(_csvPath);
+            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
+            bool isAsc = ext.Equals(".asc", StringComparison.OrdinalIgnoreCase);
 
             // Regex для .trc: номер) время  Rx/Tx  ID  длина  байты
             var trcRegex = new System.Text.RegularExpressions.Regex(
@@ -37,6 +38,8 @@ namespace logReader.UI
             try
             {
                 var encoding = LogFileEncoding.Detect(_csvPath);
+                Span<int> bytes = stackalloc int[8];
+
                 foreach (var line in File.ReadLines(_csvPath, encoding))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
@@ -48,6 +51,10 @@ namespace logReader.UI
                         var m = trcRegex.Match(line);
                         if (!m.Success) continue;
                         id = m.Groups[1].Value.Trim().ToUpperInvariant();
+                    }
+                    else if (isAsc)
+                    {
+                        if (!AscLogParser.TryParseFrameLine(line, out _, out id, bytes)) continue;
                     }
                     else
                     {
