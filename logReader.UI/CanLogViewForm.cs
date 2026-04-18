@@ -30,11 +30,6 @@ namespace logReader.UI
             bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
             bool isAsc = ext.Equals(".asc", StringComparison.OrdinalIgnoreCase);
 
-            // Regex для .trc: номер) время  Rx/Tx  ID  длина  байты
-            var trcRegex = new System.Text.RegularExpressions.Regex(
-                @"^\s*\d+\)\s+[\d.]+\s+\w+\s+([0-9A-Fa-f]{4,})\s+\d",
-                System.Text.RegularExpressions.RegexOptions.Compiled);
-
             try
             {
                 var encoding = LogFileEncoding.Detect(_csvPath);
@@ -47,10 +42,17 @@ namespace logReader.UI
                     string id;
                     if (isTrc)
                     {
-                        if (line.TrimStart().StartsWith(';')) continue;
-                        var m = trcRegex.Match(line);
-                        if (!m.Success) continue;
-                        id = m.Groups[1].Value.Trim().ToUpperInvariant();
+                        if (!TrcLogParser.TryParseTrcFrameLine(
+                                line,
+                                out _,
+                                out _,
+                                out id,
+                                out _,
+                                bytes,
+                                out _))
+                        {
+                            continue;
+                        }
                     }
                     else if (isAsc)
                     {

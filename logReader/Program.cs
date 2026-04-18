@@ -45,6 +45,9 @@ namespace logReader
         public string Type = "";
         public int StartBit;
         public int LenghtBit;
+        public bool UseBitExtraction;
+        public bool IsLittleEndian = true;
+        public bool SignedRaw;
     }
 
     public class DynamicDevice : Device
@@ -67,29 +70,41 @@ namespace logReader
                 {
                     if (instr.Type == "NUM")
                     {
-                        // 🔴 ИСПРАВЛЕНО: проверка что ByteLow и ByteHigh в диапазоне 0-7
-                        if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length)
+                        double rawNumericValue;
+                        if (instr.UseBitExtraction)
                         {
-                            ProcessedData[instr.FieldIndex] = "ERR";
-                            continue;
-                        }
-
-                        int rawValue;
-                        if (instr.ByteHigh.HasValue)
-                        {
-                            if (instr.ByteHigh.Value < 0 || instr.ByteHigh.Value >= RawBytes.Length)
+                            if (!TryExtractBitField(instr, out long bitFieldValue))
                             {
                                 ProcessedData[instr.FieldIndex] = "ERR";
                                 continue;
                             }
-                            rawValue = (RawBytes[instr.ByteHigh.Value] * 256) + RawBytes[instr.ByteLow];
+                            rawNumericValue = bitFieldValue;
                         }
                         else
                         {
-                            rawValue = RawBytes[instr.ByteLow];
+                            // 🔴 ИСПРАВЛЕНО: проверка что ByteLow и ByteHigh в диапазоне 0-7
+                            if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length)
+                            {
+                                ProcessedData[instr.FieldIndex] = "ERR";
+                                continue;
+                            }
+
+                            if (instr.ByteHigh.HasValue)
+                            {
+                                if (instr.ByteHigh.Value < 0 || instr.ByteHigh.Value >= RawBytes.Length)
+                                {
+                                    ProcessedData[instr.FieldIndex] = "ERR";
+                                    continue;
+                                }
+                                rawNumericValue = (RawBytes[instr.ByteHigh.Value] * 256) + RawBytes[instr.ByteLow];
+                            }
+                            else
+                            {
+                                rawNumericValue = RawBytes[instr.ByteLow];
+                            }
                         }
 
-                        double physicalValue = (rawValue * instr.Scale) + instr.Offset;
+                        double physicalValue = (rawNumericValue * instr.Scale) + instr.Offset;
                         ProcessedData[instr.FieldIndex] = physicalValue.ToString(CultureInfo.InvariantCulture);
                     }
                     else if (instr.Type == "BIN")
@@ -123,6 +138,50 @@ namespace logReader
                         ProcessedData[instr.FieldIndex] = "ERR";
                 }
             }
+        }
+
+        private bool TryExtractBitField(FieldInstruction instr, out long value)
+        {
+            value = 0;
+
+            if (!instr.IsLittleEndian)
+                return false;
+
+            if (instr.StartBit < 0 || instr.LenghtBit <= 0 || instr.LenghtBit > 64)
+                return false;
+
+            if (instr.StartBit + instr.LenghtBit > 64)
+                return false;
+
+            ulong payload = 0;
+            for (int i = 0; i < RawBytes.Length; i++)
+                payload |= ((ulong)(byte)RawBytes[i]) << (8 * i);
+
+            ulong rawValue = instr.LenghtBit == 64
+                ? payload >> instr.StartBit
+                : (payload >> instr.StartBit) & ((1UL << instr.LenghtBit) - 1);
+
+            if (!instr.SignedRaw)
+            {
+                value = (long)rawValue;
+                return true;
+            }
+
+            if (instr.LenghtBit == 64)
+            {
+                value = unchecked((long)rawValue);
+                return true;
+            }
+
+            ulong signBit = 1UL << (instr.LenghtBit - 1);
+            if ((rawValue & signBit) != 0)
+            {
+                ulong extensionMask = ~((1UL << instr.LenghtBit) - 1);
+                rawValue |= extensionMask;
+            }
+
+            value = unchecked((long)rawValue);
+            return true;
         }
     }
 
@@ -251,7 +310,6 @@ namespace logReader
         public override void Decode()
         {
             ToBinaries(1);
-            // 🟡 УЛУЧШЕНО: проверка длины перед Substring
             string bin = RawBinaries[1] ?? "00000000";
             if (bin.Length >= 6)
                 ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString();
@@ -361,8 +419,7 @@ namespace logReader
         }
         public override void Decode()
         {
-            // 🟡 ПРИМЕЧАНИЕ: здесь +40, у других устройств -40.
-            // Оставлено как есть — уточните по документации на это устройство.
+            
             ProcessedData[0] = (RawBytes[0] + 40).ToString();
             ProcessedData[1] = (RawBytes[1] + 40).ToString();
             ProcessedData[2] = ((RawBytes[3] * 256) + RawBytes[2]).ToString();
@@ -589,7 +646,7 @@ namespace logReader
                             continue;
                         }
 
-                        // 🔴 ИСПРАВЛЕНО: проверка что индексы байт в диапазоне 0-7
+                        
                         if (byteLow.Value < 0 || byteLow.Value > 7)
                         {
                             logger($"Строка {rowNum}: ByteLow={byteLow.Value} вне диапазона 0-7 — пропускаем.");
@@ -604,7 +661,7 @@ namespace logReader
                         double? fieldIndexNum = GetCellNumber(row, 2);
                         int fieldIndex = fieldIndexNum.HasValue ? (int)fieldIndexNum.Value : 0;
 
-                        // 🔴 ИСПРАВЛЕНО: проверка что FieldIndex не отрицательный
+                        
                         if (fieldIndex < 0)
                         {
                             logger($"Строка {rowNum}: FieldIndex={fieldIndex} отрицательный — пропускаем.");
@@ -618,7 +675,7 @@ namespace logReader
 
                         string type = row.Cell(8).GetString().Trim();
 
-                        // 🔴 ИСПРАВЛЕНО: для BIN проверяем что StartBit + LengthBit <= 8
+                      
                         if (type == "BIN" && startBit + lengthBit > 8)
                         {
                             logger($"Строка {rowNum}: StartBit({startBit})+LengthBit({lengthBit}) > 8 — пропускаем.");
@@ -670,6 +727,48 @@ namespace logReader
             }
 
             return dynamicDevices;
+        }
+
+        public static List<Device> LoadDevicesFromFile(string path, Action<string>? log = null)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException("Путь к файлу устройств не задан.", nameof(path));
+
+            string extension = Path.GetExtension(path);
+            if (extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                return LoadDevicesFromExcel(path, log);
+            if (extension.Equals(".dbc", StringComparison.OrdinalIgnoreCase))
+                return DbcDevicesLoader.LoadDevicesFromDbc(path, log);
+
+            throw new NotSupportedException($"Поддерживаются только файлы .xlsx и .dbc: {path}");
+        }
+
+        public static void ResetDevicesState(IEnumerable<Device> devices)
+        {
+            if (devices == null) return;
+
+            foreach (var d in devices)
+            {
+                if (d == null) continue;
+
+                if (d.RawBytes != null)
+                {
+                    for (int i = 0; i < d.RawBytes.Length; i++)
+                        d.RawBytes[i] = 0;
+                }
+
+                if (d.RawBinaries != null)
+                {
+                    for (int i = 0; i < d.RawBinaries.Length; i++)
+                        d.RawBinaries[i] = "";
+                }
+
+                if (d.ProcessedData != null)
+                {
+                    for (int i = 0; i < d.ProcessedData.Length; i++)
+                        d.ProcessedData[i] = "0";
+                }
+            }
         }
 
         static void Main(string[] args)

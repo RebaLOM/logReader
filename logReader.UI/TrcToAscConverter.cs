@@ -1,19 +1,11 @@
-using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace logReader.UI
 {
     internal class TrcToAscConverter
     {
-        private static readonly Regex TrcLineRegex = new Regex(
-            @"^\s*\d+\)\s+([\d.,]+)\s+(\w+)\s+([0-9A-Fa-f]+)\s+(\d+)\s+((?:[0-9A-Fa-f]{2}\s*)+)",
-            RegexOptions.Compiled);
-
-        private static readonly string[] TailZeros = new[] { "0", "0", "0", "0", "0", "0", "0", "0" };
-
         public void Convert(string trcPath, string ascPath, Action<string> log)
         {
             if (!File.Exists(trcPath))
@@ -36,7 +28,7 @@ namespace logReader.UI
             DateTime? startTime;
             try
             {
-                startTime = ParseStartTime(File.ReadLines(trcPath, encoding));
+                startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding));
             }
             catch (Exception ex)
             {
@@ -55,34 +47,36 @@ namespace logReader.UI
                 using var writer = new StreamWriter(ascPath, false, new UTF8Encoding(false));
                 writer.WriteLine($"date {headerTime.ToString("ddd MMM dd HH:mm:ss.fff yyyy", CultureInfo.InvariantCulture)}");
                 writer.WriteLine($"base hex  timestamps {timestampsMode}");
+
+                Span<int> bytesBuffer = stackalloc int[8];
                 foreach (var line in File.ReadLines(trcPath, encoding))
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    if (line.TrimStart().StartsWith(';')) continue;
-
-                    var match = TrcLineRegex.Match(line);
-                    if (!match.Success) continue;
-
-                    if (!TryParseDecimal(match.Groups[1].Value, out decimal timeMs))
+                    if (!TrcLogParser.TryParseTrcFrameLine(
+                            line,
+                            out decimal timeMs,
+                            out string dir,
+                            out string idRaw,
+                            out int dlc,
+                            bytesBuffer,
+                            out int parsedByteCount))
+                    {
                         continue;
+                    }
 
-                    string dir = match.Groups[2].Value;
-                    if (!dir.Equals("Rx", StringComparison.OrdinalIgnoreCase)
-                        && !dir.Equals("Tx", StringComparison.OrdinalIgnoreCase))
-                        dir = "Rx";
-                    else
-                        dir = dir.Equals("Tx", StringComparison.OrdinalIgnoreCase) ? "Tx" : "Rx";
-
-                    string idRaw = match.Groups[3].Value.ToUpperInvariant();
-                    if (!int.TryParse(idRaw, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int idValue))
+                    if (!ulong.TryParse(idRaw, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong idValue))
                         continue;
-                    bool isExtended = idValue > 0x7FF;
+                    bool isExtended = idValue > 0x7FFUL;
                     string idOut = idRaw + (isExtended ? "x" : "");
 
-                    if (!int.TryParse(match.Groups[4].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc))
-                        dlc = 0;
+                    string[] bytes = new string[8];
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (i < parsedByteCount)
+                            bytes[i] = bytesBuffer[i].ToString("X2", CultureInfo.InvariantCulture);
+                        else
+                            bytes[i] = "00";
+                    }
 
-                    string[] bytes = ParseBytes(match.Groups[5].Value);
                     decimal seconds = timeMs / 1000m;
                     string timeSec = seconds.ToString("0.000000", CultureInfo.InvariantCulture);
                     string ascLine = BuildAscLine(
@@ -101,85 +95,6 @@ namespace logReader.UI
             }
 
             log("Конвертация завершена.");
-        }
-
-        private static bool TryParseDecimal(string raw, out decimal value)
-        {
-            value = 0m;
-            if (string.IsNullOrWhiteSpace(raw)) return false;
-
-            if (decimal.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
-                return true;
-            if (decimal.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
-                return true;
-
-            return false;
-        }
-
-        private static string[] ParseBytes(string raw)
-        {
-            var tokens = raw.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            var bytes = new string[8];
-
-            for (int i = 0; i < 8; i++)
-            {
-                if (i < tokens.Length && TryParseHexByte(tokens[i], out int v))
-                    bytes[i] = v.ToString("X2", CultureInfo.InvariantCulture);
-                else
-                    bytes[i] = "00";
-            }
-
-            return bytes;
-        }
-
-        private static bool TryParseHexByte(string hex, out int value)
-        {
-            value = 0;
-            if (string.IsNullOrWhiteSpace(hex)) return false;
-            if (hex.Length > 2) return false;
-
-            return int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value)
-                   && value >= 0 && value <= byte.MaxValue;
-        }
-
-        private static DateTime? ParseStartTime(IEnumerable<string> lines)
-        {
-            DateTime? fallback = null;
-
-            foreach (var line in lines)
-            {
-                if (!line.StartsWith(";")) continue;
-
-                int idx = line.IndexOf("Start time:", StringComparison.OrdinalIgnoreCase);
-                if (idx >= 0)
-                {
-                    string raw = line.Substring(idx + 11).Trim();
-
-                    int lastDot = raw.LastIndexOf('.');
-                    int prevDot = lastDot > 0 ? raw.LastIndexOf('.', lastDot - 1) : -1;
-                    if (lastDot > 0 && prevDot > 0 && lastDot - prevDot <= 5)
-                        raw = raw.Remove(lastDot, 1);
-
-                    if (DateTime.TryParseExact(raw, "dd.MM.yyyy HH:mm:ss.ffff",
-                            CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt4))
-                        return dt4;
-                    if (DateTime.TryParseExact(raw, "dd.MM.yyyy HH:mm:ss.fff",
-                            CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt3))
-                        return dt3;
-                }
-
-                if (line.StartsWith(";$STARTTIME=") && fallback == null)
-                {
-                    var val = line.Substring(12).Trim();
-                    if (double.TryParse(val, NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out double oaDate))
-                    {
-                        try { fallback = DateTime.FromOADate(oaDate); } catch { }
-                    }
-                }
-            }
-
-            return fallback;
         }
 
         private static string BuildAscLine(

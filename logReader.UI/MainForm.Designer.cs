@@ -52,7 +52,7 @@ namespace logReader.UI
             labelDevices.Name = "labelDevices";
             labelDevices.Size = new Size(120, 15);
             labelDevices.TabIndex = 14;
-            labelDevices.Text = "Файл посылок (.xlsx)";
+            labelDevices.Text = "Файл посылок (.xlsx | .dbc)";
             // 
             // labelResult
             // 
@@ -210,7 +210,7 @@ namespace logReader.UI
             buttonDevicesCreateOrAdd.Name = "buttonDevicesCreateOrAdd";
             buttonDevicesCreateOrAdd.Size = new Size(90, 23);
             buttonDevicesCreateOrAdd.TabIndex = 16;
-            buttonDevicesCreateOrAdd.Text = "Создать";
+            buttonDevicesCreateOrAdd.Text = "Создать .xlsx";
             buttonDevicesCreateOrAdd.UseVisualStyleBackColor = true;
             buttonDevicesCreateOrAdd.Click += buttonDevicesCreateOrAdd_Click;
             // 

@@ -1,7 +1,6 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using logReader;
 
@@ -9,17 +8,6 @@ namespace logReader.UI
 {
     internal class PCanLogProcessor
     {
-        private static readonly Regex _lineRegex = new Regex(
-            @"^\s*\d+\)\s+([\d.]+)\s+\w+\s+([0-9A-Fa-f]+)\s+\d+\s+((?:[0-9A-Fa-f]{2}\s*)+)",
-            RegexOptions.Compiled);
-
-        private static bool TryParseHexByte(string hex, out int value)
-        {
-            if (!int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
-                return false;
-            return value >= 0 && value <= byte.MaxValue;
-        }
-
         public void Process(
             string trcPath,
             List<Device> devices,
@@ -30,6 +18,9 @@ namespace logReader.UI
         {
             if (!File.Exists(trcPath)) { log($"Ошибка: файл не найден: {trcPath}"); return; }
 
+            // Устройства могут переиспользоваться между обработками в UI.
+            logReader.Program.ResetDevicesState(devices);
+
             string[] lines;
             try
             {
@@ -38,7 +29,7 @@ namespace logReader.UI
             }
             catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
 
-            DateTime? startTime = ParseStartTime(lines);
+            DateTime? startTime = TrcLogParser.ParseStartTime(lines);
 
             var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
@@ -48,41 +39,36 @@ namespace logReader.UI
             var deviceData = new Dictionary<string, List<(double TimeVal, string[] Values)>>(
                 StringComparer.OrdinalIgnoreCase);
 
+            Span<int> bytes = stackalloc int[8];
             foreach (var line in lines)
             {
-                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith(';'))
+                if (!TrcLogParser.TryParseTrcFrameLine(
+                        line,
+                        out decimal timeMsRaw,
+                        out _,
+                        out string id,
+                        out _,
+                        bytes,
+                        out int parsedByteCount))
+                {
                     continue;
-
-                var match = _lineRegex.Match(line);
-                if (!match.Success) continue;
-
-                double timeMs = double.TryParse(match.Groups[1].Value,
-                    NumberStyles.Float, CultureInfo.InvariantCulture, out double t) ? t : 0;
-
-                string id = match.Groups[2].Value.ToUpperInvariant();
+                }
 
                 if (!deviceByID.TryGetValue(id, out Device? device)) continue;
 
                 bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true);
                 if (!devOn) continue;
 
-                var hexParts = match.Groups[3].Value.Trim()
-                    .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                if (hexParts.Length < 8) continue;
-
-                bool valid = true;
+                if (parsedByteCount < 8) continue;
                 for (int i = 0; i < 8; i++)
-                {
-                    if (!TryParseHexByte(hexParts[i], out int v)) { valid = false; break; }
-                    device.RawBytes[i] = v;
-                }
-                if (!valid) continue;
+                    device.RawBytes[i] = bytes[i];
 
                 device.Decode();
 
                 if (!deviceData.ContainsKey(id))
                     deviceData[id] = new List<(double, string[])>();
 
+                double timeMs = (double)timeMsRaw;
                 double timeVal;
                 if (startTime.HasValue)
                 {
@@ -234,49 +220,5 @@ namespace logReader.UI
             cell.Style.Alignment.WrapText = true;
             cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         }
-
-        // Парсит время начала. Приоритет: "Start time: 01.09.2025 16:42:14.469.0"
-        // Запасной: ";$STARTTIME=45901.6960007986" (OLE Automation Date)
-        private static DateTime? ParseStartTime(IEnumerable<string> lines)
-        {
-            DateTime? fallback = null;
-
-            foreach (var line in lines)
-            {
-                if (!line.StartsWith(";")) continue;
-
-                int idx = line.IndexOf("Start time:", StringComparison.OrdinalIgnoreCase);
-                if (idx >= 0)
-                {
-                    string raw = line.Substring(idx + 11).Trim();
-
-                    // "16:42:14.469.0" — две точки после секунд.
-                    // Убираем вторую точку: "469.0" → "4690" → формат ffff
-                    int lastDot = raw.LastIndexOf('.');
-                    int prevDot = lastDot > 0 ? raw.LastIndexOf('.', lastDot - 1) : -1;
-                    if (lastDot > 0 && prevDot > 0 && lastDot - prevDot <= 5)
-                        raw = raw.Remove(lastDot, 1);
-
-                    if (DateTime.TryParseExact(raw, "dd.MM.yyyy HH:mm:ss.ffff",
-                            CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt4))
-                        return dt4;
-                    if (DateTime.TryParseExact(raw, "dd.MM.yyyy HH:mm:ss.fff",
-                            CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt3))
-                        return dt3;
-                }
-
-                if (line.StartsWith(";$STARTTIME=") && fallback == null)
-                {
-                    var val = line.Substring(12).Trim();
-                    if (double.TryParse(val, NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out double oaDate))
-                    {
-                        try { fallback = DateTime.FromOADate(oaDate); } catch { }
-                    }
-                }
-            }
-
-            return fallback;
-        }
     }
-} 
+}

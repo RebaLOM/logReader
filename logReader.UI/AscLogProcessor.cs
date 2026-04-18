@@ -187,6 +187,9 @@ namespace logReader.UI
             if (devices.Count == 0) { log("Ошибка: устройства не загружены."); return; }
             if (!File.Exists(ascPath)) { log($"Ошибка: файл не найден: {ascPath}"); return; }
 
+            // Устройства могут переиспользоваться между обработками в UI.
+            logReader.Program.ResetDevicesState(devices);
+
             Encoding encoding;
             try
             {

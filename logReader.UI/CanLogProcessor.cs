@@ -25,6 +25,10 @@ namespace logReader.UI
             if (devices.Count == 0) { log("Ошибка: устройства не загружены."); return; }
             if (!File.Exists(csvPath)) { log($"Ошибка: файл лога не найден: {csvPath}"); return; }
 
+            // ВАЖНО: устройства кешируются в UI и могут переиспользоваться между обработками.
+            // Чтобы второй прогон не стартовал с "последних значений", сбрасываем всё в нули.
+            logReader.Program.ResetDevicesState(devices);
+
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
             {
@@ -81,6 +85,23 @@ namespace logReader.UI
                 var parts = line.Split(';');
                 if (parts.Length < 3) continue;
 
+                // ВАЖНО: сначала обрабатываем смену шага (пишем предыдущий),
+                // и только потом декодируем данные текущей строки.
+                if (!string.IsNullOrWhiteSpace(parts[0]))
+                {
+                    if (!int.TryParse(parts[0], out int newStep)) continue;
+                    string newTime = parts.Length > 1 ? parts[1] : "";
+
+                    if (!firstStep)
+                        excelRow = logReader.Program.BuildExcelRow(
+                            ws, excelRow, currentStep, currentTime,
+                            activeDevices, deviceEnabled, paramEnabled);
+
+                    currentStep = newStep;
+                    currentTime = newTime;
+                    firstStep = false;
+                }
+
                 int priority = 0;
                 if (parts.Length > 3) int.TryParse(parts[3], out priority);
 
@@ -95,21 +116,6 @@ namespace logReader.UI
                         dev.RawBytes[i] = v;
                     }
                     if (valid) dev.Decode();
-                }
-
-                if (!string.IsNullOrWhiteSpace(parts[0]))
-                {
-                    if (!int.TryParse(parts[0], out int newStep)) continue;
-                    string newTime = parts.Length > 1 ? parts[1] : "";
-
-                    if (!firstStep)
-                        excelRow = logReader.Program.BuildExcelRow(
-                            ws, excelRow, currentStep, currentTime,
-                            activeDevices, deviceEnabled, paramEnabled);
-
-                    currentStep = newStep;
-                    currentTime = newTime;
-                    firstStep = false;
                 }
             }
 

@@ -18,6 +18,17 @@ namespace logReader.UI
         }
 
         // ─── Обновить подпись с количеством активных фильтров ─────────────
+        private bool IsDevicesFileSelectedAndExists()
+        {
+            string path = textBoxDevices.Text;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return false;
+
+            string ext = Path.GetExtension(path);
+            return ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
+                || ext.Equals(".dbc", StringComparison.OrdinalIgnoreCase);
+        }
+
         private bool IsDevicesExcelFileSelectedAndExists()
         {
             string path = textBoxDevices.Text;
@@ -30,7 +41,7 @@ namespace logReader.UI
         {
             buttonDevicesCreateOrAdd.Text = IsDevicesExcelFileSelectedAndExists()
                 ? "Добавить"
-                : "Создать";
+                : "Создать .xlsx";
         }
 
         private void EnsureFiltersMatchDevices()
@@ -124,7 +135,7 @@ namespace logReader.UI
         private void buttonDevices_Click(object sender, EventArgs e)
         {
             using OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "Excel files (*.xlsx)|*.xlsx";
+            ofd.Filter = "Файлы посылок (*.xlsx;*.dbc)|*.xlsx;*.dbc|Excel files (*.xlsx)|*.xlsx|DBC files (*.dbc)|*.dbc";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 if (textBoxDevices.Text != ofd.FileName)
@@ -155,7 +166,7 @@ namespace logReader.UI
 
             try
             {
-                _cachedDevices = logReader.Program.LoadDevicesFromExcel(textBoxDevices.Text, _ => { });
+                _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, _ => { });
                 _cachedDevicesPath = textBoxDevices.Text;
                 // Сбрасываем фильтры только если это новый файл
                 _deviceEnabled = new();
@@ -369,14 +380,14 @@ namespace logReader.UI
         {
             if (!File.Exists(textBoxDevices.Text))
             {
-                Log("Ошибка: сначала укажите файл посылок (.xlsx).");
+                Log("Ошибка: сначала укажите файл посылок (.xlsx или .dbc).");
                 return;
             }
             try
             {
                 if (_cachedDevices == null || _cachedDevicesPath != textBoxDevices.Text)
                 {
-                    _cachedDevices = logReader.Program.LoadDevicesFromExcel(textBoxDevices.Text, Log);
+                    _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, Log);
                     _cachedDevicesPath = textBoxDevices.Text;
                 }
 
@@ -418,9 +429,9 @@ namespace logReader.UI
                 Log("Ошибка: файл лога не найден.");
                 return;
             }
-            if (!File.Exists(textBoxDevices.Text))
+            if (!IsDevicesFileSelectedAndExists())
             {
-                Log("Ошибка: Excel файл устройств не найден.");
+                Log("Ошибка: файл посылок (.xlsx или .dbc) не найден.");
                 return;
             }
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
@@ -472,7 +483,7 @@ namespace logReader.UI
             {
                 if (_cachedDevices == null || _cachedDevicesPath != textBoxDevices.Text)
                 {
-                    _cachedDevices = logReader.Program.LoadDevicesFromExcel(textBoxDevices.Text, Log);
+                    _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, Log);
                     _cachedDevicesPath = textBoxDevices.Text;
                 }
 
