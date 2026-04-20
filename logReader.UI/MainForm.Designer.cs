@@ -43,7 +43,7 @@ namespace logReader.UI
             labelCANlog.Name = "labelCANlog";
             labelCANlog.Size = new Size(128, 15);
             labelCANlog.TabIndex = 15;
-            labelCANlog.Text = "Файл логов (.csv | .trc | .asc)";
+            labelCANlog.Text = "Файл или папка логов (.csv | .trc | .asc)";
             // 
             // labelDevices
             // 
