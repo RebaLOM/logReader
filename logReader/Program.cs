@@ -11,6 +11,9 @@ namespace logReader
     public class Device
     {
         public string ID;
+        public string Name = "Unknown";
+        public int DLC = 8;
+        public bool IsExtendedId = false;
         public string[] headers;
         public int[] RawBytes = new int[8];
         public string[] RawBinaries = new string[8];
@@ -48,6 +51,9 @@ namespace logReader
         public bool UseBitExtraction;
         public bool IsLittleEndian = true;
         public bool SignedRaw;
+        public double Min;
+        public double Max;
+        public string Unit = "";
     }
 
     public class DynamicDevice : Device
@@ -606,120 +612,115 @@ namespace logReader
             var logger = log ?? Console.WriteLine;
             var dynamicDevices = new List<Device>();
 
-            // 🟡 УЛУЧШЕНО: проверяем существование файла до открытия
             if (!File.Exists(excelPath))
                 throw new FileNotFoundException($"Файл не найден: {excelPath}");
 
             try
             {
-                using var workbook = new XLWorkbook(excelPath);
-                var worksheet = workbook.Worksheet(1);
-                var deviceGroups = new Dictionary<string, List<FieldInstruction>>();
-                int rowCount = worksheet.LastRowUsed()?.RowNumber() ?? 0;
-
-                for (int rowNum = 2; rowNum <= rowCount; rowNum++)
+                var definitions = DeviceExcelFile.ReadAllDevices(excelPath);
+                foreach (var def in definitions)
                 {
-                    var row = worksheet.Row(rowNum);
-                    string deviceID = row.Cell(1).GetString().Trim();
+                    var instructions = new List<FieldInstruction>();
 
-                    if (string.IsNullOrWhiteSpace(deviceID))
+                    foreach (var row in def.Rows)
                     {
-                        logger($"Строка {rowNum}: отсутствует DeviceID — пропускаем.");
-                        continue;
+                        if (string.IsNullOrWhiteSpace(row.Header))
+                        {
+                            logger($"Устройство {def.DeviceId}: пустой Header — пропускаем.");
+                            continue;
+                        }
+
+                        string type = (row.Type ?? "").Trim().ToUpperInvariant();
+
+                        if (type == "NUM")
+                        {
+                            if (!row.IsLittleEndian)
+                            {
+                                logger($"Устройство {def.DeviceId}, '{row.Header}': Motorola (Big-endian) пока не поддерживается — пропускаем.");
+                                continue;
+                            }
+
+                            if (row.Length <= 0 || row.Length > 64)
+                            {
+                                logger($"Устройство {def.DeviceId}, '{row.Header}': Length вне диапазона 1..64 — пропускаем.");
+                                continue;
+                            }
+
+                            if (row.StartBit < 0 || row.StartBit + row.Length > 64)
+                            {
+                                logger($"Устройство {def.DeviceId}, '{row.Header}': StartBit/Length выходят за пределы 64 бит полезной нагрузки — пропускаем.");
+                                continue;
+                            }
+
+                            instructions.Add(new FieldInstruction
+                            {
+                                FieldIndex = row.FieldIndex,
+                                Header = row.Header,
+                                Type = "NUM",
+                                UseBitExtraction = true,
+                                StartBit = row.StartBit,
+                                LenghtBit = row.Length,
+                                Scale = row.Scale,
+                                Offset = row.Offset,
+                                IsLittleEndian = true,
+                                SignedRaw = row.SignedRaw,
+                                Unit = row.Unit ?? "",
+                                Min = row.MinPhys ?? 0,
+                                Max = row.MaxPhys ?? 0,
+                            });
+                        }
+                        else if (type == "BIN")
+                        {
+                            int lowByte = row.StartBit;
+                            if (lowByte < 0 || lowByte > 7)
+                            {
+                                logger($"Устройство {def.DeviceId}, '{row.Header}': для BIN колонка StartBit (байт данных) должна быть 0..7 — пропускаем.");
+                                continue;
+                            }
+
+                            int bitStart = row.BitStart ?? 0;
+                            int len = row.Length;
+                            if (len <= 0 || len > 8)
+                            {
+                                logger($"Устройство {def.DeviceId}, '{row.Header}': для BIN Length должен быть 1..8 — пропускаем.");
+                                continue;
+                            }
+
+                            if (bitStart + len > 8)
+                            {
+                                logger($"Устройство {def.DeviceId}, '{row.Header}': для BIN BitStart+Length не должны превышать 8 — пропускаем.");
+                                continue;
+                            }
+
+                            instructions.Add(new FieldInstruction
+                            {
+                                FieldIndex = row.FieldIndex,
+                                Header = row.Header,
+                                Type = "BIN",
+                                ByteLow = lowByte,
+                                ByteHigh = null,
+                                Scale = 1,
+                                Offset = 0,
+                                UseBitExtraction = false,
+                                StartBit = bitStart,
+                                LenghtBit = len,
+                                IsLittleEndian = true,
+                                SignedRaw = false,
+                            });
+                        }
+                        else
+                        {
+                            logger($"Устройство {def.DeviceId}, '{row.Header}': неизвестный Type '{type}' — пропускаем.");
+                        }
                     }
 
-                    try
-                    {
-                        double? low = GetCellNumber(row, 4);
-                        double? high = GetCellNumber(row, 5);
-                        int? byteLow = low.HasValue ? (int?)low.Value : null;
-                        int? byteHigh = high.HasValue ? (int?)high.Value : null;
-
-                        if (!byteLow.HasValue && byteHigh.HasValue)
-                        {
-                            byteLow = byteHigh;
-                            byteHigh = null;
-                        }
-                        if (!byteLow.HasValue)
-                        {
-                            logger($"Строка {rowNum}: не указан ByteLow — пропускаем.");
-                            continue;
-                        }
-
-                        
-                        if (byteLow.Value < 0 || byteLow.Value > 7)
-                        {
-                            logger($"Строка {rowNum}: ByteLow={byteLow.Value} вне диапазона 0-7 — пропускаем.");
-                            continue;
-                        }
-                        if (byteHigh.HasValue && (byteHigh.Value < 0 || byteHigh.Value > 7))
-                        {
-                            logger($"Строка {rowNum}: ByteHigh={byteHigh.Value} вне диапазона 0-7 — пропускаем.");
-                            continue;
-                        }
-
-                        double? fieldIndexNum = GetCellNumber(row, 2);
-                        int fieldIndex = fieldIndexNum.HasValue ? (int)fieldIndexNum.Value : 0;
-
-                        
-                        if (fieldIndex < 0)
-                        {
-                            logger($"Строка {rowNum}: FieldIndex={fieldIndex} отрицательный — пропускаем.");
-                            continue;
-                        }
-
-                        double? startBitNum = GetCellNumber(row, 9);
-                        double? lengthBitNum = GetCellNumber(row, 10);
-                        int startBit = startBitNum.HasValue ? (int)startBitNum.Value : 0;
-                        int lengthBit = lengthBitNum.HasValue ? (int)lengthBitNum.Value : 0;
-
-                        string type = row.Cell(8).GetString().Trim();
-
-                      
-                        if (type == "BIN" && startBit + lengthBit > 8)
-                        {
-                            logger($"Строка {rowNum}: StartBit({startBit})+LengthBit({lengthBit}) > 8 — пропускаем.");
-                            continue;
-                        }
-
-                        double scale = GetCellNumber(row, 6) ?? 1;
-                        double offset = GetCellNumber(row, 7) ?? 0;
-
-                        var instruction = new FieldInstruction
-                        {
-                            FieldIndex = fieldIndex,
-                            Header = row.Cell(3).GetString().Trim(),
-                            ByteLow = byteLow.Value,
-                            ByteHigh = byteHigh,
-                            Scale = scale,
-                            Offset = offset,
-                            Type = type,
-                            StartBit = startBit,
-                            LenghtBit = lengthBit,
-                        };
-
-                        if (!deviceGroups.ContainsKey(deviceID))
-                            deviceGroups[deviceID] = new List<FieldInstruction>();
-
-                        deviceGroups[deviceID].Add(instruction);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger($"Ошибка в строке {rowNum}: {ex.Message} — пропускаем.");
-                    }
-                }
-
-                foreach (var kvp in deviceGroups)
-                {
-                    // Сортируем по FieldIndex, затем переназначаем индексы 0,1,2...
-                    // Дублирующиеся FieldIndex допустимы — все параметры сохраняются
-                    var sorted = kvp.Value.OrderBy(i => i.FieldIndex).ToList();
+                    var sorted = instructions.OrderBy(i => i.FieldIndex).ToList();
                     for (int i = 0; i < sorted.Count; i++)
                         sorted[i].FieldIndex = i;
 
-                    dynamicDevices.Add(new DynamicDevice(kvp.Key, sorted));
+                    if (sorted.Count > 0)
+                        dynamicDevices.Add(new DynamicDevice(def.DeviceId, sorted));
                 }
-
             }
             catch (Exception ex) when (ex is not FileNotFoundException)
             {

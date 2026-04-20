@@ -1,5 +1,6 @@
 {
-    "recommendations": [
-        "openai.chatgpt"
-    ]
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "openai.chatgpt"
+  ]
 }

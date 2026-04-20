@@ -39,9 +39,9 @@ namespace logReader.UI
 
         private void UpdateDevicesCreateAddButtonState()
         {
-            buttonDevicesCreateOrAdd.Text = IsDevicesExcelFileSelectedAndExists()
-                ? "Добавить"
-                : "Создать .xlsx";
+            buttonDevicesCreateOrAdd.Text = IsDevicesFileSelectedAndExists()
+                ? "Редактор"
+                : "Создать...";
         }
 
         private void EnsureFiltersMatchDevices()
@@ -184,8 +184,8 @@ namespace logReader.UI
 
         private void buttonDevicesCreateOrAdd_Click(object sender, EventArgs e)
         {
-            if (IsDevicesExcelFileSelectedAndExists())
-                AddDeviceFieldsToExistingFile();
+            if (IsDevicesFileSelectedAndExists())
+                OpenDevicesEditor();
             else
                 CreateNewDevicesFile();
 
@@ -194,15 +194,30 @@ namespace logReader.UI
 
         private void CreateNewDevicesFile()
         {
+            using var kindDlg = new FileKindPromptForm();
+            if (kindDlg.ShowDialog(this) != DialogResult.OK) return;
+            if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.None) return;
+
             using SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
-            sfd.DefaultExt = "xlsx";
+            if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.Xlsx)
+            {
+                sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
+                sfd.DefaultExt = "xlsx";
+            }
+            else
+            {
+                sfd.Filter = "DBC files (*.dbc)|*.dbc";
+                sfd.DefaultExt = "dbc";
+            }
             sfd.AddExtension = true;
             if (sfd.ShowDialog() != DialogResult.OK) return;
 
             try
             {
-                logReader.DeviceExcelFile.CreateDevicesExcelTemplate(sfd.FileName);
+                if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.Xlsx)
+                    logReader.DeviceExcelFile.CreateDevicesExcelTemplate(sfd.FileName);
+                else
+                    logReader.DbcFile.CreateEmpty(sfd.FileName);
 
                 _cachedDevices = null;
                 _cachedDevicesPath = "";
@@ -211,48 +226,49 @@ namespace logReader.UI
                 UpdateFilterLabel();
 
                 textBoxDevices.Text = sfd.FileName;
-                Log("Файл устройств создан.");
+                Log("Файл посылок создан. Откроется редактор.");
+
+                OpenDevicesEditor();
             }
             catch (Exception ex)
             {
-                Log("Ошибка создания файла устройств: " + ex.Message);
+                Log("Ошибка создания файла посылок: " + ex.Message);
             }
         }
 
-        private void AddDeviceFieldsToExistingFile()
+        private void OpenDevicesEditor()
         {
             string path = textBoxDevices.Text;
-            if (!IsDevicesExcelFileSelectedAndExists())
+            if (!IsDevicesFileSelectedAndExists())
             {
-                Log("Ошибка: Excel файл устройств не найден.");
+                Log("Ошибка: файл посылок не найден.");
                 return;
             }
 
-            // Проверяем что файл не заблокирован (например Excel)
             try { using var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
             catch
             {
-                Log("Ошибка: файл устройств уже открыт в другой программе. Закройте его и попробуйте снова.");
+                Log("Ошибка: файл посылок уже открыт в другой программе. Закройте его и попробуйте снова.");
                 return;
             }
 
-            using var form = new DeviceFieldsAddForm();
-            if (form.ShowDialog(this) != DialogResult.OK) return;
+            using var editor = new DevicesEditorForm(path);
+            editor.ShowDialog(this);
 
-            try
+            if (editor.Modified)
             {
-                logReader.DeviceExcelFile.AppendDeviceFields(path, form.DeviceId, form.Rows);
-
-                _cachedDevices = logReader.Program.LoadDevicesFromExcel(path, Log);
-                _cachedDevicesPath = path;
-                EnsureFiltersMatchDevices();
-                UpdateFilterLabel();
-
-                Log("Данные добавлены в файл устройств.");
-            }
-            catch (Exception ex)
-            {
-                Log("Ошибка добавления данных в файл устройств: " + ex.Message);
+                try
+                {
+                    _cachedDevices = logReader.Program.LoadDevicesFromFile(path, Log);
+                    _cachedDevicesPath = path;
+                    EnsureFiltersMatchDevices();
+                    UpdateFilterLabel();
+                    Log("Файл посылок обновлён.");
+                }
+                catch (Exception ex)
+                {
+                    Log("Ошибка перезагрузки файла посылок: " + ex.Message);
+                }
             }
         }
 
