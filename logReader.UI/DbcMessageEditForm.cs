@@ -28,6 +28,7 @@ namespace logReader.UI
 
             Text = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
             StartPosition = FormStartPosition.CenterParent;
+            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(720, 460);
             ClientSize = new Size(720, 460);
 
@@ -56,15 +57,15 @@ namespace logReader.UI
             top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
 
-            top.Controls.Add(MakeLabel("Имя"), 0, 0);
+            top.Controls.Add(MessageEditFormHelpers.MakeLabel("Имя"), 0, 0);
             _txtName.Dock = DockStyle.Fill;
             top.Controls.Add(_txtName, 1, 0);
 
-            top.Controls.Add(MakeLabel("ID (hex)"), 2, 0);
+            top.Controls.Add(MessageEditFormHelpers.MakeLabel("ID (hex)"), 2, 0);
             _txtId.Dock = DockStyle.Fill;
             top.Controls.Add(_txtId, 3, 0);
 
-            top.Controls.Add(MakeLabel("DLC"), 4, 0);
+            top.Controls.Add(MessageEditFormHelpers.MakeLabel("DLC"), 4, 0);
             _numDlc.Minimum = 1;
             _numDlc.Maximum = 8;
             _numDlc.Value = 8;
@@ -80,7 +81,7 @@ namespace logReader.UI
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false
             };
-            fmtPanel.Controls.Add(MakeLabel("Формат:"));
+            fmtPanel.Controls.Add(MessageEditFormHelpers.MakeLabel("Формат:"));
             _rbStandard.Text = "Standard (11-bit)";
             _rbStandard.AutoSize = true;
             _rbStandard.Margin = new Padding(8, 3, 8, 0);
@@ -129,6 +130,7 @@ namespace logReader.UI
             _grid.Columns.Add("Unit", "Unit");
             _grid.Columns.Add("Order", "Order");
             _grid.Columns["Name"]!.FillWeight = 25;
+            MessageEditFormHelpers.MakeGridColumnsNotSortable(_grid);
 
             var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
             gridHost.Controls.Add(_grid);
@@ -156,16 +158,6 @@ namespace logReader.UI
             Controls.Add(top);
             Controls.Add(bottom);
         }
-
-        private static Label MakeLabel(string text)
-            => new()
-            {
-                Text = text,
-                AutoSize = true,
-                Anchor = AnchorStyles.Left,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Margin = new Padding(3, 7, 3, 0)
-            };
 
         private void LoadFromMessage(DbcMessage m)
         {
@@ -273,27 +265,10 @@ namespace logReader.UI
                 return;
             }
 
-            string idText = _txtId.Text.Trim();
-            if (idText.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                idText = idText.Substring(2);
-
-            if (!uint.TryParse(idText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint id))
-            {
-                MessageBox.Show(this, "ID должен быть 16-ричным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _txtId.Focus();
-                return;
-            }
-
             bool isExtended = _rbExtended.Checked;
-            uint maxId = isExtended ? 0x1FFFFFFFu : 0x7FFu;
-            if (id > maxId)
+            if (!MessageEditFormHelpers.TryParseHexId(_txtId.Text, isExtended, out uint id, out string idError))
             {
-                MessageBox.Show(
-                    this,
-                    isExtended
-                        ? "ID выходит за пределы 29-битного диапазона (0..1FFFFFFF)."
-                        : "ID выходит за пределы 11-битного диапазона (0..7FF).",
-                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtId.Focus();
                 return;
             }
@@ -312,7 +287,7 @@ namespace logReader.UI
             int dlc = (int)_numDlc.Value;
             foreach (var s in _signals)
             {
-                if (s.StartBit + s.Length > dlc * 8)
+                if (!SignalFitsInDlc(s, dlc))
                 {
                     MessageBox.Show(
                         this,
@@ -334,6 +309,28 @@ namespace logReader.UI
 
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private static bool SignalFitsInDlc(DbcSignal s, int dlc)
+        {
+            int payloadBits = dlc * 8;
+            if (s.Length <= 0 || s.Length > payloadBits) return false;
+
+            if (s.IsLittleEndian)
+            {
+                return s.StartBit >= 0 && s.StartBit + s.Length <= payloadBits;
+            }
+
+            // Motorola: StartBit — MSB поля. Имитируем обход по DBC-правилу и
+            // требуем, чтобы все биты остались внутри DLC.
+            int bit = s.StartBit;
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (bit < 0 || bit >= payloadBits) return false;
+                if ((bit % 8) == 0) bit += 15;
+                else bit -= 1;
+            }
+            return true;
         }
 
         private static DbcMessage Clone(DbcMessage m)

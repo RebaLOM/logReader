@@ -1,18 +1,9 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 
 namespace logReader
 {
     internal static class DbcDevicesLoader
     {
-        private static readonly Regex MessageRegex = new(
-            @"^BO_\s+(?<id>\d+)\s+(?<name>\S+)\s*:\s*(?<dlc>\d+)\s+\S+",
-            RegexOptions.Compiled);
-
-        private static readonly Regex SignalRegex = new(
-            @"^SG_\s+(?<name>\S+)\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s+\((?<factor>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?),(?<offset>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\)",
-            RegexOptions.Compiled);
-
         public static List<Device> LoadDevicesFromDbc(string dbcPath, Action<string>? log = null)
         {
             var logger = log ?? Console.WriteLine;
@@ -21,23 +12,29 @@ namespace logReader
                 throw new FileNotFoundException($"Файл не найден: {dbcPath}");
 
             var deviceGroups = new Dictionary<string, List<FieldInstruction>>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
             string? currentDeviceId = null;
+            var seenMessageIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (string rawLine in File.ReadLines(dbcPath))
             {
                 string line = rawLine.Trim();
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
+                if (string.IsNullOrWhiteSpace(line)) continue;
 
-                var messageMatch = MessageRegex.Match(line);
-                if (messageMatch.Success)
+                if (DbcLineParser.TryParseMessage(line, out var header))
                 {
-                    uint dbcId = uint.Parse(messageMatch.Groups["id"].Value, CultureInfo.InvariantCulture);
-                    uint actualId = dbcId & 0x1FFFFFFF;
-                    currentDeviceId = actualId.ToString("X", CultureInfo.InvariantCulture);
+                    currentDeviceId = header.Id.ToString("X", CultureInfo.InvariantCulture);
+
+                    if (!seenMessageIds.Add(currentDeviceId))
+                    {
+                        logger($"Предупреждение: дубликат BO_ 0x{currentDeviceId} — сигналы будут объединены.");
+                    }
 
                     if (!deviceGroups.ContainsKey(currentDeviceId))
+                    {
                         deviceGroups[currentDeviceId] = new List<FieldInstruction>();
+                        order.Add(currentDeviceId);
+                    }
 
                     continue;
                 }
@@ -45,62 +42,59 @@ namespace logReader
                 if (currentDeviceId == null || !line.StartsWith("SG_", StringComparison.Ordinal))
                     continue;
 
-                var signalMatch = SignalRegex.Match(line);
-                if (!signalMatch.Success)
+                if (!DbcLineParser.TryParseSignal(line, out var sig))
                 {
                     logger($"Предупреждение: не удалось разобрать сигнал DBC: {line}");
                     continue;
                 }
 
-                int startBit = int.Parse(signalMatch.Groups["start"].Value, CultureInfo.InvariantCulture);
-                int bitLength = int.Parse(signalMatch.Groups["length"].Value, CultureInfo.InvariantCulture);
-                bool isLittleEndian = signalMatch.Groups["order"].Value == "1";
-
-                if (!isLittleEndian)
+                if (sig.Length <= 0 || sig.Length > 64)
                 {
-                    logger($"Предупреждение: Motorola big-endian пока не поддерживается, сигнал пропущен: {signalMatch.Groups["name"].Value}");
+                    logger($"Предупреждение: '{sig.Name}': Length={sig.Length} вне 1..64 — пропущен.");
                     continue;
                 }
 
-                if (bitLength <= 0 || bitLength > 64 || startBit + bitLength > 64)
+                if (sig.IsLittleEndian)
                 {
-                    logger($"Предупреждение: сигнал вне диапазона 64 бит, пропущен: {signalMatch.Groups["name"].Value}");
-                    continue;
+                    if (sig.StartBit < 0 || sig.StartBit + sig.Length > 64)
+                    {
+                        logger($"Предупреждение: Intel сигнал '{sig.Name}' вне 64 бит — пропущен.");
+                        continue;
+                    }
                 }
-
-                double factor = ParseDouble(signalMatch.Groups["factor"].Value);
-                double offset = ParseDouble(signalMatch.Groups["offset"].Value);
+                else
+                {
+                    // Для Motorola StartBit указывает MSB; допускается диапазон 0..63.
+                    if (sig.StartBit < 0 || sig.StartBit > 63)
+                    {
+                        logger($"Предупреждение: Motorola сигнал '{sig.Name}': StartBit={sig.StartBit} вне 0..63 — пропущен.");
+                        continue;
+                    }
+                }
 
                 var list = deviceGroups[currentDeviceId];
                 list.Add(new FieldInstruction
                 {
                     FieldIndex = list.Count,
-                    Header = BeautifySignalName(signalMatch.Groups["name"].Value),
+                    Header = BeautifySignalName(sig.Name),
                     Type = "NUM",
-                    StartBit = startBit,
-                    LenghtBit = bitLength,
-                    Scale = factor,
-                    Offset = offset,
+                    StartBit = sig.StartBit,
+                    LengthBit = sig.Length,
+                    Scale = sig.Factor,
+                    Offset = sig.Offset,
                     UseBitExtraction = true,
-                    IsLittleEndian = true,
-                    // В DBC файлах сигналы часто ошибочно помечаются как знаковые (@1-),
-                    // даже если для отрицательных значений используется смещение (offset).
-                    // Для корректной совместимости с логикой обработки из Excel (где SignedRaw = false),
-                    // принудительно сбрасываем флаг знака.
-                    SignedRaw = false
+                    IsLittleEndian = sig.IsLittleEndian,
+                    SignedRaw = sig.IsSigned,
+                    Unit = sig.Unit ?? "",
+                    Min = sig.Min,
+                    Max = sig.Max,
                 });
             }
 
-            return deviceGroups
-                .Where(kvp => kvp.Value.Count > 0)
-                .Select(kvp => (Device)new DynamicDevice(kvp.Key, kvp.Value))
+            return order
+                .Where(id => deviceGroups[id].Count > 0)
+                .Select(id => (Device)new DynamicDevice(id, deviceGroups[id]))
                 .ToList();
-        }
-
-        private static double ParseDouble(string value)
-        {
-            string normalized = value.Trim().Replace(',', '.');
-            return double.Parse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture);
         }
 
         private static string BeautifySignalName(string rawName)

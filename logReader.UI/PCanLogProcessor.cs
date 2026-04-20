@@ -21,15 +21,19 @@ namespace logReader.UI
             // Устройства могут переиспользоваться между обработками в UI.
             logReader.Program.ResetDevicesState(devices);
 
-            string[] lines;
+            Encoding encoding;
             try
             {
-                Encoding encoding = LogFileEncoding.Detect(trcPath);
-                lines = File.ReadAllLines(trcPath, encoding);
+                encoding = LogFileEncoding.Detect(trcPath);
+            }
+            catch (Exception ex) { log($"Ошибка определения кодировки: {ex.Message}"); return; }
+
+            DateTime? startTime;
+            try
+            {
+                startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding));
             }
             catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
-
-            DateTime? startTime = TrcLogParser.ParseStartTime(lines);
 
             var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
@@ -40,7 +44,7 @@ namespace logReader.UI
                 StringComparer.OrdinalIgnoreCase);
 
             Span<int> bytes = stackalloc int[8];
-            foreach (var line in lines)
+            foreach (var line in File.ReadLines(trcPath, encoding))
             {
                 if (!TrcLogParser.TryParseTrcFrameLine(
                         line,
@@ -59,9 +63,8 @@ namespace logReader.UI
                 bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true);
                 if (!devOn) continue;
 
-                if (parsedByteCount < 8) continue;
                 for (int i = 0; i < 8; i++)
-                    device.RawBytes[i] = bytes[i];
+                    device.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
 
                 device.Decode();
 

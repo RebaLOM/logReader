@@ -1,25 +1,12 @@
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace logReader
 {
     public static class DbcFile
     {
-        private const uint ExtendedIdFlag = 0x80000000u;
-        private const uint IdMask = 0x1FFFFFFFu;
-
-        private static readonly Regex MessageRegex = new(
-            @"^BO_\s+(?<id>\d+)\s+(?<name>\S+)\s*:\s*(?<dlc>\d+)\s+(?<tx>\S+)",
-            RegexOptions.Compiled);
-
-        private static readonly Regex SignalRegex = new(
-            @"^SG_\s+(?<name>\S+)\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s+\((?<factor>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?),(?<offset>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\)\s*\[(?<min>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\|(?<max>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\]\s*""(?<unit>[^""]*)""\s+(?<rx>\S+)",
-            RegexOptions.Compiled);
-
-        private static readonly Regex SignalRegexFallback = new(
-            @"^SG_\s+(?<name>\S+)\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s+\((?<factor>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?),(?<offset>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\)",
-            RegexOptions.Compiled);
+        private const string DefaultReceiver = "Vector__XXX";
+        private const string DefaultTransmitter = "Vector__XXX";
 
         public static List<DbcMessage> Read(string path)
         {
@@ -34,20 +21,15 @@ namespace logReader
                 string line = raw.Trim();
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
-                var msgMatch = MessageRegex.Match(line);
-                if (msgMatch.Success)
+                if (DbcLineParser.TryParseMessage(line, out var header))
                 {
-                    uint rawId = uint.Parse(msgMatch.Groups["id"].Value, CultureInfo.InvariantCulture);
-                    bool isExt = (rawId & ExtendedIdFlag) != 0;
-                    uint id = rawId & IdMask;
-
                     current = new DbcMessage
                     {
-                        Id = id,
-                        IsExtended = isExt,
-                        Name = msgMatch.Groups["name"].Value,
-                        Dlc = int.Parse(msgMatch.Groups["dlc"].Value, CultureInfo.InvariantCulture),
-                        Transmitter = msgMatch.Groups["tx"].Value
+                        Id = header.Id,
+                        IsExtended = header.IsExtended,
+                        Name = header.Name,
+                        Dlc = header.Dlc,
+                        Transmitter = header.Transmitter
                     };
                     messages.Add(current);
                     continue;
@@ -56,43 +38,8 @@ namespace logReader
                 if (current == null || !line.StartsWith("SG_", StringComparison.Ordinal))
                     continue;
 
-                var sigMatch = SignalRegex.Match(line);
-                if (!sigMatch.Success)
-                {
-                    var fb = SignalRegexFallback.Match(line);
-                    if (!fb.Success) continue;
-
-                    current.Signals.Add(new DbcSignal
-                    {
-                        Name = fb.Groups["name"].Value,
-                        StartBit = int.Parse(fb.Groups["start"].Value, CultureInfo.InvariantCulture),
-                        Length = int.Parse(fb.Groups["length"].Value, CultureInfo.InvariantCulture),
-                        IsLittleEndian = fb.Groups["order"].Value == "1",
-                        IsSigned = fb.Groups["sign"].Value == "-",
-                        Factor = ParseDouble(fb.Groups["factor"].Value),
-                        Offset = ParseDouble(fb.Groups["offset"].Value),
-                        Min = 0,
-                        Max = 0,
-                        Unit = "",
-                        Receiver = "Vector__XXX"
-                    });
-                    continue;
-                }
-
-                current.Signals.Add(new DbcSignal
-                {
-                    Name = sigMatch.Groups["name"].Value,
-                    StartBit = int.Parse(sigMatch.Groups["start"].Value, CultureInfo.InvariantCulture),
-                    Length = int.Parse(sigMatch.Groups["length"].Value, CultureInfo.InvariantCulture),
-                    IsLittleEndian = sigMatch.Groups["order"].Value == "1",
-                    IsSigned = sigMatch.Groups["sign"].Value == "-",
-                    Factor = ParseDouble(sigMatch.Groups["factor"].Value),
-                    Offset = ParseDouble(sigMatch.Groups["offset"].Value),
-                    Min = ParseDouble(sigMatch.Groups["min"].Value),
-                    Max = ParseDouble(sigMatch.Groups["max"].Value),
-                    Unit = sigMatch.Groups["unit"].Value,
-                    Receiver = sigMatch.Groups["rx"].Value
-                });
+                if (DbcLineParser.TryParseSignal(line, out var sig))
+                    current.Signals.Add(sig);
             }
 
             return messages;
@@ -100,70 +47,76 @@ namespace logReader
 
         public static void Write(string path, IReadOnlyList<DbcMessage> messages)
         {
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            ValidateForWrite(messages);
 
-            var sb = new StringBuilder();
-            sb.AppendLine("VERSION \"\"");
-            sb.AppendLine();
-            sb.AppendLine();
-            sb.AppendLine("BS_:");
-            sb.AppendLine();
-            sb.AppendLine("BU_:");
-            sb.AppendLine();
-            sb.AppendLine();
-
-            foreach (var m in messages)
+            SafeFileWriter.Write(path, tmp =>
             {
-                uint id = m.Id & IdMask;
-                if (m.IsExtended) id |= ExtendedIdFlag;
+                var sb = new StringBuilder();
+                sb.Append("VERSION \"\"\n");
+                sb.Append('\n');
+                sb.Append('\n');
+                sb.Append("BS_:\n");
+                sb.Append('\n');
+                sb.Append("BU_:\n");
+                sb.Append('\n');
+                sb.Append('\n');
 
-                string transmitter = string.IsNullOrWhiteSpace(m.Transmitter) ? "Vector__XXX" : m.Transmitter;
-                string messageName = string.IsNullOrWhiteSpace(m.Name) ? ("Msg_" + m.Id.ToString("X", CultureInfo.InvariantCulture)) : m.Name;
-
-                sb.Append("BO_ ")
-                  .Append(id.ToString(CultureInfo.InvariantCulture))
-                  .Append(' ')
-                  .Append(messageName)
-                  .Append(": ")
-                  .Append(m.Dlc.ToString(CultureInfo.InvariantCulture))
-                  .Append(' ')
-                  .Append(transmitter)
-                  .AppendLine();
-
-                foreach (var s in m.Signals)
+                foreach (var m in messages)
                 {
-                    string receiver = string.IsNullOrWhiteSpace(s.Receiver) ? "Vector__XXX" : s.Receiver;
+                    uint id = m.Id & DbcLineParser.IdMask;
+                    if (m.IsExtended) id |= DbcLineParser.ExtendedIdFlag;
 
-                    sb.Append(" SG_ ")
-                      .Append(s.Name)
-                      .Append(" : ")
-                      .Append(s.StartBit.ToString(CultureInfo.InvariantCulture))
-                      .Append('|')
-                      .Append(s.Length.ToString(CultureInfo.InvariantCulture))
-                      .Append('@')
-                      .Append(s.IsLittleEndian ? '1' : '0')
-                      .Append(s.IsSigned ? '-' : '+')
-                      .Append(" (")
-                      .Append(DbcPhysicalValue.FormatForDbc(s.Factor))
-                      .Append(',')
-                      .Append(DbcPhysicalValue.FormatForDbc(s.Offset))
-                      .Append(") [")
-                      .Append(DbcPhysicalValue.FormatForDbc(s.Min))
-                      .Append('|')
-                      .Append(DbcPhysicalValue.FormatForDbc(s.Max))
-                      .Append("] \"")
-                      .Append(s.Unit ?? "")
-                      .Append("\" ")
-                      .Append(receiver)
-                      .AppendLine();
+                    string transmitter = string.IsNullOrWhiteSpace(m.Transmitter)
+                        ? DefaultTransmitter
+                        : m.Transmitter;
+                    string messageName = string.IsNullOrWhiteSpace(m.Name)
+                        ? ("Msg_" + m.Id.ToString("X", CultureInfo.InvariantCulture))
+                        : m.Name;
+
+                    sb.Append("BO_ ")
+                      .Append(id.ToString(CultureInfo.InvariantCulture))
+                      .Append(' ')
+                      .Append(messageName)
+                      .Append(": ")
+                      .Append(m.Dlc.ToString(CultureInfo.InvariantCulture))
+                      .Append(' ')
+                      .Append(transmitter)
+                      .Append('\n');
+
+                    foreach (var s in m.Signals)
+                    {
+                        string receiver = string.IsNullOrWhiteSpace(s.Receiver) ? DefaultReceiver : s.Receiver;
+
+                        sb.Append(" SG_ ")
+                          .Append(s.Name)
+                          .Append(" : ")
+                          .Append(s.StartBit.ToString(CultureInfo.InvariantCulture))
+                          .Append('|')
+                          .Append(s.Length.ToString(CultureInfo.InvariantCulture))
+                          .Append('@')
+                          .Append(s.IsLittleEndian ? '1' : '0')
+                          .Append(s.IsSigned ? '-' : '+')
+                          .Append(" (")
+                          .Append(DbcPhysicalValue.FormatForDbc(s.Factor))
+                          .Append(',')
+                          .Append(DbcPhysicalValue.FormatForDbc(s.Offset))
+                          .Append(") [")
+                          .Append(DbcPhysicalValue.FormatForDbc(s.Min))
+                          .Append('|')
+                          .Append(DbcPhysicalValue.FormatForDbc(s.Max))
+                          .Append("] \"")
+                          .Append(EscapeQuotes(s.Unit ?? ""))
+                          .Append("\" ")
+                          .Append(receiver)
+                          .Append('\n');
+                    }
+
+                    sb.Append('\n');
                 }
 
-                sb.AppendLine();
-            }
-
-            File.WriteAllText(path, sb.ToString());
+                var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
+                File.WriteAllText(tmp, sb.ToString(), utf8NoBom);
+            });
         }
 
         public static void CreateEmpty(string path)
@@ -171,11 +124,52 @@ namespace logReader
             Write(path, Array.Empty<DbcMessage>());
         }
 
-        private static double ParseDouble(string value)
+        private static void ValidateForWrite(IReadOnlyList<DbcMessage> messages)
         {
-            string normalized = value.Trim().Replace(',', '.');
-            return double.Parse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture);
+            if (messages == null) throw new ArgumentNullException(nameof(messages));
+
+            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenIds = new HashSet<(uint id, bool ext)>();
+
+            foreach (var m in messages)
+            {
+                if (!DbcLineParser.IsValidSymbolName(m.Name))
+                    throw new InvalidDataException(
+                        $"Недопустимое имя посылки '{m.Name}'. Разрешены буквы/цифры/подчёркивания, первый символ — не цифра.");
+
+                if (!seenNames.Add(m.Name))
+                    throw new InvalidDataException($"Повторяющееся имя посылки: '{m.Name}'.");
+
+                var key = (m.Id, m.IsExtended);
+                if (!seenIds.Add(key))
+                    throw new InvalidDataException(
+                        $"Повторяющийся ID 0x{m.Id:X} ({(m.IsExtended ? "Extended" : "Standard")}).");
+
+                var sigNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var s in m.Signals)
+                {
+                    if (!DbcLineParser.IsValidSymbolName(s.Name))
+                        throw new InvalidDataException(
+                            $"Сигнал '{s.Name}' в посылке '{m.Name}': недопустимое имя.");
+                    if (!sigNames.Add(s.Name))
+                        throw new InvalidDataException(
+                            $"Повторяющееся имя сигнала '{s.Name}' в '{m.Name}'.");
+
+                    EnsureFinite(s.Factor, $"{m.Name}.{s.Name}.Factor");
+                    EnsureFinite(s.Offset, $"{m.Name}.{s.Name}.Offset");
+                    EnsureFinite(s.Min, $"{m.Name}.{s.Name}.Min");
+                    EnsureFinite(s.Max, $"{m.Name}.{s.Name}.Max");
+                }
+            }
         }
 
+        private static void EnsureFinite(double value, string fieldLabel)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new InvalidDataException($"Поле {fieldLabel}: значение должно быть конечным числом.");
+        }
+
+        private static string EscapeQuotes(string s)
+            => s.IndexOf('"') < 0 ? s : s.Replace("\"", "\\\"");
     }
 }

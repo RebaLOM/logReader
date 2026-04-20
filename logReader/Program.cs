@@ -47,7 +47,7 @@ namespace logReader
         public double Offset;
         public string Type = "";
         public int StartBit;
-        public int LenghtBit;
+        public int LengthBit;
         public bool UseBitExtraction;
         public bool IsLittleEndian = true;
         public bool SignedRaw;
@@ -70,102 +70,119 @@ namespace logReader
 
         public override void Decode()
         {
+            ulong payload = BuildPayload();
+
             foreach (var instr in instructions)
             {
-                try
+                if (instr.Type == "NUM")
                 {
-                    if (instr.Type == "NUM")
-                    {
-                        double rawNumericValue;
-                        if (instr.UseBitExtraction)
-                        {
-                            if (!TryExtractBitField(instr, out long bitFieldValue))
-                            {
-                                ProcessedData[instr.FieldIndex] = "ERR";
-                                continue;
-                            }
-                            rawNumericValue = bitFieldValue;
-                        }
-                        else
-                        {
-                            // 🔴 ИСПРАВЛЕНО: проверка что ByteLow и ByteHigh в диапазоне 0-7
-                            if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length)
-                            {
-                                ProcessedData[instr.FieldIndex] = "ERR";
-                                continue;
-                            }
-
-                            if (instr.ByteHigh.HasValue)
-                            {
-                                if (instr.ByteHigh.Value < 0 || instr.ByteHigh.Value >= RawBytes.Length)
-                                {
-                                    ProcessedData[instr.FieldIndex] = "ERR";
-                                    continue;
-                                }
-                                rawNumericValue = (RawBytes[instr.ByteHigh.Value] * 256) + RawBytes[instr.ByteLow];
-                            }
-                            else
-                            {
-                                rawNumericValue = RawBytes[instr.ByteLow];
-                            }
-                        }
-
-                        double physicalValue = (rawNumericValue * instr.Scale) + instr.Offset;
-                        ProcessedData[instr.FieldIndex] = physicalValue.ToString(CultureInfo.InvariantCulture);
-                    }
-                    else if (instr.Type == "BIN")
-                    {
-                        // 🔴 ИСПРАВЛЕНО: проверка ByteLow в диапазоне
-                        if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length)
-                        {
-                            ProcessedData[instr.FieldIndex] = "ERR";
-                            continue;
-                        }
-
-                        ToBinaries(instr.ByteLow);
-                        string binary = RawBinaries[instr.ByteLow] ?? "00000000";
-
-                        // 🔴 ИСПРАВЛЕНО: проверка что StartBit + LenghtBit не выходят за пределы строки
-                        if (instr.StartBit < 0 || instr.LenghtBit <= 0
-                            || instr.StartBit + instr.LenghtBit > binary.Length)
-                        {
-                            ProcessedData[instr.FieldIndex] = "ERR";
-                            continue;
-                        }
-
-                        string bits = binary.Substring(instr.StartBit, instr.LenghtBit);
-                        ProcessedData[instr.FieldIndex] = Convert.ToInt32(bits, 2).ToString();
-                    }
+                    DecodeNum(instr, payload);
                 }
-                catch (Exception)
+                else if (instr.Type == "BIN")
                 {
-                    // Защита от любой неожиданной ошибки декодирования одного поля
-                    if (instr.FieldIndex >= 0 && instr.FieldIndex < ProcessedData.Length)
-                        ProcessedData[instr.FieldIndex] = "ERR";
+                    DecodeBin(instr);
                 }
             }
         }
 
-        private bool TryExtractBitField(FieldInstruction instr, out long value)
+        private void DecodeNum(FieldInstruction instr, ulong payload)
+        {
+            if (instr.FieldIndex < 0 || instr.FieldIndex >= ProcessedData.Length) return;
+
+            double rawNumericValue;
+            if (instr.UseBitExtraction)
+            {
+                if (!TryExtractBitField(instr, payload, out long bitFieldValue))
+                {
+                    ProcessedData[instr.FieldIndex] = "ERR";
+                    return;
+                }
+                rawNumericValue = bitFieldValue;
+            }
+            else
+            {
+                if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length)
+                {
+                    ProcessedData[instr.FieldIndex] = "ERR";
+                    return;
+                }
+
+                long raw;
+                int bits;
+                if (instr.ByteHigh.HasValue)
+                {
+                    int hi = instr.ByteHigh.Value;
+                    if (hi < 0 || hi >= RawBytes.Length)
+                    {
+                        ProcessedData[instr.FieldIndex] = "ERR";
+                        return;
+                    }
+                    raw = (RawBytes[hi] * 256) + RawBytes[instr.ByteLow];
+                    bits = 16;
+                }
+                else
+                {
+                    raw = RawBytes[instr.ByteLow];
+                    bits = 8;
+                }
+
+                if (instr.SignedRaw && bits < 64)
+                {
+                    long signBit = 1L << (bits - 1);
+                    if ((raw & signBit) != 0) raw -= (1L << bits);
+                }
+                rawNumericValue = raw;
+            }
+
+            double physicalValue = (rawNumericValue * instr.Scale) + instr.Offset;
+            ProcessedData[instr.FieldIndex] = physicalValue.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private void DecodeBin(FieldInstruction instr)
+        {
+            if (instr.FieldIndex < 0 || instr.FieldIndex >= ProcessedData.Length) return;
+
+            if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length
+                || instr.StartBit < 0 || instr.LengthBit <= 0
+                || instr.StartBit + instr.LengthBit > 8)
+            {
+                ProcessedData[instr.FieldIndex] = "ERR";
+                return;
+            }
+
+            int b = RawBytes[instr.ByteLow] & 0xFF;
+            int mask = (1 << instr.LengthBit) - 1;
+            int shift = 8 - instr.StartBit - instr.LengthBit; // DBC-стиль: StartBit — MSB поля
+            if (shift < 0) shift = 0;
+            int raw = (b >> shift) & mask;
+            ProcessedData[instr.FieldIndex] = raw.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private bool TryExtractBitField(FieldInstruction instr, ulong payload, out long value)
         {
             value = 0;
 
-            if (!instr.IsLittleEndian)
+            if (instr.LengthBit <= 0 || instr.LengthBit > 64 || instr.StartBit < 0)
                 return false;
 
-            if (instr.StartBit < 0 || instr.LenghtBit <= 0 || instr.LenghtBit > 64)
-                return false;
+            ulong rawValue;
 
-            if (instr.StartBit + instr.LenghtBit > 64)
-                return false;
+            if (instr.IsLittleEndian)
+            {
+                if (instr.StartBit + instr.LengthBit > 64) return false;
 
-            ulong payload = 0;
-            for (int i = 0; i < RawBytes.Length; i++)
-                payload |= ((ulong)(byte)RawBytes[i]) << (8 * i);
-
-            ulong rawValue = instr.LenghtBit == 64
-                ? payload >> instr.StartBit
-                : (payload >> instr.StartBit) & ((1UL << instr.LenghtBit) - 1);
+                rawValue = instr.LengthBit == 64
+                    ? payload >> instr.StartBit
+                    : (payload >> instr.StartBit) & ((1UL << instr.LengthBit) - 1);
+            }
+            else
+            {
+                // Motorola big-endian: StartBit указывает MSB сигнала.
+                // Итерация по DBC: внутри байта идём вниз (MSB -> LSB),
+                // затем переходим в следующий байт снова на MSB.
+                if (!TryReadMotorolaField(payload, instr.StartBit, instr.LengthBit, out rawValue))
+                    return false;
+            }
 
             if (!instr.SignedRaw)
             {
@@ -173,20 +190,52 @@ namespace logReader
                 return true;
             }
 
-            if (instr.LenghtBit == 64)
+            if (instr.LengthBit == 64)
             {
                 value = unchecked((long)rawValue);
                 return true;
             }
 
-            ulong signBit = 1UL << (instr.LenghtBit - 1);
+            ulong signBit = 1UL << (instr.LengthBit - 1);
             if ((rawValue & signBit) != 0)
             {
-                ulong extensionMask = ~((1UL << instr.LenghtBit) - 1);
+                ulong extensionMask = ~((1UL << instr.LengthBit) - 1);
                 rawValue |= extensionMask;
             }
 
             value = unchecked((long)rawValue);
+            return true;
+        }
+
+        private ulong BuildPayload()
+        {
+            ulong payload = 0;
+            for (int i = 0; i < RawBytes.Length; i++)
+                payload |= ((ulong)(byte)RawBytes[i]) << (8 * i);
+            return payload;
+        }
+
+        /// <summary>
+        /// Извлечение big-endian (Motorola) сигнала согласно DBC: <paramref name="startBit"/>
+        /// указывает MSB сигнала. Последующие биты идут вниз по байту (−1), при переходе
+        /// из LSB текущего байта попадают в MSB следующего (+15).
+        /// </summary>
+        private static bool TryReadMotorolaField(ulong payload, int startBit, int length, out ulong result)
+        {
+            result = 0;
+            int bit = startBit;
+            for (int i = 0; i < length; i++)
+            {
+                if (bit < 0 || bit >= 64) return false;
+
+                ulong b = (payload >> bit) & 1UL;
+                result = (result << 1) | b;
+
+                if ((bit % 8) == 0)
+                    bit += 15; // перешагиваем в MSB следующего байта
+                else
+                    bit -= 1;
+            }
             return true;
         }
     }
@@ -202,9 +251,9 @@ namespace logReader
         public override void Decode()
         {
             int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
-            ProcessedData[0] = (rawTorque - 10000).ToString();
+            ProcessedData[0] = (rawTorque - 10000).ToString(CultureInfo.InvariantCulture);
             int rawSpeed = (RawBytes[5] * 256) + RawBytes[4];
-            ProcessedData[1] = ((rawSpeed * 0.5) - 15000).ToString();
+            ProcessedData[1] = ((rawSpeed * 0.5) - 15000).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -219,11 +268,11 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = ((RawBytes[3] * 256) + RawBytes[2]).ToString();
-            ProcessedData[1] = (RawBytes[4] - 40).ToString();
-            ProcessedData[2] = (RawBytes[5] - 40).ToString();
+            ProcessedData[0] = ((RawBytes[3] * 256) + RawBytes[2]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (RawBytes[4] - 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = (RawBytes[5] - 40).ToString(CultureInfo.InvariantCulture);
             double busCurrent = ((RawBytes[7] * 256) + RawBytes[6]) * 0.1 - 20000;
-            ProcessedData[3] = busCurrent.ToString();
+            ProcessedData[3] = busCurrent.ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -238,10 +287,10 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.1).ToString();
-            ProcessedData[1] = ((RawBytes[3] * 256) + RawBytes[2] - 30000).ToString();
-            ProcessedData[2] = ((RawBytes[5] * 256) + RawBytes[4] - 10000).ToString();
-            ProcessedData[3] = ((RawBytes[7] * 256) + RawBytes[6] - 10000).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.1).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = ((RawBytes[3] * 256) + RawBytes[2] - 30000).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = ((RawBytes[5] * 256) + RawBytes[4] - 10000).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[3] = ((RawBytes[7] * 256) + RawBytes[6] - 10000).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -254,8 +303,8 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString();
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -268,8 +317,8 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString();
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -283,9 +332,9 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString();
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString();
-            ProcessedData[2] = (RawBytes[4] * 0.5).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = (RawBytes[4] * 0.5).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -300,10 +349,10 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.2).ToString();
-            ProcessedData[1] = (((RawBytes[4] * 256) + RawBytes[3]) * 0.4 - 800).ToString();
-            ProcessedData[2] = (RawBytes[6] - 40).ToString();
-            ProcessedData[3] = (RawBytes[7] - 40).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.2).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (((RawBytes[4] * 256) + RawBytes[3]) * 0.4 - 800).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = (RawBytes[6] - 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[3] = (RawBytes[7] - 40).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -318,7 +367,7 @@ namespace logReader
             ToBinaries(1);
             string bin = RawBinaries[1] ?? "00000000";
             if (bin.Length >= 6)
-                ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString();
+                ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString(CultureInfo.InvariantCulture);
             else
                 ProcessedData[0] = "0";
         }
@@ -334,9 +383,9 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString();
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString();
-            ProcessedData[2] = (RawBytes[4] * 0.5).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = (RawBytes[4] * 0.5).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -351,10 +400,10 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.2).ToString();
-            ProcessedData[1] = (((RawBytes[4] * 256) + RawBytes[3]) * 0.4 - 800).ToString();
-            ProcessedData[2] = (RawBytes[6] - 40).ToString();
-            ProcessedData[3] = (RawBytes[7] - 40).ToString();
+            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.2).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (((RawBytes[4] * 256) + RawBytes[3]) * 0.4 - 800).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = (RawBytes[6] - 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[3] = (RawBytes[7] - 40).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -369,7 +418,7 @@ namespace logReader
             ToBinaries(1);
             string bin = RawBinaries[1] ?? "00000000";
             if (bin.Length >= 6)
-                ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString();
+                ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString(CultureInfo.InvariantCulture);
             else
                 ProcessedData[0] = "0";
         }
@@ -387,11 +436,11 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = ((RawBytes[0] * 256) + RawBytes[1]).ToString();
-            ProcessedData[1] = ((RawBytes[2] * 256) + RawBytes[3]).ToString();
-            ProcessedData[2] = (RawBytes[4] - 40).ToString();
-            ProcessedData[3] = (RawBytes[5] - 40).ToString();
-            ProcessedData[4] = RawBytes[6].ToString();
+            ProcessedData[0] = ((RawBytes[0] * 256) + RawBytes[1]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = ((RawBytes[2] * 256) + RawBytes[3]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = (RawBytes[4] - 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[3] = (RawBytes[5] - 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[4] = RawBytes[6].ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -406,10 +455,10 @@ namespace logReader
         }
         public override void Decode()
         {
-            ProcessedData[0] = ((RawBytes[1] * 256) + RawBytes[0]).ToString();
-            ProcessedData[1] = ((RawBytes[3] * 256) + RawBytes[2]).ToString();
-            ProcessedData[2] = ((RawBytes[5] * 256) + RawBytes[4]).ToString();
-            ProcessedData[3] = ((RawBytes[7] * 256) + RawBytes[6]).ToString();
+            ProcessedData[0] = ((RawBytes[1] * 256) + RawBytes[0]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = ((RawBytes[3] * 256) + RawBytes[2]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = ((RawBytes[5] * 256) + RawBytes[4]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[3] = ((RawBytes[7] * 256) + RawBytes[6]).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -426,11 +475,11 @@ namespace logReader
         public override void Decode()
         {
             
-            ProcessedData[0] = (RawBytes[0] + 40).ToString();
-            ProcessedData[1] = (RawBytes[1] + 40).ToString();
-            ProcessedData[2] = ((RawBytes[3] * 256) + RawBytes[2]).ToString();
-            ProcessedData[3] = ((RawBytes[5] * 256) + RawBytes[4]).ToString();
-            ProcessedData[4] = ((RawBytes[7] * 256) + RawBytes[6]).ToString();
+            ProcessedData[0] = (RawBytes[0] + 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[1] = (RawBytes[1] + 40).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[2] = ((RawBytes[3] * 256) + RawBytes[2]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[3] = ((RawBytes[5] * 256) + RawBytes[4]).ToString(CultureInfo.InvariantCulture);
+            ProcessedData[4] = ((RawBytes[7] * 256) + RawBytes[6]).ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -596,17 +645,6 @@ namespace logReader
             cell.Style.Alignment.WrapText = true;
         }
 
-        static double? GetCellNumber(IXLRow row, int col)
-        {
-            var cell = row.Cell(col);
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out double d) && !double.IsNaN(d)) return d;
-            var s = cell.GetString()?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(s)) return null;
-            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed)
-                ? parsed : null;
-        }
-
         public static List<Device> LoadDevicesFromExcel(string excelPath, Action<string>? log = null)
         {
             var logger = log ?? Console.WriteLine;
@@ -617,7 +655,7 @@ namespace logReader
 
             try
             {
-                var definitions = DeviceExcelFile.ReadAllDevices(excelPath);
+                var definitions = DeviceExcelFile.ReadAllDevices(excelPath, logger);
                 foreach (var def in definitions)
                 {
                     var instructions = new List<FieldInstruction>();
@@ -634,12 +672,6 @@ namespace logReader
 
                         if (type == "NUM")
                         {
-                            if (!row.IsLittleEndian)
-                            {
-                                logger($"Устройство {def.DeviceId}, '{row.Header}': Motorola (Big-endian) пока не поддерживается — пропускаем.");
-                                continue;
-                            }
-
                             if (row.Length <= 0 || row.Length > 64)
                             {
                                 logger($"Устройство {def.DeviceId}, '{row.Header}': Length вне диапазона 1..64 — пропускаем.");
@@ -659,10 +691,10 @@ namespace logReader
                                 Type = "NUM",
                                 UseBitExtraction = true,
                                 StartBit = row.StartBit,
-                                LenghtBit = row.Length,
+                                LengthBit = row.Length,
                                 Scale = row.Scale,
                                 Offset = row.Offset,
-                                IsLittleEndian = true,
+                                IsLittleEndian = row.IsLittleEndian,
                                 SignedRaw = row.SignedRaw,
                                 Unit = row.Unit ?? "",
                                 Min = row.MinPhys ?? 0,
@@ -703,7 +735,7 @@ namespace logReader
                                 Offset = 0,
                                 UseBitExtraction = false,
                                 StartBit = bitStart,
-                                LenghtBit = len,
+                                LengthBit = len,
                                 IsLittleEndian = true,
                                 SignedRaw = false,
                             });

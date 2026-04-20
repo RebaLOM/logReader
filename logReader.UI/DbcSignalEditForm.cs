@@ -18,7 +18,6 @@ namespace logReader.UI
         private readonly TextBox _txtUnit = new();
         private readonly RadioButton _rbIntel = new();
         private readonly RadioButton _rbMotorola = new();
-        private readonly Label _lblEndianHint = new();
         private readonly Button _btnOk = new();
         private readonly Button _btnCancel = new();
 
@@ -36,7 +35,8 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(520, 310);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(520, 275);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -113,31 +113,24 @@ namespace logReader.UI
             Controls.Add(_txtUnit);
 
             Controls.Add(MakeLabel("Byte Order:", 12, 150));
-            _rbIntel.Text = "Intel — little-endian (LSB в младшем байте)";
+            _rbIntel.Text = "Intel — little-endian";
             _rbIntel.Location = new Point(12, 170);
             _rbIntel.AutoSize = true;
             Controls.Add(_rbIntel);
 
-            _rbMotorola.Text = "Motorola — big-endian (старший бит в начале поля)";
+            _rbMotorola.Text = "Motorola — big-endian";
             _rbMotorola.Location = new Point(12, 194);
             _rbMotorola.AutoSize = true;
             Controls.Add(_rbMotorola);
 
-            _lblEndianHint.Text =
-                "Intel соответствует DBC @1. Motorola — @0 (разбор CAN-лога для Motorola пока не поддерживается).";
-            _lblEndianHint.Location = new Point(12, 222);
-            _lblEndianHint.Size = new Size(495, 32);
-            _lblEndianHint.ForeColor = Color.DimGray;
-            Controls.Add(_lblEndianHint);
-
             _btnOk.Text = "OK";
-            _btnOk.Location = new Point(340, 265);
+            _btnOk.Location = new Point(340, 230);
             _btnOk.Size = new Size(80, 30);
             _btnOk.Click += (_, _) => OnOk();
             Controls.Add(_btnOk);
 
-            _btnCancel.Text = "Cancel";
-            _btnCancel.Location = new Point(425, 265);
+            _btnCancel.Text = "Отмена";
+            _btnCancel.Location = new Point(425, 230);
             _btnCancel.Size = new Size(80, 30);
             _btnCancel.DialogResult = DialogResult.Cancel;
             Controls.Add(_btnCancel);
@@ -241,19 +234,24 @@ namespace logReader.UI
             int length = (int)_numLength.Value;
 
             int globalStartBit = byteIndex * 8 + bitInByte;
-            if (globalStartBit + length > 64)
+            bool littleEndian = !_rbMotorola.Checked;
+            int payloadBits = _messageDlc * 8;
+
+            if (!SignalFitsInDlc(globalStartBit, length, littleEndian, payloadBits))
             {
-                MessageBox.Show(this, "Сигнал выходит за пределы 8 байт (64 бита).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this,
+                    $"Сигнал выходит за пределы DLC ({_messageDlc} байт).",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (!TryParseDouble(_txtFactor.Text, out double factor))
+            if (!NumberParseHelper.TryParseDouble(_txtFactor.Text, out double factor))
             {
                 MessageBox.Show(this, "Factor: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
                 return;
             }
-            if (!TryParseDouble(_txtOffset.Text, out double offset))
+            if (!NumberParseHelper.TryParseDouble(_txtOffset.Text, out double offset))
             {
                 MessageBox.Show(this, "Offset: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
@@ -267,7 +265,7 @@ namespace logReader.UI
                 Name = name,
                 StartBit = globalStartBit,
                 Length = length,
-                IsLittleEndian = _rbIntel.Checked || !_rbMotorola.Checked,
+                IsLittleEndian = littleEndian,
                 IsSigned = isSigned,
                 Factor = factor == 0 ? 1.0 : factor,
                 Offset = offset,
@@ -283,17 +281,21 @@ namespace logReader.UI
             Close();
         }
 
-        private static bool TryParseDouble(string? text, out double value)
+        private static bool SignalFitsInDlc(int startBit, int length, bool littleEndian, int payloadBits)
         {
-            value = 0;
-            if (string.IsNullOrWhiteSpace(text)) return true;
+            if (length <= 0 || length > payloadBits) return false;
 
-            string s = text.Trim();
-            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) return true;
-            if (double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) return true;
+            if (littleEndian)
+                return startBit >= 0 && startBit + length <= payloadBits;
 
-            s = s.Replace(',', '.');
-            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            int bit = startBit;
+            for (int i = 0; i < length; i++)
+            {
+                if (bit < 0 || bit >= payloadBits) return false;
+                if ((bit % 8) == 0) bit += 15;
+                else bit -= 1;
+            }
+            return true;
         }
 
         private static DbcSignal Clone(DbcSignal s) => new()

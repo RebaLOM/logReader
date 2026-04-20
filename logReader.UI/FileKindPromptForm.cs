@@ -15,45 +15,83 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(360, 170);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(380, 190);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
-            var label = new Label
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(16),
+                RowCount = 3,
+                ColumnCount = 2
+            };
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+
+            var header = new Label
             {
                 Text = "Выберите тип создаваемого файла:",
-                Location = new Point(20, 20),
-                AutoSize = true
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, 0, 12)
             };
-            Controls.Add(label);
+            root.Controls.Add(header, 0, 0);
+            root.SetColumnSpan(header, 2);
 
             var btnXlsx = new Button
             {
                 Text = "Excel (.xlsx)",
-                Location = new Point(20, 55),
-                Size = new Size(150, 40)
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 8, 0),
+                Height = 44
             };
-            btnXlsx.Click += (_, _) => { SelectedKind = FileKind.Xlsx; DialogResult = DialogResult.OK; Close(); };
-            Controls.Add(btnXlsx);
+            btnXlsx.Click += (_, _) =>
+            {
+                SelectedKind = FileKind.Xlsx;
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            root.Controls.Add(btnXlsx, 0, 1);
 
             var btnDbc = new Button
             {
                 Text = "DBC (.dbc)",
-                Location = new Point(190, 55),
-                Size = new Size(150, 40)
+                Dock = DockStyle.Fill,
+                Margin = new Padding(8, 0, 0, 0),
+                Height = 44
             };
-            btnDbc.Click += (_, _) => { SelectedKind = FileKind.Dbc; DialogResult = DialogResult.OK; Close(); };
-            Controls.Add(btnDbc);
+            btnDbc.Click += (_, _) =>
+            {
+                SelectedKind = FileKind.Dbc;
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            root.Controls.Add(btnDbc, 1, 1);
 
+            var bottom = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
+                Margin = new Padding(0, 12, 0, 0),
+                AutoSize = true
+            };
             var btnCancel = new Button
             {
                 Text = "Отмена",
-                Location = new Point(265, 120),
-                Size = new Size(75, 28),
+                AutoSize = true,
+                MinimumSize = new Size(80, 28),
                 DialogResult = DialogResult.Cancel
             };
-            Controls.Add(btnCancel);
+            bottom.Controls.Add(btnCancel);
+            root.Controls.Add(bottom, 0, 2);
+            root.SetColumnSpan(bottom, 2);
 
+            Controls.Add(root);
             CancelButton = btnCancel;
         }
     }

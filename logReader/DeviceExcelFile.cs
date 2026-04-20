@@ -62,18 +62,24 @@ namespace logReader
             if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            using var workbook = new XLWorkbook();
-            var ws = workbook.Worksheets.Add("Devices");
-
-            WriteHeader(ws);
-            ws.SheetView.FreezeRows(1);
-            ws.Columns().AdjustToContents();
-
-            workbook.SaveAs(path);
+            SafeFileWriter.Write(path, tmp =>
+            {
+                using var workbook = new XLWorkbook();
+                var ws = workbook.Worksheets.Add("Devices");
+                WriteHeader(ws);
+                ws.SheetView.FreezeRows(1);
+                ws.Columns().AdjustToContents();
+                workbook.SaveAs(tmp);
+            });
         }
 
         public static List<DeviceDefinition> ReadAllDevices(string path)
+            => ReadAllDevices(path, null);
+
+        public static List<DeviceDefinition> ReadAllDevices(string path, Action<string>? log)
         {
+            var logger = log ?? (_ => { });
+
             if (!File.Exists(path))
                 throw new FileNotFoundException($"Файл не найден: {path}");
 
@@ -146,8 +152,15 @@ namespace logReader
                 }
                 else
                 {
-                    if (!string.IsNullOrWhiteSpace(messageName))
-                        def.MessageName = messageName;
+                    if (!string.IsNullOrWhiteSpace(messageName)
+                        && !string.Equals(messageName, def.MessageName, StringComparison.Ordinal))
+                    {
+                        logger($"Предупреждение: строка {rowNum}: разные MessageName для DeviceID={deviceId} ('{def.MessageName}' vs '{messageName}'). Оставлено '{def.MessageName}'.");
+                    }
+                    if (extended != def.Extended)
+                        logger($"Предупреждение: строка {rowNum}: разные Extended для DeviceID={deviceId}. Оставлено '{(def.Extended ? "Extended" : "Standard")}'.");
+                    if (dlc != def.Dlc)
+                        logger($"Предупреждение: строка {rowNum}: разные DLC для DeviceID={deviceId} ({def.Dlc} vs {dlc}). Оставлено {def.Dlc}.");
                 }
 
                 def.Rows.Add(field);
@@ -167,25 +180,28 @@ namespace logReader
             if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            using var workbook = new XLWorkbook();
-            var ws = workbook.Worksheets.Add("Devices");
-            WriteHeader(ws);
-
-            int row = 2;
-            foreach (var dev in devices)
+            SafeFileWriter.Write(path, tmp =>
             {
-                int fieldIndex = 0;
-                foreach (var f in dev.Rows)
-                {
-                    WriteRow(ws, row, dev, fieldIndex, f);
-                    fieldIndex++;
-                    row++;
-                }
-            }
+                using var workbook = new XLWorkbook();
+                var ws = workbook.Worksheets.Add("Devices");
+                WriteHeader(ws);
 
-            ws.SheetView.FreezeRows(1);
-            ws.Columns().AdjustToContents();
-            workbook.SaveAs(path);
+                int row = 2;
+                foreach (var dev in devices)
+                {
+                    int fieldIndex = 0;
+                    foreach (var f in dev.Rows)
+                    {
+                        WriteRow(ws, row, dev, fieldIndex, f);
+                        fieldIndex++;
+                        row++;
+                    }
+                }
+
+                ws.SheetView.FreezeRows(1);
+                ws.Columns().AdjustToContents();
+                workbook.SaveAs(tmp);
+            });
         }
 
         public static void AppendDeviceFields(string path, string deviceId, IReadOnlyList<DeviceFieldRow> rows, DeviceDefinition? messageMeta = null)
@@ -196,33 +212,23 @@ namespace logReader
             if (!File.Exists(path))
                 throw new FileNotFoundException($"Файл не найден: {path}");
 
-            using var workbook = new XLWorkbook(path);
-            var ws = workbook.Worksheets.Count > 0
-                ? workbook.Worksheet(1)
-                : workbook.Worksheets.Add("Devices");
-
-            EnsureHeader(ws);
-
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
-            int nextFieldIndex = GetNextFieldIndex(ws, deviceId, lastRow);
-
-            var meta = messageMeta ?? new DeviceDefinition
+            var all = ReadAllDevices(path);
+            var existing = all.FirstOrDefault(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
             {
-                DeviceId = deviceId,
-                MessageName = "",
-                Extended = true,
-                Dlc = 8
-            };
-
-            int writeRow = Math.Max(lastRow + 1, 2);
-            foreach (var r in rows)
-            {
-                WriteRow(ws, writeRow, meta, nextFieldIndex++, r);
-                writeRow++;
+                existing = messageMeta ?? new DeviceDefinition
+                {
+                    DeviceId = deviceId,
+                    MessageName = "",
+                    Extended = true,
+                    Dlc = 8
+                };
+                existing.DeviceId = deviceId;
+                all.Add(existing);
             }
+            foreach (var r in rows) existing.Rows.Add(r);
 
-            ws.Columns().AdjustToContents();
-            workbook.SaveAs(path);
+            WriteAllDevices(path, all);
         }
 
         private static void WriteRow(IXLWorksheet ws, int row, DeviceDefinition dev, int fieldIndex, DeviceFieldRow r)
@@ -257,26 +263,6 @@ namespace logReader
             }
         }
 
-        private static void EnsureHeader(IXLWorksheet ws)
-        {
-            var lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
-            if (lastRow == 0)
-            {
-                WriteHeader(ws);
-                return;
-            }
-
-            string first = ws.Cell(1, 1).GetString().Trim();
-            if (string.IsNullOrWhiteSpace(first))
-            {
-                WriteHeader(ws);
-                return;
-            }
-
-            if (!first.Equals(HeaderRow[0], StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Неверный формат Excel-файла устройств: в A1 ожидается 'DeviceID'.");
-        }
-
         private static void WriteHeader(IXLWorksheet ws)
         {
             for (int c = 0; c < HeaderRow.Length; c++)
@@ -288,33 +274,6 @@ namespace logReader
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             }
-        }
-
-        private static int GetNextFieldIndex(IXLWorksheet ws, string deviceId, int lastRow)
-        {
-            int next = 0;
-            for (int r = 2; r <= lastRow; r++)
-            {
-                string id = ws.Cell(r, 1).GetString().Trim();
-                if (!id.Equals(deviceId, StringComparison.OrdinalIgnoreCase)) continue;
-
-                if (TryGetInt(ws.Cell(r, 5), out int fieldIndex))
-                    next = Math.Max(next, fieldIndex + 1);
-            }
-            return next;
-        }
-
-        private static bool TryGetInt(IXLCell cell, out int value)
-        {
-            value = 0;
-            if (cell.IsEmpty()) return false;
-            if (cell.TryGetValue(out double d) && !double.IsNaN(d))
-            {
-                value = (int)d;
-                return true;
-            }
-            var s = cell.GetString()?.Trim();
-            return int.TryParse(s, out value);
         }
 
         private static double? GetNumber(IXLCell cell)

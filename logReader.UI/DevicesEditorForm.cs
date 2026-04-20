@@ -35,6 +35,7 @@ namespace logReader.UI
                 ? "Редактор посылок (DBC)"
                 : "Редактор посылок (XLSX)";
             StartPosition = FormStartPosition.CenterParent;
+            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(760, 480);
             ClientSize = new Size(760, 480);
 
@@ -71,6 +72,7 @@ namespace logReader.UI
             _grid.Columns.Add("Count", "Сигналов");
             _grid.Columns["Name"]!.FillWeight = 35;
             _grid.Columns["Id"]!.FillWeight = 18;
+            MessageEditFormHelpers.MakeGridColumnsNotSortable(_grid);
 
             var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
             gridHost.Controls.Add(_grid);
@@ -115,7 +117,6 @@ namespace logReader.UI
             Controls.Add(_lblInfo);
             Controls.Add(bottom);
 
-            AcceptButton = _btnClose;
             CancelButton = _btnClose;
         }
 
@@ -193,8 +194,9 @@ namespace logReader.UI
                     return;
                 }
 
+                var backup = new List<DbcMessage>(_dbcMessages);
                 _dbcMessages.Add(dlg.Message);
-                SaveAll();
+                if (!TrySaveAll()) { _dbcMessages = backup; }
                 RefreshGrid();
             }
             else
@@ -210,8 +212,9 @@ namespace logReader.UI
                     return;
                 }
 
+                var backup = new List<DeviceDefinition>(_xlsxDevices);
                 _xlsxDevices.Add(dlg.Definition);
-                SaveAll();
+                if (!TrySaveAll()) { _xlsxDevices = backup; }
                 RefreshGrid();
             }
         }
@@ -238,8 +241,9 @@ namespace logReader.UI
                     return;
                 }
 
+                var backup = new List<DbcMessage>(_dbcMessages);
                 _dbcMessages[idx] = dlg.Message;
-                SaveAll();
+                if (!TrySaveAll()) { _dbcMessages = backup; }
                 RefreshGrid();
                 if (idx < _grid.Rows.Count) _grid.Rows[idx].Selected = true;
             }
@@ -250,8 +254,9 @@ namespace logReader.UI
                 using var dlg = new XlsxMessageEditForm(dev, deviceIdReadOnly: true);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
+                var backup = new List<DeviceDefinition>(_xlsxDevices);
                 _xlsxDevices[idx] = dlg.Definition;
-                SaveAll();
+                if (!TrySaveAll()) { _xlsxDevices = backup; }
                 RefreshGrid();
                 if (idx < _grid.Rows.Count) _grid.Rows[idx].Selected = true;
             }
@@ -285,15 +290,26 @@ namespace logReader.UI
             if (confirm != DialogResult.Yes) return;
 
             if (_kind == FileKind.Dbc)
+            {
+                var backup = new List<DbcMessage>(_dbcMessages);
                 _dbcMessages.RemoveAt(idx);
+                if (!TrySaveAll()) { _dbcMessages = backup; }
+            }
             else
+            {
+                var backup = new List<DeviceDefinition>(_xlsxDevices);
                 _xlsxDevices.RemoveAt(idx);
+                if (!TrySaveAll()) { _xlsxDevices = backup; }
+            }
 
-            SaveAll();
             RefreshGrid();
         }
 
-        private void SaveAll()
+        /// <summary>
+        /// Транзакционное сохранение: при ошибке вызывающая сторона обязана
+        /// откатить список из своего снимка. Возвращает true при успехе.
+        /// </summary>
+        private bool TrySaveAll()
         {
             try
             {
@@ -305,10 +321,13 @@ namespace logReader.UI
                     DeviceExcelFile.WriteAllDevices(_path, _xlsxDevices);
 
                 Modified = true;
+                return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nИзменения отменены.",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
         }
 

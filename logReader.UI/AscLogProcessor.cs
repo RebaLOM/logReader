@@ -120,21 +120,21 @@ namespace logReader.UI
             string line,
             out long offsetTicks,
             out string id,
-            Span<int> bytes)
+            Span<int> bytes,
+            out int parsedByteCount)
         {
             offsetTicks = 0;
             id = "";
+            parsedByteCount = 0;
 
             if (string.IsNullOrWhiteSpace(line)) return false;
             string trimmed = line.TrimStart();
 
-            // Header / comments
             if (trimmed.StartsWith("//")) return false;
             if (trimmed.StartsWith("date", StringComparison.OrdinalIgnoreCase)) return false;
             if (trimmed.StartsWith("base", StringComparison.OrdinalIgnoreCase)) return false;
             if (trimmed.StartsWith("no internal events", StringComparison.OrdinalIgnoreCase)) return false;
 
-            // Frames should start with offset seconds (digit)
             if (trimmed.Length == 0 || (!char.IsDigit(trimmed[0]) && trimmed[0] != '-' && trimmed[0] != '+'))
                 return false;
 
@@ -154,23 +154,43 @@ namespace logReader.UI
             }
             if (idIndex < 0) return false;
 
-            // Find first sequence of 8 hex bytes after ID
-            for (int start = idIndex + 1; start + 7 < tokens.Length; start++)
+            // В ASC DLC стоит сразу за "d" (например "Rx d 8 ..."). Если найден — используем,
+            // иначе берём первые <=8 последовательных hex-байт.
+            int dlc = -1;
+            for (int i = idIndex + 1; i < tokens.Length - 1; i++)
             {
-                bool ok = true;
-                for (int j = 0; j < 8; j++)
+                if (tokens[i].Equals("d", StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(tokens[i + 1], NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out int parsed))
                 {
-                    if (!TryParseHexByte(tokens[start + j], out int v))
-                    {
-                        ok = false;
-                        break;
-                    }
-                    bytes[j] = v;
+                    dlc = parsed;
+                    break;
                 }
-                if (ok) return true;
             }
 
-            return false;
+            int dataStart = idIndex + 1;
+            if (dlc >= 0)
+            {
+                for (int i = idIndex + 1; i < tokens.Length - 1; i++)
+                {
+                    if (tokens[i].Equals("d", StringComparison.OrdinalIgnoreCase))
+                    {
+                        dataStart = i + 2;
+                        break;
+                    }
+                }
+            }
+
+            for (int i = dataStart; i < tokens.Length && parsedByteCount < bytes.Length; i++)
+            {
+                if (!TryParseHexByte(tokens[i], out int v)) break;
+                bytes[parsedByteCount++] = v;
+            }
+
+            int expected = dlc >= 0 ? Math.Min(dlc, bytes.Length) : 0;
+            if (expected > 0 && parsedByteCount < expected) return false;
+
+            return parsedByteCount > 0;
         }
     }
 
@@ -236,7 +256,7 @@ namespace logReader.UI
 
                 foreach (var line in File.ReadLines(ascPath, encoding))
                 {
-                    if (!AscLogParser.TryParseFrameLine(line, out long offsetTicks, out string id, bytes))
+                    if (!AscLogParser.TryParseFrameLine(line, out long offsetTicks, out string id, bytes, out int parsedByteCount))
                         continue;
 
                     if (!deviceByID.TryGetValue(id, out Device? device))
@@ -246,14 +266,12 @@ namespace logReader.UI
                     if (!devOn) continue;
 
                     for (int i = 0; i < 8; i++)
-                        device.RawBytes[i] = bytes[i];
+                        device.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
 
                     device.Decode();
 
+                    // Время суммируем без сброса в пределах суток, чтобы не ломать логи через полночь.
                     long ticks = baseTicks + offsetTicks;
-                    ticks %= TimeSpan.TicksPerDay;
-                    if (ticks < 0) ticks += TimeSpan.TicksPerDay;
-
                     double timeVal = ticks / (double)TimeSpan.TicksPerDay;
 
                     if (!deviceData.ContainsKey(id))

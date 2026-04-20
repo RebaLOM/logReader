@@ -22,7 +22,6 @@ namespace logReader.UI
         private readonly TextBox _txtUnit = new();
         private readonly RadioButton _rbIntel = new();
         private readonly RadioButton _rbMotorola = new();
-        private readonly Label _lblEndianHint = new();
 
         private readonly TextBox _txtBinName = new();
         private readonly NumericUpDown _numBinByte = new();
@@ -49,7 +48,8 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(540, 470);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(540, 370);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -92,10 +92,10 @@ namespace logReader.UI
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false
             };
-            _rbKindNum.Text = "NUM (как в DBC)";
+            _rbKindNum.Text = "NUM";
             _rbKindNum.AutoSize = true;
             _rbKindNum.Margin = new Padding(0, 4, 20, 0);
-            _rbKindBin.Text = "BIN (битовая маска внутри одного байта)";
+            _rbKindBin.Text = "BIN";
             _rbKindBin.AutoSize = true;
             _rbKindBin.Margin = new Padding(0, 4, 0, 0);
             topKind.Controls.Add(_rbKindNum);
@@ -122,7 +122,7 @@ namespace logReader.UI
             _btnOk.Text = "OK";
             _btnOk.Width = 90;
             _btnOk.Click += (_, _) => OnOk();
-            _btnCancel.Text = "Cancel";
+            _btnCancel.Text = "Отмена";
             _btnCancel.Width = 90;
             _btnCancel.DialogResult = DialogResult.Cancel;
             bottom.Controls.Add(_btnOk);
@@ -195,23 +195,15 @@ namespace logReader.UI
 
             Lbl("Byte Order:", 12, y);
             y += 22;
-            _rbIntel.Text = "Intel — little-endian (LSB в младшем байте)";
+            _rbIntel.Text = "Intel — little-endian";
             _rbIntel.AutoSize = true;
             _rbIntel.Location = new Point(12, y);
             _panelNum.Controls.Add(_rbIntel);
             y += 24;
-            _rbMotorola.Text = "Motorola — big-endian (старший бит в начале поля)";
+            _rbMotorola.Text = "Motorola — big-endian";
             _rbMotorola.AutoSize = true;
             _rbMotorola.Location = new Point(12, y);
             _panelNum.Controls.Add(_rbMotorola);
-            y += 28;
-
-            _lblEndianHint.Text =
-                "Intel соответствует DBC @1. Motorola — @0 (разбор CAN-лога для Motorola пока не поддерживается).";
-            _lblEndianHint.Location = new Point(12, y);
-            _lblEndianHint.Size = new Size(510, 40);
-            _lblEndianHint.ForeColor = Color.DimGray;
-            _panelNum.Controls.Add(_lblEndianHint);
         }
 
         private void BuildPanelBin()
@@ -408,7 +400,7 @@ namespace logReader.UI
                 return;
             }
 
-            if (!TryParseDouble(_txtFactor.Text, out double factor))
+            if (!NumberParseHelper.TryParseDouble(_txtFactor.Text, out double factor))
             {
                 MessageBox.Show(this, "Factor: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
@@ -416,7 +408,7 @@ namespace logReader.UI
             }
             if (factor == 0) factor = 1;
 
-            if (!TryParseDouble(_txtOffset.Text, out double offset))
+            if (!NumberParseHelper.TryParseDouble(_txtOffset.Text, out double offset))
             {
                 MessageBox.Show(this, "Offset: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
@@ -424,14 +416,7 @@ namespace logReader.UI
             }
 
             bool isSigned = _cmbRawType.SelectedIndex == 0;
-            bool littleEndian = _rbIntel.Checked || !_rbMotorola.Checked;
-            if (!littleEndian)
-            {
-                MessageBox.Show(this,
-                    "Motorola (big-endian) пока не поддерживается при разборе лога. Выберите Intel.",
-                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            bool littleEndian = !_rbMotorola.Checked;
 
             ComputeRawRange(length, isSigned, out long rawMin, out long rawMax);
             (double minP, double maxP) = DbcPhysicalValue.PhysicalBoundsFromRaw(rawMin, rawMax, factor, offset);
@@ -442,7 +427,7 @@ namespace logReader.UI
                 Type: "NUM",
                 StartBit: globalStartBit,
                 Length: length,
-                IsLittleEndian: true,
+                IsLittleEndian: littleEndian,
                 SignedRaw: isSigned,
                 Scale: factor,
                 Offset: offset,
@@ -453,17 +438,6 @@ namespace logReader.UI
 
             DialogResult = DialogResult.OK;
             Close();
-        }
-
-        private static bool TryParseDouble(string? text, out double value)
-        {
-            value = 0;
-            if (string.IsNullOrWhiteSpace(text)) return true;
-            string s = text.Trim();
-            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) return true;
-            if (double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) return true;
-            s = s.Replace(',', '.');
-            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
     }
 }

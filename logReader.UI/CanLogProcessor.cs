@@ -43,14 +43,15 @@ namespace logReader.UI
             Encoding encoding = LogFileEncoding.Detect(csvPath);
 
             // ── Проход 1: определяем какие устройства есть в логе ────────
+            // Достаточно первых 4 полей (Шаг;Время;ID;Приоритет) — байты не читаем.
             var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 foreach (string line in File.ReadLines(csvPath, encoding))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
-                    var p = line.Split(';');
-                    if (p.Length < 12) continue;
+                    var p = line.Split(';', 5);
+                    if (p.Length < 4) continue;
                     if (int.TryParse(p[3], out int pri) && pri == 1)
                     {
                         string id = p[2].Trim();
