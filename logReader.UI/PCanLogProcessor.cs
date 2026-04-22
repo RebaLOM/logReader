@@ -12,6 +12,7 @@ namespace logReader.UI
             string trcPath,
             List<Device> devices,
             string outputPath,
+            OutputFormat outputFormat,
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null)
@@ -94,7 +95,10 @@ namespace logReader.UI
                 return;
             }
 
-            BuildExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, log);
+            if (outputFormat == OutputFormat.Csv)
+                BuildCsv(devices, deviceData, deviceEnabled, paramEnabled, outputPath, log);
+            else
+                BuildExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, log);
         }
 
         private static void BuildExcel(
@@ -222,6 +226,83 @@ namespace logReader.UI
             cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             cell.Style.Alignment.WrapText = true;
             cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        }
+
+        private static void BuildCsv(
+            List<Device> devices,
+            Dictionary<string, List<(double TimeVal, string[] Values)>> deviceData,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled,
+            string outputPath,
+            Action<string> log)
+        {
+            try
+            {
+                using var writer = new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                var row1 = new List<string>();
+                var row2 = new List<string>();
+                var visibleDevices = new List<(Device Device, List<int> ParamIndexes)>();
+                int maxRows = 0;
+
+                foreach (var device in devices)
+                {
+                    bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
+                    if (!devOn || !deviceData.ContainsKey(device.ID)) continue;
+
+                    var activeParamIndexes = new List<int>();
+                    for (int i = 0; i < device.headers.Length; i++)
+                    {
+                        bool paramOn = paramEnabled == null
+                            || !paramEnabled.TryGetValue(device.ID, out var chk)
+                            || (i < chk.Length && chk[i]);
+                        if (paramOn) activeParamIndexes.Add(i);
+                    }
+                    visibleDevices.Add((device, activeParamIndexes));
+                    maxRows = Math.Max(maxRows, deviceData[device.ID].Count);
+
+                    row1.Add(device.ID);
+                    for (int i = 0; i < activeParamIndexes.Count; i++)
+                        row1.Add("");
+
+                    row2.Add("Время");
+                    foreach (int idx in activeParamIndexes)
+                        row2.Add(device.headers[idx]);
+                }
+
+                CsvOutput.WriteRow(writer, row1);
+                CsvOutput.WriteRow(writer, row2);
+
+                for (int r = 0; r < maxRows; r++)
+                {
+                    var row = new List<string>();
+                    foreach (var entry in visibleDevices)
+                    {
+                        var rows = deviceData[entry.Device.ID];
+                        if (r < rows.Count)
+                        {
+                            row.Add(rows[r].TimeVal.ToString(CultureInfo.InvariantCulture));
+                            foreach (int idx in entry.ParamIndexes)
+                            {
+                                string val = idx < rows[r].Values.Length ? rows[r].Values[idx] : "";
+                                row.Add(CsvOutput.FormatValue(val));
+                            }
+                        }
+                        else
+                        {
+                            row.Add("");
+                            for (int i = 0; i < entry.ParamIndexes.Count; i++)
+                                row.Add("");
+                        }
+                    }
+                    CsvOutput.WriteRow(writer, row);
+                }
+
+                log("Обработка завершена.");
+            }
+            catch (Exception ex)
+            {
+                log($"Ошибка сохранения: {ex.Message}");
+            }
         }
     }
 }

@@ -4,6 +4,11 @@ namespace logReader.UI
 {
     public partial class MainForm : Form
     {
+        private static readonly IReadOnlyList<FormatConversionPair> _conversionPairs = new List<FormatConversionPair>
+        {
+            new("trc_to_asc", "TRC -> ASC", ".trc", ".asc"),
+        };
+
         private Dictionary<string, bool> _deviceEnabled = new();
         private Dictionary<string, bool[]> _paramEnabled = new();
         private List<logReader.Device>? _cachedDevices = null;
@@ -12,9 +17,54 @@ namespace logReader.UI
         public MainForm()
         {
             InitializeComponent();
+            comboBoxOutputFormat.SelectedIndex = 0;
             UpdateDevicesCreateAddButtonState();
             UpdateFilterLabel();
             buttonOpenOutput.Visible = false;
+        }
+
+        private OutputFormat GetSelectedOutputFormat()
+        {
+            return string.Equals(comboBoxOutputFormat.SelectedItem?.ToString(), "CSV", StringComparison.OrdinalIgnoreCase)
+                ? OutputFormat.Csv
+                : OutputFormat.Xlsx;
+        }
+
+        private static string GetOutputExtension(OutputFormat outputFormat)
+            => outputFormat == OutputFormat.Csv ? ".csv" : ".xlsx";
+
+        private static string EnsureOutputPathMatchesFormat(string path, OutputFormat outputFormat)
+        {
+            string trimmed = path.Trim();
+            string desiredExt = GetOutputExtension(outputFormat);
+            string currentExt = Path.GetExtension(trimmed);
+            if (string.IsNullOrEmpty(currentExt))
+                return trimmed + desiredExt;
+            if (currentExt.Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
+                || currentExt.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+                return Path.ChangeExtension(trimmed, desiredExt);
+            return trimmed;
+        }
+
+        private static bool LooksLikeFilePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            string trimmed = path.Trim();
+            if (trimmed.EndsWith(Path.DirectorySeparatorChar) || trimmed.EndsWith(Path.AltDirectorySeparatorChar))
+                return false;
+
+            return !string.IsNullOrEmpty(Path.GetExtension(trimmed));
+        }
+
+        private void SyncOutputFormatWithPath(string path)
+        {
+            string ext = Path.GetExtension(path);
+            if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+                comboBoxOutputFormat.SelectedItem = "CSV";
+            else if (ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                comboBoxOutputFormat.SelectedItem = "XLSX";
         }
 
         // ─── Обновить подпись с количеством активных фильтров ─────────────
@@ -154,12 +204,10 @@ namespace logReader.UI
                 if (ofd.ShowDialog() != DialogResult.OK) return;
                 textBoxCanLog.Text = ofd.FileName;
 
-                if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
-                {
-                    string dir = Path.GetDirectoryName(ofd.FileName) ?? "";
-                    string name = Path.GetFileNameWithoutExtension(ofd.FileName) + "_result.xlsx";
-                    textBoxOutput.Text = Path.Combine(dir, name);
-                }
+                string dir = Path.GetDirectoryName(ofd.FileName) ?? "";
+                string ext = GetOutputExtension(GetSelectedOutputFormat());
+                string name = Path.GetFileNameWithoutExtension(ofd.FileName) + "_result" + ext;
+                textBoxOutput.Text = Path.Combine(dir, name);
                 return;
             }
 
@@ -168,12 +216,7 @@ namespace logReader.UI
             if (fbd.ShowDialog() != DialogResult.OK) return;
 
             textBoxCanLog.Text = fbd.SelectedPath;
-
-            if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
-            {
-                string sub = Path.Combine(fbd.SelectedPath, "result");
-                textBoxOutput.Text = sub;
-            }
+            textBoxOutput.Text = Path.Combine(fbd.SelectedPath, "result");
         }
 
         private void buttonViewLog_Click(object sender, EventArgs e)
@@ -350,10 +393,14 @@ namespace logReader.UI
         private void buttonOutput_Click(object sender, EventArgs e)
         {
             using SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
+            sfd.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv|Excel/CSV (*.xlsx;*.csv)|*.xlsx;*.csv";
+            sfd.DefaultExt = GetOutputExtension(GetSelectedOutputFormat()).TrimStart('.');
+            sfd.AddExtension = true;
+            sfd.FilterIndex = GetSelectedOutputFormat() == OutputFormat.Csv ? 2 : 1;
             if (sfd.ShowDialog() == DialogResult.OK)
             {
                 textBoxOutput.Text = sfd.FileName;
+                SyncOutputFormatWithPath(sfd.FileName);
                 buttonOpenOutput.Visible = false;
             }
         }
@@ -374,12 +421,12 @@ namespace logReader.UI
             }
         }
 
-        private static string BuildBatchOutputPath(string logFilePath, string outputFolder)
+        private static string BuildBatchOutputPath(string logFilePath, string outputFolder, OutputFormat outputFormat)
         {
             string stem = Path.GetFileNameWithoutExtension(logFilePath);
             string ext = Path.GetExtension(logFilePath).TrimStart('.');
             if (string.IsNullOrEmpty(ext)) ext = "log";
-            return Path.Combine(outputFolder, $"{stem}_{ext}_result.xlsx");
+            return Path.Combine(outputFolder, $"{stem}_{ext}_result{GetOutputExtension(outputFormat)}");
         }
 
         private static bool TryResolveOutputDirectoryForBatch(string? outputPath, Action<string> log, out string outputDir)
@@ -409,9 +456,10 @@ namespace logReader.UI
                 return true;
             }
 
-            if (t.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            if (t.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
+                || t.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
-                log("Ошибка: для обработки папки укажите каталог для результатов (не путь к одному .xlsx).");
+                log("Ошибка: для обработки папки укажите каталог для результатов (не путь к одному выходному файлу).");
                 return false;
             }
 
@@ -431,6 +479,7 @@ namespace logReader.UI
         private static void ProcessSingleLogFile(
             string logPath,
             string outputPath,
+            OutputFormat outputFormat,
             List<logReader.Device> allDevices,
             bool hasFilter,
             Dictionary<string, bool> deviceEnabled,
@@ -450,6 +499,7 @@ namespace logReader.UI
                     logPath,
                     allDevices,
                     outputPath,
+                    outputFormat,
                     log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null);
@@ -461,6 +511,7 @@ namespace logReader.UI
                     logPath,
                     allDevices,
                     outputPath,
+                    outputFormat,
                     log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null);
@@ -472,6 +523,7 @@ namespace logReader.UI
                     logPath,
                     allDevices,
                     outputPath,
+                    outputFormat,
                     log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null);
@@ -480,7 +532,22 @@ namespace logReader.UI
 
         private void textBoxOutput_TextChanged(object sender, EventArgs e)
         {
+            SyncOutputFormatWithPath(textBoxOutput.Text);
             buttonOpenOutput.Visible = false;
+        }
+
+        private void comboBoxOutputFormat_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
+                return;
+
+            if (Directory.Exists(textBoxCanLog.Text.Trim()))
+                return;
+
+            if (!LooksLikeFilePath(textBoxOutput.Text))
+                return;
+
+            textBoxOutput.Text = EnsureOutputPathMatchesFormat(textBoxOutput.Text, GetSelectedOutputFormat());
         }
 
         private void buttonOpenOutput_Click(object sender, EventArgs e)
@@ -519,40 +586,51 @@ namespace logReader.UI
             helpForm.Show(this);
         }
 
-        private async void buttonTrcToAsc_Click(object sender, EventArgs e)
+        private async void buttonFormatConvert_Click(object sender, EventArgs e)
         {
             textBoxLog.Clear();
 
-            string trcPath = textBoxCanLog.Text;
-            if (string.IsNullOrWhiteSpace(trcPath))
+            string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
+            using var dialog = new FormatConversionDialog(_conversionPairs, initialPath);
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            string inputPath = dialog.SelectedInputPath;
+            string outPath = dialog.SelectedOutputPath;
+            FormatConversionPair pair = dialog.SelectedPair;
+
+            if (string.IsNullOrWhiteSpace(inputPath))
             {
                 Log("Ошибка: файл лога не найден.");
                 return;
             }
-            if (Directory.Exists(trcPath))
+            if (Directory.Exists(inputPath))
             {
-                Log("Ошибка: конвертация TRC → ASC выполняется для одного файла. Укажите файл .trc.");
+                Log("Ошибка: для конвертации нужно выбрать файл, а не папку.");
                 return;
             }
-            if (!File.Exists(trcPath))
+            if (!File.Exists(inputPath))
             {
                 Log("Ошибка: файл лога не найден.");
                 return;
             }
-            if (!Path.GetExtension(trcPath).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+
+            string inputExt = Path.GetExtension(inputPath);
+            if (!inputExt.Equals(pair.SourceExtension, StringComparison.OrdinalIgnoreCase))
             {
-                Log("Ошибка: для конвертации нужен файл .trc.");
+                Log($"Ошибка: выбранный файл не соответствует формату источника ({pair.SourceExtension}).");
                 return;
             }
 
-            using SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Filter = "ASC (*.asc)|*.asc";
-            sfd.DefaultExt = "asc";
-            sfd.AddExtension = true;
-            sfd.FileName = Path.GetFileNameWithoutExtension(trcPath) + ".asc";
-            if (sfd.ShowDialog() != DialogResult.OK) return;
+            if (string.IsNullOrWhiteSpace(outPath))
+            {
+                Log("Ошибка: укажите путь выходного файла.");
+                return;
+            }
 
-            string outPath = sfd.FileName;
+            if (!Path.GetExtension(outPath).Equals(pair.TargetExtension, StringComparison.OrdinalIgnoreCase))
+                outPath = Path.ChangeExtension(outPath, pair.TargetExtension);
+
             string? outDir = Path.GetDirectoryName(outPath);
             if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
             {
@@ -561,7 +639,7 @@ namespace logReader.UI
             }
 
             string outFull = Path.GetFullPath(outPath);
-            string inFull = Path.GetFullPath(trcPath);
+            string inFull = Path.GetFullPath(inputPath);
             if (outFull.Equals(inFull, StringComparison.OrdinalIgnoreCase))
             {
                 Log("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.");
@@ -586,8 +664,14 @@ namespace logReader.UI
             {
                 await Task.Run(() =>
                 {
-                    var converter = new TrcToAscConverter();
-                    converter.Convert(trcPath, outPath, Log);
+                    if (pair.Id == "trc_to_asc")
+                    {
+                        var converter = new TrcToAscConverter();
+                        converter.Convert(inputPath, outPath, Log);
+                        return;
+                    }
+
+                    Log($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.");
                 });
             }
             catch (Exception ex)
@@ -596,7 +680,7 @@ namespace logReader.UI
             }
 
             buttonTrcToAsc.Enabled = true;
-            buttonTrcToAsc.Text = "TRC -> ASC";
+            buttonTrcToAsc.Text = "Смена формата";
             Cursor = Cursors.Default;
         }
 
@@ -650,6 +734,7 @@ namespace logReader.UI
 
             string canInput = textBoxCanLog.Text.Trim();
             bool isFolderInput = Directory.Exists(canInput);
+            OutputFormat outputFormat = GetSelectedOutputFormat();
 
             if (string.IsNullOrWhiteSpace(canInput))
             {
@@ -714,7 +799,7 @@ namespace logReader.UI
                     {
                         foreach (string logPath in files)
                         {
-                            string outPath = BuildBatchOutputPath(logPath, outputDir);
+                            string outPath = BuildBatchOutputPath(logPath, outputDir, outputFormat);
                             if (string.Equals(Path.GetFullPath(outPath), devFull, StringComparison.OrdinalIgnoreCase))
                             {
                                 Log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
@@ -738,6 +823,7 @@ namespace logReader.UI
                             ProcessSingleLogFile(
                                 logPath,
                                 outPath,
+                                outputFormat,
                                 allDevices,
                                 hasFilter,
                                 _deviceEnabled,
@@ -749,7 +835,7 @@ namespace logReader.UI
                         }
                     });
 
-                    Log($"Готово: создано файлов Excel: {ok} из {files.Count}.");
+                    Log($"Готово: создано файлов: {ok} из {files.Count}.");
                     buttonOpenOutput.Visible = ok > 0;
                 }
                 catch (Exception ex)
@@ -770,14 +856,17 @@ namespace logReader.UI
                 return;
             }
 
-            string? parentDir = Path.GetDirectoryName(textBoxOutput.Text);
+            string outputPath = EnsureOutputPathMatchesFormat(textBoxOutput.Text, outputFormat);
+            textBoxOutput.Text = outputPath;
+
+            string? parentDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(parentDir) && !Directory.Exists(parentDir))
             {
                 Log($"Ошибка: директория для сохранения не существует: {parentDir}");
                 return;
             }
 
-            string outFull = Path.GetFullPath(textBoxOutput.Text);
+            string outFull = Path.GetFullPath(outputPath);
             string logFull = Path.GetFullPath(canInput);
 
             if (outFull.Equals(logFull, StringComparison.OrdinalIgnoreCase))
@@ -791,9 +880,9 @@ namespace logReader.UI
                 return;
             }
 
-            if (File.Exists(textBoxOutput.Text))
+            if (File.Exists(outputPath))
             {
-                try { using var fs = new FileStream(textBoxOutput.Text, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+                try { using var fs = new FileStream(outputPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
                 catch
                 {
                     Log("Ошибка: выходной файл уже открыт в другой программе. Закройте его и попробуйте снова.");
@@ -822,7 +911,8 @@ namespace logReader.UI
                 {
                     ProcessSingleLogFile(
                         canInput,
-                        textBoxOutput.Text,
+                        outputPath,
+                        outputFormat,
                         allDevices,
                         hasFilter,
                         _deviceEnabled,
@@ -830,7 +920,7 @@ namespace logReader.UI
                         Log);
                 });
 
-                if (File.Exists(textBoxOutput.Text))
+                if (File.Exists(outputPath))
                 {
                     Log("Файл успешно создан.");
                     buttonOpenOutput.Visible = true;

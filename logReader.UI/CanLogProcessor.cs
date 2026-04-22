@@ -18,6 +18,7 @@ namespace logReader.UI
             string csvPath,
             List<Device> devices,
             string outputPath,
+            OutputFormat outputFormat,
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null)
@@ -69,12 +70,20 @@ namespace logReader.UI
                 return;
             }
 
-            // ── Проход 2: декодируем и пишем Excel ───────────────────────
-            using var workbook = new XLWorkbook();
-            var ws = workbook.Worksheets.Add("Log");
+            using var csvWriter = outputFormat == OutputFormat.Csv
+                ? new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true))
+                : null;
+            using var workbook = outputFormat == OutputFormat.Xlsx ? new XLWorkbook() : null;
 
-            int excelRow = logReader.Program.BuildExcelHeaders(
-                ws, activeDevices, deviceEnabled, paramEnabled);
+            IXLWorksheet? ws = null;
+            int excelRow = 0;
+            if (outputFormat == OutputFormat.Csv)
+                WriteCsvHeaders(csvWriter!, activeDevices, deviceEnabled, paramEnabled);
+            else
+            {
+                ws = workbook!.Worksheets.Add("Log");
+                excelRow = logReader.Program.BuildExcelHeaders(ws, activeDevices, deviceEnabled, paramEnabled);
+            }
 
             int currentStep = 0;
             string currentTime = "";
@@ -94,9 +103,14 @@ namespace logReader.UI
                     string newTime = parts.Length > 1 ? parts[1] : "";
 
                     if (!firstStep)
-                        excelRow = logReader.Program.BuildExcelRow(
-                            ws, excelRow, currentStep, currentTime,
-                            activeDevices, deviceEnabled, paramEnabled);
+                    {
+                        if (outputFormat == OutputFormat.Csv)
+                            WriteCsvDataRow(csvWriter!, currentStep, currentTime, activeDevices, deviceEnabled, paramEnabled);
+                        else
+                            excelRow = logReader.Program.BuildExcelRow(
+                                ws!, excelRow, currentStep, currentTime,
+                                activeDevices, deviceEnabled, paramEnabled);
+                    }
 
                     currentStep = newStep;
                     currentTime = newTime;
@@ -121,14 +135,91 @@ namespace logReader.UI
             }
 
             if (!firstStep)
-                logReader.Program.BuildExcelRow(
-                    ws, excelRow, currentStep, currentTime,
-                    activeDevices, deviceEnabled, paramEnabled);
+            {
+                if (outputFormat == OutputFormat.Csv)
+                    WriteCsvDataRow(csvWriter!, currentStep, currentTime, activeDevices, deviceEnabled, paramEnabled);
+                else
+                    logReader.Program.BuildExcelRow(
+                        ws!, excelRow, currentStep, currentTime,
+                        activeDevices, deviceEnabled, paramEnabled);
+            }
 
-            ws.Columns().AdjustToContents();
+            try
+            {
+                if (outputFormat == OutputFormat.Csv)
+                    csvWriter!.Flush();
+                else
+                {
+                    ws!.Columns().AdjustToContents();
+                    workbook!.SaveAs(outputPath);
+                }
+                log("Обработка завершена.");
+            }
+            catch (Exception ex)
+            {
+                log($"Ошибка сохранения файла: {ex.Message}");
+            }
+        }
 
-            try { workbook.SaveAs(outputPath); log("Обработка завершена."); }
-            catch (Exception ex) { log($"Ошибка сохранения файла: {ex.Message}"); }
+        private static void WriteCsvHeaders(
+            StreamWriter writer,
+            List<Device> activeDevices,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled)
+        {
+            var row1 = new List<string> { "Шаг", "Время" };
+            var row2 = new List<string> { "", "" };
+
+            foreach (var device in activeDevices)
+            {
+                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
+                if (!devOn) continue;
+
+                var activeParams = new List<string>();
+                for (int i = 0; i < device.headers.Length; i++)
+                {
+                    bool paramOn = paramEnabled == null
+                        || !paramEnabled.TryGetValue(device.ID, out var arr)
+                        || (i < arr.Length && arr[i]);
+                    if (paramOn) activeParams.Add(device.headers[i]);
+                }
+                if (activeParams.Count == 0) continue;
+
+                row1.Add(device.ID);
+                for (int i = 1; i < activeParams.Count; i++)
+                    row1.Add("");
+
+                row2.AddRange(activeParams);
+            }
+
+            CsvOutput.WriteRow(writer, row1);
+            CsvOutput.WriteRow(writer, row2);
+        }
+
+        private static void WriteCsvDataRow(
+            StreamWriter writer,
+            int step,
+            string time,
+            List<Device> activeDevices,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled)
+        {
+            var row = new List<string> { step.ToString(), time };
+            foreach (var device in activeDevices)
+            {
+                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
+                if (!devOn) continue;
+
+                for (int i = 0; i < device.ProcessedData.Length; i++)
+                {
+                    bool paramOn = paramEnabled == null
+                        || !paramEnabled.TryGetValue(device.ID, out var arr)
+                        || (i < arr.Length && arr[i]);
+                    if (!paramOn) continue;
+                    row.Add(CsvOutput.FormatValue(device.ProcessedData[i]));
+                }
+            }
+            CsvOutput.WriteRow(writer, row);
         }
     }
 }
