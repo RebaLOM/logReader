@@ -4,7 +4,7 @@ namespace logReader.UI
 {
     public partial class CanLogViewForm : Form
     {
-        private readonly string _csvPath;
+        private readonly string _sourcePath;
         private Panel _innerPanel = null!;
         private const int ROW_MARGIN = 2;
 
@@ -14,11 +14,11 @@ namespace logReader.UI
         // Список уникальных ID с количеством посылок
         private List<(string ID, int Count)> _packets = new();
 
-        public CanLogViewForm(string csvPath)
+        public CanLogViewForm(string sourcePath)
         {
             InitializeComponent();
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
-            _csvPath = csvPath;
+            _sourcePath = sourcePath;
             Shown += (_, _) => LoadAndBuild();
         }
 
@@ -26,48 +26,21 @@ namespace logReader.UI
         private void LoadAndBuild()
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            string ext = Path.GetExtension(_csvPath);
-            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
-            bool isAsc = ext.Equals(".asc", StringComparison.OrdinalIgnoreCase);
 
             try
             {
-                var encoding = LogFileEncoding.Detect(_csvPath);
                 Span<int> bytes = stackalloc int[8];
-
-                foreach (var line in File.ReadLines(_csvPath, encoding))
+                var paths = ResolveInputPaths(_sourcePath);
+                if (paths.Count == 0)
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    string id;
-                    if (isTrc)
-                    {
-                        if (!TrcLogParser.TryParseTrcFrameLine(
-                                line,
-                                out _,
-                                out _,
-                                out id,
-                                out _,
-                                bytes,
-                                out _))
-                        {
-                            continue;
-                        }
-                    }
-                    else if (isAsc)
-                    {
-                        if (!AscLogParser.TryParseFrameLine(line, out _, out id, bytes, out _)) continue;
-                    }
-                    else
-                    {
-                        var parts = line.Split(';');
-                        if (parts.Length < 3) continue;
-                        id = parts[2].Trim();
-                    }
-
-                    if (string.IsNullOrWhiteSpace(id)) continue;
-                    counts[id] = counts.TryGetValue(id, out int n) ? n + 1 : 1;
+                    MessageBox.Show("В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
+                        "Нет логов", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Close();
+                    return;
                 }
+
+                foreach (var inputPath in paths)
+                    ProcessSingleLogFile(inputPath, counts, bytes);
             }
             catch (Exception ex)
             {
@@ -85,6 +58,87 @@ namespace logReader.UI
             int totalPackets = _packets.Sum(p => p.Count);
             labelCount.Text = $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}";
             BuildList(_packets);
+        }
+
+        private static List<string> ResolveInputPaths(string sourcePath)
+        {
+            if (Directory.Exists(sourcePath))
+            {
+                return EnumerateLogFilesInFolder(sourcePath)
+                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            if (File.Exists(sourcePath))
+                return new List<string> { sourcePath };
+
+            return new List<string>();
+        }
+
+        private static IEnumerable<string> EnumerateLogFilesInFolder(string folder)
+        {
+            string[] patterns = { "*.csv", "*.trc", "*.asc", "*.txt" };
+            foreach (var pattern in patterns)
+            {
+                foreach (var path in Directory.EnumerateFiles(folder, pattern, SearchOption.TopDirectoryOnly))
+                    yield return path;
+            }
+        }
+
+        private static void ProcessSingleLogFile(
+            string inputPath,
+            Dictionary<string, int> counts,
+            Span<int> bytes)
+        {
+            string ext = Path.GetExtension(inputPath);
+            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
+            bool isAsc = ext.Equals(".asc", StringComparison.OrdinalIgnoreCase);
+            var encoding = LogFileEncoding.Detect(inputPath);
+            bool isCanfox = !isTrc && !isAsc && CanfoxLogParser.LooksLikeCanfoxLog(inputPath, encoding);
+
+            foreach (var line in File.ReadLines(inputPath, encoding))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                string id;
+                if (isTrc)
+                {
+                    if (!TrcLogParser.TryParseTrcFrameLine(
+                            line,
+                            out _,
+                            out _,
+                            out id,
+                            out _,
+                            bytes,
+                            out _))
+                    {
+                        continue;
+                    }
+                }
+                else if (isAsc)
+                {
+                    if (!AscLogParser.TryParseFrameLine(line, out _, out id, bytes, out _))
+                        continue;
+                }
+                else if (isCanfox)
+                {
+                    if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out _, out id, bytes, out _))
+                        continue;
+                }
+                else
+                {
+                    var parts = line.Split(';');
+                    if (parts.Length < 3)
+                        continue;
+                    id = parts[2].Trim();
+                }
+
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+
+                counts[id] = counts.TryGetValue(id, out int n) ? n + 1 : 1;
+            }
         }
 
         // ─── Построение списка ────────────────────────────────────────────

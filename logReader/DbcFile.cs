@@ -135,7 +135,7 @@ namespace logReader
             {
                 if (!DbcLineParser.IsValidSymbolName(m.Name))
                     throw new InvalidDataException(
-                        $"Недопустимое имя посылки '{m.Name}'. Разрешены буквы/цифры/подчёркивания, первый символ — не цифра.");
+                        $"Недопустимое имя посылки '{m.Name}'. {DbcLineParser.SymbolNameRulesHint}");
 
                 if (!seenNames.Add(m.Name))
                     throw new InvalidDataException($"Повторяющееся имя посылки: '{m.Name}'.");

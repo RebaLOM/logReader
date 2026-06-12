@@ -34,8 +34,7 @@ namespace logReader.UI
             buttonTrcToAsc = new Button();
             buttonDevicesParams = new Button();
             buttonDevicesCreateOrAdd = new Button();
-            comboBoxOutputFormat = new ComboBox();
-            labelOutputFormat = new Label();
+            buttonSaveOptions = new Button();
             SuspendLayout();
             // 
             // labelCANlog
@@ -45,7 +44,7 @@ namespace logReader.UI
             labelCANlog.Name = "labelCANlog";
             labelCANlog.Size = new Size(128, 15);
             labelCANlog.TabIndex = 15;
-            labelCANlog.Text = "Файл или папка логов (.csv | .trc | .asc)";
+            labelCANlog.Text = "Файл или папка логов (.csv | .trc | .asc | .txt CANfox)";
             // 
             // labelDevices
             // 
@@ -64,15 +63,6 @@ namespace logReader.UI
             labelResult.Size = new Size(74, 15);
             labelResult.TabIndex = 13;
             labelResult.Text = "Сохранить в";
-            // 
-            // labelOutputFormat
-            // 
-            labelOutputFormat.AutoSize = true;
-            labelOutputFormat.Location = new Point(12, 252);
-            labelOutputFormat.Name = "labelOutputFormat";
-            labelOutputFormat.Size = new Size(52, 15);
-            labelOutputFormat.TabIndex = 0;
-            labelOutputFormat.Text = "Формат";
             // 
             // labelFilterStatus
             // 
@@ -225,24 +215,22 @@ namespace logReader.UI
             buttonDevicesCreateOrAdd.UseVisualStyleBackColor = true;
             buttonDevicesCreateOrAdd.Click += buttonDevicesCreateOrAdd_Click;
             // 
-            // comboBoxOutputFormat
+            // buttonSaveOptions
             // 
-            comboBoxOutputFormat.DropDownStyle = ComboBoxStyle.DropDownList;
-            comboBoxOutputFormat.FormattingEnabled = true;
-            comboBoxOutputFormat.Items.AddRange(new object[] { "XLSX", "CSV" });
-            comboBoxOutputFormat.Location = new Point(93, 249);
-            comboBoxOutputFormat.Name = "comboBoxOutputFormat";
-            comboBoxOutputFormat.Size = new Size(100, 23);
-            comboBoxOutputFormat.TabIndex = 0;
-            comboBoxOutputFormat.SelectedIndexChanged += comboBoxOutputFormat_SelectedIndexChanged;
+            buttonSaveOptions.Location = new Point(12, 251);
+            buttonSaveOptions.Name = "buttonSaveOptions";
+            buttonSaveOptions.Size = new Size(186, 23);
+            buttonSaveOptions.TabIndex = 0;
+            buttonSaveOptions.Text = "Параметры сохранения";
+            buttonSaveOptions.UseVisualStyleBackColor = true;
+            buttonSaveOptions.Click += buttonSaveOptions_Click;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
-            Controls.Add(comboBoxOutputFormat);
-            Controls.Add(labelOutputFormat);
+            Controls.Add(buttonSaveOptions);
             Controls.Add(labelFilterStatus);
             Controls.Add(buttonDevicesCreateOrAdd);
             Controls.Add(buttonDevicesParams);
@@ -289,7 +277,6 @@ namespace logReader.UI
         private Button buttonTrcToAsc;
         private Button buttonDevicesParams;
         private Button buttonDevicesCreateOrAdd;
-        private ComboBox comboBoxOutputFormat;
-        private Label labelOutputFormat;
+        private Button buttonSaveOptions;
     }
 }

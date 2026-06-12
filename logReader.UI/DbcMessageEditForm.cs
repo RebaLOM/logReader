@@ -198,14 +198,11 @@ namespace logReader.UI
 
         private void AddSignal()
         {
-            using var dlg = new DbcSignalEditForm(null, (int)_numDlc.Value);
+            using var dlg = new DbcSignalEditForm(
+                null,
+                (int)_numDlc.Value,
+                _signals.Select(s => s.Name));
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-            if (_signals.Any(x => x.Name.Equals(dlg.Signal.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                MessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
 
             _signals.Add(dlg.Signal);
             RefreshGrid();
@@ -264,6 +261,14 @@ namespace logReader.UI
                 _txtName.Focus();
                 return;
             }
+            if (!DbcLineParser.IsValidSymbolName(name))
+            {
+                MessageBox.Show(this,
+                    "Недопустимое имя посылки. " + DbcLineParser.SymbolNameRulesHint,
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtName.Focus();
+                return;
+            }
 
             bool isExtended = _rbExtended.Checked;
             if (!MessageEditFormHelpers.TryParseHexId(_txtId.Text, isExtended, out uint id, out string idError))
@@ -287,6 +292,14 @@ namespace logReader.UI
             int dlc = (int)_numDlc.Value;
             foreach (var s in _signals)
             {
+                if (!DbcLineParser.IsValidSymbolName(s.Name))
+                {
+                    MessageBox.Show(
+                        this,
+                        $"Сигнал '{s.Name}': недопустимое имя. {DbcLineParser.SymbolNameRulesHint}",
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 if (!SignalFitsInDlc(s, dlc))
                 {
                     MessageBox.Show(

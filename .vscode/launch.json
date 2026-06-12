@@ -6,7 +6,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/logReader.UI/bin/Debug/net10.0-windows/logReader.UI.dll",
+      "program": "${workspaceFolder}/logReader.UI/bin/Debug/net10.0-windows/LOGER.dll",
       "args": [],
       "cwd": "${workspaceFolder}/logReader.UI",
       "stopAtEntry": false,

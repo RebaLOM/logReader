@@ -89,5 +89,8 @@ namespace logReader
             }
             return true;
         }
+
+        public const string SymbolNameRulesHint =
+            "Разрешены буквы/цифры/подчёркивания, первый символ — не цифра.";
     }
 }

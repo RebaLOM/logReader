@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using logReader;
 
 namespace logReader.UI
@@ -8,6 +8,7 @@ namespace logReader.UI
         private readonly List<Device> _devices;
         private readonly Dictionary<string, bool> _deviceEnabled;
         private readonly Dictionary<string, bool[]> _paramEnabled;
+        private readonly List<string> _unknownDevices;
 
         private const int GB_MARGIN = 8;
 
@@ -26,14 +27,30 @@ namespace logReader.UI
 
         public Devices_ParametrsForm(List<Device> devices,
             Dictionary<string, bool> deviceEnabled,
-            Dictionary<string, bool[]> paramEnabled)
+            Dictionary<string, bool[]> paramEnabled,
+            List<string>? unknownDevices = null)
         {
             InitializeComponent();
             _devices = devices;
             _deviceEnabled = deviceEnabled;
             _paramEnabled = paramEnabled;
+            _unknownDevices = unknownDevices ?? new List<string>();
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
+            
+            if (_unknownDevices.Count == 0)
+            {
+                listBoxUnknown.Items.Add("В выбранном лог-файле нет неизвестных устройств,");
+                listBoxUnknown.Items.Add("или лог-файл не выбран.");
+            }
+            else
+            {
+                foreach (var id in _unknownDevices)
+                {
+                    listBoxUnknown.Items.Add(id);
+                }
+            }
+
             Shown += (_, _) => BuildDevicePanels();
         }
 
@@ -217,6 +234,29 @@ namespace logReader.UI
         {
             string query = textBoxSearch.Text.Trim().ToLowerInvariant();
             ApplyFilter(query);
+        }
+
+        private void textBoxSearchUnknown_TextChanged(object? sender, EventArgs e)
+        {
+            if (textBoxSearchUnknown == null || listBoxUnknown == null) return;
+
+            string query = textBoxSearchUnknown.Text.Trim().ToLowerInvariant();
+            listBoxUnknown.Items.Clear();
+
+            if (_unknownDevices == null || _unknownDevices.Count == 0)
+            {
+                listBoxUnknown.Items.Add("В выбранном лог-файле нет неизвестных устройств,");
+                listBoxUnknown.Items.Add("или лог-файл не выбран.");
+                return;
+            }
+
+            foreach (var id in _unknownDevices)
+            {
+                if (string.IsNullOrEmpty(query) || id.ToLowerInvariant().Contains(query))
+                {
+                    listBoxUnknown.Items.Add(id);
+                }
+            }
         }
 
         private void ApplyFilter(string query)

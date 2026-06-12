@@ -12,7 +12,12 @@ namespace logReader
             if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            string tmpPath = path + ".tmp";
+            // Временный файл с тем же «настоящим» расширением, иначе ClosedXML.SaveAs
+            // отклоняет, например, "file.xlsx.tmp" (считает расширение .tmp).
+            string ext = Path.GetExtension(path);
+            if (string.IsNullOrEmpty(ext)) ext = ".xlsx";
+            string tmpName = Path.GetFileNameWithoutExtension(path) + ".tmp" + ext;
+            string tmpPath = string.IsNullOrEmpty(dir) ? tmpName : Path.Combine(dir, tmpName);
             string bakPath = path + ".bak";
 
             if (File.Exists(tmpPath))

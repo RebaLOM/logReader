@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 
 namespace logReader.UI
@@ -14,21 +15,30 @@ namespace logReader.UI
         private List<logReader.Device>? _cachedDevices = null;
         private string _cachedDevicesPath = "";
 
+        private sealed class SaveOptions
+        {
+            public OutputFormat OutputFormat { get; set; } = OutputFormat.Xlsx;
+            public BatchOutputMode BatchMode { get; set; } = BatchOutputMode.PerInputFile;
+        }
+
+        internal enum BatchOutputMode
+        {
+            PerInputFile = 0,
+            MergeTrcToSingleFile = 1,
+            SplitTrcByDate = 2,
+        }
+
+        private readonly SaveOptions _saveOptions = new();
+
         public MainForm()
         {
             InitializeComponent();
-            comboBoxOutputFormat.SelectedIndex = 0;
             UpdateDevicesCreateAddButtonState();
             UpdateFilterLabel();
             buttonOpenOutput.Visible = false;
         }
 
-        private OutputFormat GetSelectedOutputFormat()
-        {
-            return string.Equals(comboBoxOutputFormat.SelectedItem?.ToString(), "CSV", StringComparison.OrdinalIgnoreCase)
-                ? OutputFormat.Csv
-                : OutputFormat.Xlsx;
-        }
+        private OutputFormat GetSelectedOutputFormat() => _saveOptions.OutputFormat;
 
         private static string GetOutputExtension(OutputFormat outputFormat)
             => outputFormat == OutputFormat.Csv ? ".csv" : ".xlsx";
@@ -62,9 +72,28 @@ namespace logReader.UI
         {
             string ext = Path.GetExtension(path);
             if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase))
-                comboBoxOutputFormat.SelectedItem = "CSV";
+                _saveOptions.OutputFormat = OutputFormat.Csv;
             else if (ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
-                comboBoxOutputFormat.SelectedItem = "XLSX";
+                _saveOptions.OutputFormat = OutputFormat.Xlsx;
+        }
+
+        private void buttonSaveOptions_Click(object sender, EventArgs e)
+        {
+            using var dlg = new SaveOptionsForm(_saveOptions.OutputFormat, _saveOptions.BatchMode);
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            _saveOptions.OutputFormat = dlg.SelectedOutputFormat;
+            _saveOptions.BatchMode = dlg.SelectedBatchMode;
+
+            if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
+                return;
+            if (Directory.Exists(textBoxCanLog.Text.Trim()))
+                return;
+            if (!LooksLikeFilePath(textBoxOutput.Text))
+                return;
+
+            textBoxOutput.Text = EnsureOutputPathMatchesFormat(textBoxOutput.Text, _saveOptions.OutputFormat);
         }
 
         // ─── Обновить подпись с количеством активных фильтров ─────────────
@@ -200,7 +229,7 @@ namespace logReader.UI
             if (kind == LogSourceKind.File)
             {
                 using OpenFileDialog ofd = new OpenFileDialog();
-                ofd.Filter = "Лог файлы (*.csv;*.trc;*.asc)|*.csv;*.trc;*.asc|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc|ASC (*.asc)|*.asc";
+                ofd.Filter = "Лог файлы (*.csv;*.trc;*.asc;*.txt)|*.csv;*.trc;*.asc;*.txt|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc|ASC (*.asc)|*.asc|CANfox / PCAN-View (*.txt)|*.txt";
                 if (ofd.ShowDialog() != DialogResult.OK) return;
                 textBoxCanLog.Text = ofd.FileName;
 
@@ -212,7 +241,7 @@ namespace logReader.UI
             }
 
             using var fbd = new FolderBrowserDialog();
-            fbd.Description = "Выберите папку с логами (.csv, .trc, .asc)";
+            fbd.Description = "Выберите папку с логами (.csv, .trc, .asc, .txt CANfox)";
             if (fbd.ShowDialog() != DialogResult.OK) return;
 
             textBoxCanLog.Text = fbd.SelectedPath;
@@ -224,23 +253,11 @@ namespace logReader.UI
             string path = textBoxCanLog.Text;
             if (string.IsNullOrWhiteSpace(path))
             {
-                Log("Ошибка: сначала укажите файл лога (.csv, .trc или .asc).");
+                Log("Ошибка: сначала укажите файл лога (.csv, .trc, .asc или .txt CANfox).");
                 return;
             }
 
-            if (Directory.Exists(path))
-            {
-                string? first = EnumerateLogFilesInFolder(path)
-                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                    .FirstOrDefault();
-                if (first == null)
-                {
-                    Log("Ошибка: в папке нет файлов .csv, .trc или .asc.");
-                    return;
-                }
-                path = first;
-            }
-            else if (!File.Exists(path))
+            if (!Directory.Exists(path) && !File.Exists(path))
             {
                 Log("Ошибка: файл лога не найден.");
                 return;
@@ -394,9 +411,9 @@ namespace logReader.UI
         {
             using SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv|Excel/CSV (*.xlsx;*.csv)|*.xlsx;*.csv";
-            sfd.DefaultExt = GetOutputExtension(GetSelectedOutputFormat()).TrimStart('.');
+            sfd.DefaultExt = GetOutputExtension(_saveOptions.OutputFormat).TrimStart('.');
             sfd.AddExtension = true;
-            sfd.FilterIndex = GetSelectedOutputFormat() == OutputFormat.Csv ? 2 : 1;
+            sfd.FilterIndex = _saveOptions.OutputFormat == OutputFormat.Csv ? 2 : 1;
             if (sfd.ShowDialog() == DialogResult.OK)
             {
                 textBoxOutput.Text = sfd.FileName;
@@ -405,15 +422,28 @@ namespace logReader.UI
             }
         }
 
-        private static bool IsPCanLog(string path) =>
-            Path.GetExtension(path).Equals(".trc", StringComparison.OrdinalIgnoreCase);
+        private static bool IsPCanLog(string path)
+        {
+            if (Path.GetExtension(path).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!File.Exists(path)) return false;
+            try
+            {
+                var enc = LogFileEncoding.Detect(path);
+                return CanfoxLogParser.LooksLikeCanfoxLog(path, enc);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         private static bool IsAscLog(string path) =>
             Path.GetExtension(path).Equals(".asc", StringComparison.OrdinalIgnoreCase);
 
         private static IEnumerable<string> EnumerateLogFilesInFolder(string folder)
         {
-            string[] patterns = { "*.csv", "*.trc", "*.asc" };
+            string[] patterns = { "*.csv", "*.trc", "*.asc", "*.txt" };
             foreach (string pattern in patterns)
             {
                 foreach (string path in Directory.EnumerateFiles(folder, pattern, SearchOption.TopDirectoryOnly))
@@ -488,7 +518,13 @@ namespace logReader.UI
         {
             bool isPCan = IsPCanLog(logPath);
             bool isAsc = IsAscLog(logPath);
-            if (isPCan) log("Формат: pCAN Viewer");
+            if (isPCan)
+            {
+                if (Path.GetExtension(logPath).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+                    log("Формат: pCAN Viewer");
+                else
+                    log("Формат: CANfox (PCAN-View / CAN.txt)");
+            }
             else if (isAsc) log("Формат: ASC");
             else log("Формат: CAN лог");
 
@@ -518,6 +554,11 @@ namespace logReader.UI
             }
             else
             {
+                if (Path.GetExtension(logPath).Equals(".txt", StringComparison.OrdinalIgnoreCase))
+                {
+                    log("Пропуск: текстовый файл не распознан как лог CANfox (нужен формат с колонками Date, Time, ID, Data).");
+                    return;
+                }
                 var processor = new CanLogProcessor();
                 processor.Process(
                     logPath,
@@ -534,20 +575,6 @@ namespace logReader.UI
         {
             SyncOutputFormatWithPath(textBoxOutput.Text);
             buttonOpenOutput.Visible = false;
-        }
-
-        private void comboBoxOutputFormat_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
-                return;
-
-            if (Directory.Exists(textBoxCanLog.Text.Trim()))
-                return;
-
-            if (!LooksLikeFilePath(textBoxOutput.Text))
-                return;
-
-            textBoxOutput.Text = EnsureOutputPathMatchesFormat(textBoxOutput.Text, GetSelectedOutputFormat());
         }
 
         private void buttonOpenOutput_Click(object sender, EventArgs e)
@@ -684,7 +711,7 @@ namespace logReader.UI
             Cursor = Cursors.Default;
         }
 
-        private void buttonDevicesParams_Click(object sender, EventArgs e)
+        private async void buttonDevicesParams_Click(object sender, EventArgs e)
         {
             if (!File.Exists(textBoxDevices.Text))
             {
@@ -706,7 +733,12 @@ namespace logReader.UI
                 }
 
                 EnsureFiltersMatchDevices();
-                var form = new Devices_ParametrsForm(_cachedDevices, _deviceEnabled, _paramEnabled);
+
+                Cursor = Cursors.WaitCursor;
+                var unknownDevices = await Task.Run(() => UnknownDevicesScanner.ScanForUnknownDevices(textBoxCanLog.Text, _cachedDevices));
+                Cursor = Cursors.Default;
+
+                var form = new Devices_ParametrsForm(_cachedDevices, _deviceEnabled, _paramEnabled, unknownDevices);
                 form.ShowDialog(this);
 
                 // Обновляем статус фильтров после закрытия диалога
@@ -714,6 +746,7 @@ namespace logReader.UI
             }
             catch (Exception ex)
             {
+                Cursor = Cursors.Default;
                 Log("Ошибка: " + ex.Message);
             }
         }
@@ -734,7 +767,7 @@ namespace logReader.UI
 
             string canInput = textBoxCanLog.Text.Trim();
             bool isFolderInput = Directory.Exists(canInput);
-            OutputFormat outputFormat = GetSelectedOutputFormat();
+            OutputFormat outputFormat = _saveOptions.OutputFormat;
 
             if (string.IsNullOrWhiteSpace(canInput))
             {
@@ -770,7 +803,7 @@ namespace logReader.UI
                     .ToList();
                 if (files.Count == 0)
                 {
-                    Log("Ошибка: в папке не найдено файлов .csv, .trc или .asc.");
+                    Log("Ошибка: в папке не найдено файлов .csv, .trc, .asc или .txt.");
                     return;
                 }
 
@@ -794,10 +827,23 @@ namespace logReader.UI
                     Log($"Папка с логами: найдено {files.Count} файл(ов).");
                     Log($"Каталог результатов: {outputDir}");
 
-                    int ok = 0;
-                    await Task.Run(() =>
+                int ok = 0;
+                int expectedOut = 0;
+                await Task.Run(() =>
+                {
+                    var trcFiles = files
+                        .Where(p => Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var otherFiles = files
+                        .Where(p => !Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    void ProcessPerFile(IEnumerable<string> inputFiles)
                     {
-                        foreach (string logPath in files)
+                        foreach (string logPath in inputFiles)
                         {
                             string outPath = BuildBatchOutputPath(logPath, outputDir, outputFormat);
                             if (string.Equals(Path.GetFullPath(outPath), devFull, StringComparison.OrdinalIgnoreCase))
@@ -808,10 +854,7 @@ namespace logReader.UI
 
                             if (File.Exists(outPath))
                             {
-                                try
-                                {
-                                    using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                                }
+                                try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
                                 catch
                                 {
                                     Log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
@@ -820,6 +863,7 @@ namespace logReader.UI
                             }
 
                             Log($"--- {Path.GetFileName(logPath)} ---");
+                            expectedOut++;
                             ProcessSingleLogFile(
                                 logPath,
                                 outPath,
@@ -833,10 +877,124 @@ namespace logReader.UI
                             if (File.Exists(outPath))
                                 ok++;
                         }
-                    });
+                    }
 
-                    Log($"Готово: создано файлов: {ok} из {files.Count}.");
-                    buttonOpenOutput.Visible = ok > 0;
+                    // Всегда обрабатываем не-.trc поштучно (как раньше)
+                    ProcessPerFile(otherFiles);
+
+                    if (_saveOptions.BatchMode == BatchOutputMode.PerInputFile || trcFiles.Count == 0)
+                    {
+                        ProcessPerFile(trcFiles);
+                        return;
+                    }
+
+                    if (_saveOptions.BatchMode == BatchOutputMode.MergeTrcToSingleFile)
+                    {
+                        string mergedOut = Path.Combine(outputDir, "result_trc_merged" + GetOutputExtension(outputFormat));
+                        if (string.Equals(Path.GetFullPath(mergedOut), devFull, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Log("Пропуск: выходной файл совпадает с файлом посылок.");
+                            return;
+                        }
+
+                        if (File.Exists(mergedOut))
+                        {
+                            try { using var fs = new FileStream(mergedOut, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+                            catch
+                            {
+                                Log($"Пропуск (файл занят): {Path.GetFileName(mergedOut)}");
+                                return;
+                            }
+                        }
+
+                        Log("--- .trc: объединение в один файл ---");
+                        expectedOut++;
+                        if (!TrcBatchAggregator.TryBuildMergedAggregate(
+                                trcFiles,
+                                allDevices,
+                                hasFilter ? _deviceEnabled : null,
+                                hasFilter ? _paramEnabled : null,
+                                Log,
+                                out var agg))
+                        {
+                            Log("Ошибка: не удалось собрать данные из .trc для объединения.");
+                            return;
+                        }
+
+                        PCanLogProcessor.WriteOutput(
+                            allDevices,
+                            agg.DeviceData,
+                            hasFilter ? _deviceEnabled : null,
+                            hasFilter ? _paramEnabled : null,
+                            mergedOut,
+                            outputFormat,
+                            agg.IsCanfox,
+                            Log);
+
+                        if (File.Exists(mergedOut))
+                            ok++;
+
+                        return;
+                    }
+
+                    if (_saveOptions.BatchMode == BatchOutputMode.SplitTrcByDate)
+                    {
+                        Log("--- .trc: разбивка по датам ---");
+                        if (!TrcBatchAggregator.TryBuildAggregatesByDate(
+                                trcFiles,
+                                allDevices,
+                                hasFilter ? _deviceEnabled : null,
+                                hasFilter ? _paramEnabled : null,
+                                Log,
+                                out var byDate))
+                        {
+                            Log("Ошибка: не удалось собрать данные из .trc для разбивки по датам.");
+                            return;
+                        }
+
+                        foreach (var kv in byDate.OrderBy(k => k.Key))
+                        {
+                            string datePart = kv.Key.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                            string outPath = Path.Combine(outputDir, "result_" + datePart + GetOutputExtension(outputFormat));
+                            if (string.Equals(Path.GetFullPath(outPath), devFull, StringComparison.OrdinalIgnoreCase))
+                            {
+                                Log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
+                                continue;
+                            }
+
+                            if (File.Exists(outPath))
+                            {
+                                try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+                                catch
+                                {
+                                    Log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
+                                    continue;
+                                }
+                            }
+
+                            Log($"--- {Path.GetFileName(outPath)} ---");
+                            expectedOut++;
+                            PCanLogProcessor.WriteOutput(
+                                allDevices,
+                                kv.Value.DeviceData,
+                                hasFilter ? _deviceEnabled : null,
+                                hasFilter ? _paramEnabled : null,
+                                outPath,
+                                outputFormat,
+                                isCanfox: false,
+                                Log);
+
+                            if (File.Exists(outPath))
+                                ok++;
+                        }
+
+                        return;
+                    }
+                });
+
+                int totalOut = expectedOut > 0 ? expectedOut : ok;
+                Log($"Готово: создано файлов: {ok} из {totalOut}.");
+                buttonOpenOutput.Visible = ok > 0;
                 }
                 catch (Exception ex)
                 {

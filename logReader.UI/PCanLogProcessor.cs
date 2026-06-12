@@ -8,6 +8,22 @@ namespace logReader.UI
 {
     internal class PCanLogProcessor
     {
+        internal static void WriteOutput(
+            List<Device> devices,
+            Dictionary<string, List<(double TimeVal, string[] Values)>> deviceData,
+            Dictionary<string, bool>? deviceEnabled,
+            Dictionary<string, bool[]>? paramEnabled,
+            string outputPath,
+            OutputFormat outputFormat,
+            bool isCanfox,
+            Action<string> log)
+        {
+            if (outputFormat == OutputFormat.Csv)
+                BuildCsv(devices, deviceData, deviceEnabled, paramEnabled, outputPath, isCanfox, log);
+            else
+                BuildExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, isCanfox, log);
+        }
+
         public void Process(
             string trcPath,
             List<Device> devices,
@@ -29,34 +45,74 @@ namespace logReader.UI
             }
             catch (Exception ex) { log($"Ошибка определения кодировки: {ex.Message}"); return; }
 
-            DateTime? startTime;
+            bool isCanfox;
             try
             {
-                startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding));
+                isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding);
             }
             catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
+
+            DateTime? startTime = null;
+            if (!isCanfox)
+            {
+                try
+                {
+                    startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding));
+                }
+                catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
+            }
 
             var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
-            // TimeVal = доля суток (double), как хранит Excel
+            // TimeVal = доля суток (double), как хранит Excel; для CANfox — время прямо из HH:mm:ss.fff
             var deviceData = new Dictionary<string, List<(double TimeVal, string[] Values)>>(
                 StringComparer.OrdinalIgnoreCase);
 
             Span<int> bytes = stackalloc int[8];
             foreach (var line in File.ReadLines(trcPath, encoding))
             {
-                if (!TrcLogParser.TryParseTrcFrameLine(
-                        line,
-                        out decimal timeMsRaw,
-                        out _,
-                        out string id,
-                        out _,
-                        bytes,
-                        out int parsedByteCount))
+                string id;
+                int parsedByteCount;
+                double timeVal;
+
+                if (isCanfox)
                 {
-                    continue;
+                    if (!CanfoxLogParser.TryParseCanfoxFrameLine(
+                            line,
+                            out timeVal,
+                            out id,
+                            bytes,
+                            out parsedByteCount))
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (!TrcLogParser.TryParseTrcFrameLine(
+                            line,
+                            out decimal timeMsRaw,
+                            out _,
+                            out id,
+                            out _,
+                            bytes,
+                            out parsedByteCount))
+                    {
+                        continue;
+                    }
+
+                    double timeMs = (double)timeMsRaw;
+                    if (startTime.HasValue)
+                    {
+                        timeVal = startTime.Value.AddMilliseconds(timeMs).TimeOfDay.TotalDays;
+                    }
+                    else
+                    {
+                        // Нет заголовка — пишем смещение в мс как есть (число)
+                        timeVal = timeMs;
+                    }
                 }
 
                 if (!deviceByID.TryGetValue(id, out Device? device)) continue;
@@ -72,20 +128,6 @@ namespace logReader.UI
                 if (!deviceData.ContainsKey(id))
                     deviceData[id] = new List<(double, string[])>();
 
-                double timeMs = (double)timeMsRaw;
-                double timeVal;
-                if (startTime.HasValue)
-                {
-                    // Абсолютное время = время начала + смещение
-                    // Доля суток с полной точностью double (≈0.1 мкс разрешение)
-                    timeVal = startTime.Value.AddMilliseconds(timeMs).TimeOfDay.TotalDays;
-                }
-                else
-                {
-                    // Нет заголовка — пишем смещение в мс как есть (число)
-                    timeVal = timeMs;
-                }
-
                 deviceData[id].Add((timeVal, (string[])device.ProcessedData.Clone()));
             }
 
@@ -95,10 +137,19 @@ namespace logReader.UI
                 return;
             }
 
-            if (outputFormat == OutputFormat.Csv)
-                BuildCsv(devices, deviceData, deviceEnabled, paramEnabled, outputPath, log);
-            else
-                BuildExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, log);
+            WriteOutput(devices, deviceData, deviceEnabled, paramEnabled, outputPath, outputFormat, isCanfox, log);
+        }
+
+        private static string FormatHmsFffFromDayFraction(double timeDayFraction)
+        {
+            var ts = TimeSpan.FromDays(timeDayFraction);
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "{0:00}:{1:00}:{2:00}.{3:000}",
+                (int)Math.Floor(ts.TotalHours),
+                ts.Minutes,
+                ts.Seconds,
+                ts.Milliseconds);
         }
 
         private static void BuildExcel(
@@ -107,6 +158,7 @@ namespace logReader.UI
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled,
             string outputPath,
+            bool isCanfox,
             Action<string> log)
         {
             using var workbook = new XLWorkbook();
@@ -187,8 +239,11 @@ namespace logReader.UI
                     int excelRow = r + 3;
                     int c = col;
 
-                    // Время — просто число (доля суток или мс), без форматирования
-                    ws.Cell(excelRow, c++).Value = rows[r].TimeVal;
+                    // Время: pCAN .trc — доля суток или смещение в мс; CANfox — доля суток + формат HH:mm:ss.fff
+                    var timeCell = ws.Cell(excelRow, c++);
+                    timeCell.Value = rows[r].TimeVal;
+                    if (isCanfox)
+                        timeCell.Style.DateFormat.Format = "HH:mm:ss.000";
 
                     for (int i = 0; i < device.headers.Length; i++)
                     {
@@ -234,6 +289,7 @@ namespace logReader.UI
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled,
             string outputPath,
+            bool isCanfox,
             Action<string> log)
         {
             try
@@ -280,7 +336,10 @@ namespace logReader.UI
                         var rows = deviceData[entry.Device.ID];
                         if (r < rows.Count)
                         {
-                            row.Add(rows[r].TimeVal.ToString(CultureInfo.InvariantCulture));
+                            string t = isCanfox
+                                ? FormatHmsFffFromDayFraction(rows[r].TimeVal)
+                                : rows[r].TimeVal.ToString(CultureInfo.InvariantCulture);
+                            row.Add(t);
                             foreach (int idx in entry.ParamIndexes)
                             {
                                 string val = idx < rows[r].Values.Length ? rows[r].Values[idx] : "";

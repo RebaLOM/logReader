@@ -22,12 +22,19 @@ namespace logReader.UI
         private readonly Button _btnCancel = new();
 
         private readonly int _messageDlc;
+        private readonly IReadOnlyList<string> _existingSignalNames;
 
         public DbcSignal Signal { get; private set; }
 
-        public DbcSignalEditForm(DbcSignal? initial, int messageDlc)
+        public DbcSignalEditForm(
+            DbcSignal? initial,
+            int messageDlc,
+            IEnumerable<string>? existingSignalNames = null)
         {
             _messageDlc = Math.Clamp(messageDlc, 1, 8);
+            _existingSignalNames = existingSignalNames != null
+                ? existingSignalNames.ToList()
+                : Array.Empty<string>();
             Signal = initial != null ? Clone(initial) : new DbcSignal();
 
             Text = "Signal Details";
@@ -228,6 +235,20 @@ namespace logReader.UI
                 _txtName.Focus();
                 return;
             }
+            if (!DbcLineParser.IsValidSymbolName(name))
+            {
+                MessageBox.Show(this,
+                    "Недопустимое имя сигнала. " + DbcLineParser.SymbolNameRulesHint,
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtName.Focus();
+                return;
+            }
+            if (_existingSignalNames.Any(x => x.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                MessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtName.Focus();
+                return;
+            }
 
             int byteIndex = (int)_numByteIndex.Value;
             int bitInByte = (int)_numStartBitInByte.Value;
@@ -251,9 +272,21 @@ namespace logReader.UI
                 _txtFactor.Focus();
                 return;
             }
+            if (double.IsNaN(factor) || double.IsInfinity(factor))
+            {
+                MessageBox.Show(this, "Factor: значение должно быть конечным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtFactor.Focus();
+                return;
+            }
             if (!NumberParseHelper.TryParseDouble(_txtOffset.Text, out double offset))
             {
                 MessageBox.Show(this, "Offset: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtOffset.Focus();
+                return;
+            }
+            if (double.IsNaN(offset) || double.IsInfinity(offset))
+            {
+                MessageBox.Show(this, "Offset: значение должно быть конечным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
                 return;
             }
