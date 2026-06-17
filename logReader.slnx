@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="logReader.Tests/logReader.Tests.csproj" />
   <Project Path="logReader.UI/logReader.UI.csproj" Id="2660a2f1-1fe5-4078-a6c6-acd24c9d7a7a" />
   <Project Path="logReader/logReader.csproj" />
 </Solution>
