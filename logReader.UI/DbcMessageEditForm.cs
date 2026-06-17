@@ -325,26 +325,7 @@ namespace logReader.UI
         }
 
         private static bool SignalFitsInDlc(DbcSignal s, int dlc)
-        {
-            int payloadBits = dlc * 8;
-            if (s.Length <= 0 || s.Length > payloadBits) return false;
-
-            if (s.IsLittleEndian)
-            {
-                return s.StartBit >= 0 && s.StartBit + s.Length <= payloadBits;
-            }
-
-            // Motorola: StartBit — MSB поля. Имитируем обход по DBC-правилу и
-            // требуем, чтобы все биты остались внутри DLC.
-            int bit = s.StartBit;
-            for (int i = 0; i < s.Length; i++)
-            {
-                if (bit < 0 || bit >= payloadBits) return false;
-                if ((bit % 8) == 0) bit += 15;
-                else bit -= 1;
-            }
-            return true;
-        }
+            => BitMath.SignalFitsInDlc(s.StartBit, s.Length, s.IsLittleEndian, dlc * 8);
 
         private static DbcMessage Clone(DbcMessage m)
         {

@@ -1,12 +1,10 @@
 using System.Globalization;
 using ClosedXML.Excel;
+using static logReader.XlsxCellReader;
 
 namespace logReader
 {
-    /// <summary>
-    /// Одна строка Excel = один сигнал. Для Type=NUM поля соответствуют DBC (глобальный StartBit, длина в битах).
-    /// Для Type=BIN: колонка StartBit = индекс байта 0..7, Length = длина битовой маски 1..8, BitStart = смещение внутри байта 0..7.
-    /// </summary>
+    // Строка xlsx = сигнал: NUM — как DBC; BIN — байт 0..7 и маска внутри байта.
     public sealed record DeviceFieldRow(
         int FieldIndex,
         string Header,
@@ -276,34 +274,6 @@ namespace logReader
             }
         }
 
-        private static double? GetNumber(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out double d) && !double.IsNaN(d)) return d;
-            var s = cell.GetString()?.Trim();
-            if (string.IsNullOrWhiteSpace(s)) return null;
-            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed) ? parsed : null;
-        }
-
-        private static bool ParseBool01(IXLCell cell, bool defaultValue)
-        {
-            if (cell.IsEmpty()) return defaultValue;
-            var s = cell.GetString().Trim();
-            if (s.Length == 0)
-            {
-                if (cell.TryGetValue(out double d) && !double.IsNaN(d))
-                    return Math.Abs(d) >= 0.5;
-                return defaultValue;
-            }
-            if (s.Equals("1", StringComparison.Ordinal) || s.Equals("true", StringComparison.OrdinalIgnoreCase)
-                || s.Equals("yes", StringComparison.OrdinalIgnoreCase) || s.Equals("extended", StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (s.Equals("0", StringComparison.Ordinal) || s.Equals("false", StringComparison.OrdinalIgnoreCase)
-                || s.Equals("no", StringComparison.OrdinalIgnoreCase) || s.Equals("standard", StringComparison.OrdinalIgnoreCase))
-                return false;
-            return defaultValue;
-        }
-
         private static bool ParseByteOrder(IXLCell cell)
         {
             var s = cell.GetString().Trim();
@@ -311,16 +281,6 @@ namespace logReader
             if (s.Equals("Motorola", StringComparison.OrdinalIgnoreCase) || s.Equals("0", StringComparison.Ordinal))
                 return false;
             return true;
-        }
-
-        private static bool ParseSigned(IXLCell cell)
-        {
-            var s = cell.GetString().Trim();
-            if (s.Length == 0) return false;
-            if (s.Equals("-", StringComparison.Ordinal) || s.Equals("signed", StringComparison.OrdinalIgnoreCase)
-                || s.Equals("1", StringComparison.Ordinal) || s.Equals("true", StringComparison.OrdinalIgnoreCase))
-                return true;
-            return false;
         }
     }
 }

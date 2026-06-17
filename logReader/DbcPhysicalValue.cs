@@ -2,9 +2,7 @@ using System.Globalization;
 
 namespace logReader
 {
-    /// <summary>
-    /// Округление и форматирование физических значений для DBC (избегает артефактов double вроде 6553.400000000001).
-    /// </summary>
+    // Округление физических значений DBC через decimal, чтобы убрать артефакты double.
     public static class DbcPhysicalValue
     {
         public const int MaxDecimalPlaces = 6;
@@ -17,13 +15,23 @@ namespace logReader
 
         public static (double Min, double Max) PhysicalBoundsFromRaw(long rawMin, long rawMax, double factor, double offset)
         {
-            decimal f = (decimal)factor;
-            decimal o = (decimal)offset;
-            decimal min = (decimal)rawMin * f + o;
-            decimal max = (decimal)rawMax * f + o;
-            return (
-                (double)decimal.Round(min, MaxDecimalPlaces, MidpointRounding.AwayFromZero),
-                (double)decimal.Round(max, MaxDecimalPlaces, MidpointRounding.AwayFromZero));
+            // decimal точен для обычных масштабов; при экстремальных factor/offset
+            // произведение выходит за decimal.MaxValue и роняло редактор сигналов.
+            try
+            {
+                decimal f = (decimal)factor;
+                decimal o = (decimal)offset;
+                decimal min = (decimal)rawMin * f + o;
+                decimal max = (decimal)rawMax * f + o;
+                return (
+                    (double)decimal.Round(min, MaxDecimalPlaces, MidpointRounding.AwayFromZero),
+                    (double)decimal.Round(max, MaxDecimalPlaces, MidpointRounding.AwayFromZero));
+            }
+            catch (OverflowException)
+            {
+                // double допускает микроартефакты, но не падает на огромных коэффициентах.
+                return (RoundPhysical(rawMin * factor + offset), RoundPhysical(rawMax * factor + offset));
+            }
         }
 
         public static string FormatForDbc(double value)

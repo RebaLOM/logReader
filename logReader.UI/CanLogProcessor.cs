@@ -21,14 +21,16 @@ namespace logReader.UI
             OutputFormat outputFormat,
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
-            Dictionary<string, bool[]>? paramEnabled = null)
+            Dictionary<string, bool[]>? paramEnabled = null,
+            CompositeRuntime? composites = null)
         {
-            if (devices.Count == 0) { log("Ошибка: устройства не загружены."); return; }
+            bool hasComposites = composites != null && !composites.IsEmpty;
+            if (devices.Count == 0 && !hasComposites) { log("Ошибка: устройства не загружены."); return; }
             if (!File.Exists(csvPath)) { log($"Ошибка: файл лога не найден: {csvPath}"); return; }
 
-            // ВАЖНО: устройства кешируются в UI и могут переиспользоваться между обработками.
-            // Чтобы второй прогон не стартовал с "последних значений", сбрасываем всё в нули.
+            // Устройства кешируются в UI — без сброса второй прогон унаследует прошлые байты.
             logReader.Program.ResetDevicesState(devices);
+            composites?.Reset();
 
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
@@ -43,9 +45,9 @@ namespace logReader.UI
 
             Encoding encoding = LogFileEncoding.Detect(csvPath);
 
-            // ── Проход 1: определяем какие устройства есть в логе ────────
-            // Достаточно первых 4 полей (Шаг;Время;ID;Приоритет) — байты не читаем.
+            // Проход 1: только ID из лога — без декодирования байт.
             var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenSourceIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 foreach (string line in File.ReadLines(csvPath, encoding))
@@ -58,36 +60,67 @@ namespace logReader.UI
                         string id = p[2].Trim();
                         if (deviceByID.ContainsKey(id))
                             seenIDs.Add(id);
+                        if (hasComposites && composites!.IsSourceId(id))
+                            seenSourceIDs.Add(id);
                     }
                 }
             }
             catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
 
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
-            if (activeDevices.Count == 0)
+
+            // Составной блок в вывод — только если в логе был хотя бы один его источник.
+            var activeBlocks = new List<CompositeDevice>();
+            if (hasComposites)
+            {
+                foreach (var block in composites!.Blocks)
+                {
+                    bool blockOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(block.ID, true);
+                    if (!blockOn) continue;
+                    if (block.Signals.Any(s => s.Pieces.Any(pc => seenSourceIDs.Contains(pc.SourceId))))
+                        activeBlocks.Add(block);
+                }
+            }
+
+            var outputDevices = new List<Device>(activeDevices);
+            outputDevices.AddRange(activeBlocks);
+
+            if (outputDevices.Count == 0)
             {
                 log("Нет совпадающих устройств — проверьте файл посылок.");
                 return;
             }
 
-            using var csvWriter = outputFormat == OutputFormat.Csv
-                ? new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true))
-                : null;
+            void RefreshComposites()
+            {
+                foreach (var block in activeBlocks)
+                    block.Decode();
+            }
+
+            string? csvTempPath = null;
+            StreamWriter? csvWriter = null;
+            if (outputFormat == OutputFormat.Csv)
+            {
+                csvTempPath = SafeFileWriter.CreateTempPath(outputPath);
+                csvWriter = new StreamWriter(csvTempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            }
+
             using var workbook = outputFormat == OutputFormat.Xlsx ? new XLWorkbook() : null;
 
             IXLWorksheet? ws = null;
             int excelRow = 0;
             if (outputFormat == OutputFormat.Csv)
-                WriteCsvHeaders(csvWriter!, activeDevices, deviceEnabled, paramEnabled);
+                WriteCsvHeaders(csvWriter!, outputDevices, deviceEnabled, paramEnabled);
             else
             {
                 ws = workbook!.Worksheets.Add("Log");
-                excelRow = logReader.Program.BuildExcelHeaders(ws, activeDevices, deviceEnabled, paramEnabled);
+                excelRow = logReader.Program.BuildExcelHeaders(ws, outputDevices, deviceEnabled, paramEnabled);
             }
 
             int currentStep = 0;
             string currentTime = "";
             bool firstStep = true;
+            int[] msgBytes = new int[8];
 
             foreach (string line in File.ReadLines(csvPath, encoding))
             {
@@ -95,8 +128,7 @@ namespace logReader.UI
                 var parts = line.Split(';');
                 if (parts.Length < 3) continue;
 
-                // ВАЖНО: сначала обрабатываем смену шага (пишем предыдущий),
-                // и только потом декодируем данные текущей строки.
+                // Сначала смена шага (запись предыдущего), затем декод текущей строки.
                 if (!string.IsNullOrWhiteSpace(parts[0]))
                 {
                     if (!int.TryParse(parts[0], out int newStep)) continue;
@@ -104,12 +136,13 @@ namespace logReader.UI
 
                     if (!firstStep)
                     {
+                        RefreshComposites();
                         if (outputFormat == OutputFormat.Csv)
-                            WriteCsvDataRow(csvWriter!, currentStep, currentTime, activeDevices, deviceEnabled, paramEnabled);
+                            WriteCsvDataRow(csvWriter!, currentStep, currentTime, outputDevices, deviceEnabled, paramEnabled);
                         else
                             excelRow = logReader.Program.BuildExcelRow(
                                 ws!, excelRow, currentStep, currentTime,
-                                activeDevices, deviceEnabled, paramEnabled);
+                                outputDevices, deviceEnabled, paramEnabled);
                     }
 
                     currentStep = newStep;
@@ -121,43 +154,70 @@ namespace logReader.UI
                 if (parts.Length > 3) int.TryParse(parts[3], out priority);
 
                 string id = parts[2].Trim();
-                if (priority == 1 && parts.Length >= 12
-                    && deviceByID.TryGetValue(id, out Device? dev))
+                if (priority == 1 && parts.Length >= 12)
                 {
                     bool valid = true;
                     for (int i = 0; i < 8; i++)
                     {
                         if (!TryParseCanByte(parts[4 + i], out int v)) { valid = false; break; }
-                        dev.RawBytes[i] = v;
+                        msgBytes[i] = v;
                     }
-                    if (valid) dev.Decode();
+
+                    if (valid)
+                    {
+                        if (deviceByID.TryGetValue(id, out Device? dev))
+                        {
+                            Array.Copy(msgBytes, dev.RawBytes, 8);
+                            dev.Decode();
+                        }
+                        composites?.OnMessage(id, msgBytes, 8);
+                    }
                 }
             }
 
             if (!firstStep)
             {
+                RefreshComposites();
                 if (outputFormat == OutputFormat.Csv)
-                    WriteCsvDataRow(csvWriter!, currentStep, currentTime, activeDevices, deviceEnabled, paramEnabled);
+                    WriteCsvDataRow(csvWriter!, currentStep, currentTime, outputDevices, deviceEnabled, paramEnabled);
                 else
                     logReader.Program.BuildExcelRow(
                         ws!, excelRow, currentStep, currentTime,
-                        activeDevices, deviceEnabled, paramEnabled);
+                        outputDevices, deviceEnabled, paramEnabled);
             }
 
             try
             {
                 if (outputFormat == OutputFormat.Csv)
+                {
                     csvWriter!.Flush();
+                    csvWriter.Dispose();
+                    csvWriter = null;
+                    SafeFileWriter.Publish(csvTempPath!, outputPath);
+                    csvTempPath = null;
+                }
                 else
                 {
-                    ws!.Columns().AdjustToContents();
-                    workbook!.SaveAs(outputPath);
+                    SafeFileWriter.Write(outputPath, tmp =>
+                    {
+                        ws!.Columns().AdjustToContents();
+                        workbook!.SaveAs(tmp);
+                    });
                 }
                 log("Обработка завершена.");
             }
             catch (Exception ex)
             {
                 log($"Ошибка сохранения файла: {ex.Message}");
+            }
+            finally
+            {
+                csvWriter?.Dispose();
+                if (csvTempPath != null && File.Exists(csvTempPath))
+                {
+                    try { File.Delete(csvTempPath); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                }
             }
         }
 

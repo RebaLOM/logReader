@@ -12,14 +12,12 @@ namespace logReader.UI
 
         private const int GB_MARGIN = 8;
 
-        // Все размеры вычисляются от шрифта — корректно работают при любом DPI/масштабе
+        // Размеры от шрифта — корректный layout при любом DPI.
         private int HeaderH => Font.Height + 18;
         private int ParamH => Font.Height + 12;
         private int BtnH => Font.Height + 6;
         private int GbTitleH => Font.Height + 8;
 
-        // Ширина кнопок измеряется по самому длинному тексту + отступы
-        // TextRenderer.MeasureText учитывает текущий DPI и шрифт
         private int DeviceBtnW => TextRenderer.MeasureText("Выключено", Font).Width + 20;
         private int ParamBtnW => TextRenderer.MeasureText("Выкл", Font).Width + 20;
 
@@ -229,7 +227,6 @@ namespace logReader.UI
             return gb;
         }
 
-        // ─── Поиск ────────────────────────────────────────────────────────
         private void textBoxSearch_TextChanged(object? sender, EventArgs e)
         {
             string query = textBoxSearch.Text.Trim().ToLowerInvariant();
@@ -288,7 +285,6 @@ namespace logReader.UI
             _innerPanel.ResumeLayout();
         }
 
-        // ─── Resize ───────────────────────────────────────────────────────
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
@@ -303,11 +299,10 @@ namespace logReader.UI
                 gb.Width = gbW;
         }
 
-        // ─── Обработчики кнопок ───────────────────────────────────────────
         private void DeviceBtn_Click(object? sender, EventArgs e)
         {
             if (sender is not Button btn || btn.Tag is not string deviceId) return;
-            // Инвертируем текущее состояние
+            // Инвертируем состояние по клику на заголовок группы.
             bool isOn = !_deviceEnabled.GetValueOrDefault(deviceId, true);
             btn.Text = isOn ? "Включено" : "Выключено";
             btn.BackColor = isOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
@@ -347,43 +342,41 @@ namespace logReader.UI
 
         private void SetAll(bool value)
         {
+            // «Включить/выключить всё» — по всей модели, не только по видимым после фильтра.
+            foreach (var dev in _devices)
+            {
+                _deviceEnabled[dev.ID] = value;
+
+                if (!_paramEnabled.TryGetValue(dev.ID, out var arr) || arr.Length != dev.headers.Length)
+                {
+                    arr = new bool[dev.headers.Length];
+                    _paramEnabled[dev.ID] = arr;
+                }
+                for (int i = 0; i < arr.Length; i++)
+                    arr[i] = value;
+            }
+
+            RefreshAllButtonVisuals(value);
+        }
+
+        // Синхронизирует кнопки с моделью; скрытые фильтром подтянутся при сбросе поиска.
+        private void RefreshAllButtonVisuals(bool value)
+        {
             if (_innerPanel == null) return;
 
             foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
+            foreach (var panel in gb.Controls.OfType<Panel>())
+            foreach (var btn in panel.Controls.OfType<Button>())
             {
-                if (!gb.Visible) continue;
-
-                foreach (var panel in gb.Controls.OfType<Panel>())
+                if (btn.Tag is string)
                 {
-                    foreach (var btn in panel.Controls.OfType<Button>())
-                    {
-                        // Определяем тип кнопки по тегу и обновляем только если состояние отличается
-                        if (btn.Tag is string deviceId)
-                        {
-                            bool current = _deviceEnabled.GetValueOrDefault(deviceId, true);
-                            if (current != value)
-                            {
-                                btn.Text = value ? "Включено" : "Выключено";
-                                btn.BackColor = value ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
-                                _deviceEnabled[deviceId] = value;
-                            }
-                        }
-                        else if (btn.Tag is (string dId, int idx))
-                        {
-                            if (!_paramEnabled.ContainsKey(dId))
-                            {
-                                var dev = _devices.First(d => d.ID == dId);
-                                _paramEnabled[dId] = Enumerable.Repeat(true, dev.headers.Length).ToArray();
-                            }
-                            bool current = _paramEnabled[dId][idx];
-                            if (current != value)
-                            {
-                                btn.Text = value ? "Вкл" : "Выкл";
-                                btn.BackColor = value ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
-                                _paramEnabled[dId][idx] = value;
-                            }
-                        }
-                    }
+                    btn.Text = value ? "Включено" : "Выключено";
+                    btn.BackColor = value ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
+                }
+                else if (btn.Tag is ValueTuple<string, int>)
+                {
+                    btn.Text = value ? "Вкл" : "Выкл";
+                    btn.BackColor = value ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
                 }
             }
         }

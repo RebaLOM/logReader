@@ -64,7 +64,7 @@ namespace logReader
                 }
                 else
                 {
-                    // Для Motorola StartBit указывает MSB; допускается диапазон 0..63.
+                    // Motorola: StartBit — MSB; границы 0..63, не start+length.
                     if (sig.StartBit < 0 || sig.StartBit > 63)
                     {
                         logger($"Предупреждение: Motorola сигнал '{sig.Name}': StartBit={sig.StartBit} вне 0..63 — пропущен.");

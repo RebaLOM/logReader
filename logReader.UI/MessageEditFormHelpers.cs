@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace logReader.UI
 {
-    /// <summary>Общие хелперы для форм редактирования посылок (DBC/XLSX).</summary>
+    // Общие хелперы форм редактирования посылок DBC/XLSX.
     internal static class MessageEditFormHelpers
     {
         public static Label MakeLabel(string text)

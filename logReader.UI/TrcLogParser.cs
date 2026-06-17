@@ -49,7 +49,7 @@ namespace logReader.UI
             if (!TryParseDirection(tokens[2], out direction))
                 return false;
 
-            if (!TryNormalizeId(tokens[3], out id))
+            if (!CanToken.TryNormalizeId(tokens[3], out id))
                 return false;
 
             if (!int.TryParse(tokens[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out dlc))
@@ -59,7 +59,7 @@ namespace logReader.UI
 
             for (int i = 5; i < tokens.Length && parsedByteCount < bytes.Length; i++)
             {
-                if (!TryParseHexByte(tokens[i], out int value))
+                if (!CanToken.TryParseHexByte(tokens[i], out int value))
                     break;
 
                 bytes[parsedByteCount++] = value;
@@ -95,7 +95,10 @@ namespace logReader.UI
                     if (double.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out double oaDate)
                         || double.TryParse(valueText, NumberStyles.Float, CultureInfo.CurrentCulture, out oaDate))
                     {
-                        try { fallback = DateTime.FromOADate(oaDate); } catch { }
+                        // FromOADate бросает ArgumentException на датах вне диапазона OLE —
+                        // просто игнорируем некорректный $STARTTIME.
+                        try { fallback = DateTime.FromOADate(oaDate); }
+                        catch (ArgumentException) { }
                     }
                 }
             }
@@ -141,47 +144,6 @@ namespace logReader.UI
             }
 
             return false;
-        }
-
-        private static bool TryNormalizeId(string rawToken, out string id)
-        {
-            id = "";
-            if (string.IsNullOrWhiteSpace(rawToken))
-                return false;
-
-            string token = rawToken.Trim();
-            if (token.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                token = token.Substring(2);
-
-            if (token.Length == 0)
-                return false;
-
-            for (int i = 0; i < token.Length; i++)
-            {
-                char c = token[i];
-                bool isHex = (c >= '0' && c <= '9')
-                             || (c >= 'A' && c <= 'F')
-                             || (c >= 'a' && c <= 'f');
-                if (!isHex)
-                    return false;
-            }
-
-            id = token.ToUpperInvariant();
-            return true;
-        }
-
-        private static bool TryParseHexByte(string rawToken, out int value)
-        {
-            value = 0;
-            if (string.IsNullOrWhiteSpace(rawToken))
-                return false;
-
-            string token = rawToken.Trim();
-            if (token.Length == 0 || token.Length > 2)
-                return false;
-
-            return int.TryParse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value)
-                   && value >= 0 && value <= byte.MaxValue;
         }
 
         private static bool TryParseStartTimeAfterMarker(string line, string marker, out DateTime startTime)

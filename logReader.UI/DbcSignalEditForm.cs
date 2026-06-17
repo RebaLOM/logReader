@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using logReader;
+using static logReader.BitMath;
 
 namespace logReader.UI
 {
@@ -150,7 +151,7 @@ namespace logReader.UI
                 Length = (int)_numLength.Value,
                 IsSigned = _cmbType.SelectedIndex == 0
             };
-            ComputeRawRange(tmp, out long rawMin, out long rawMax);
+            ComputeRawRange(tmp.Length, tmp.IsSigned, out long rawMin, out long rawMax);
             _txtMinHex.Text = FormatHex(rawMin, tmp.Length);
             _txtMaxHex.Text = FormatHex(rawMax, tmp.Length);
         }
@@ -179,44 +180,9 @@ namespace logReader.UI
             _rbMotorola.Checked = !s.IsLittleEndian;
 
             long rawMin, rawMax;
-            ComputeRawRange(s, out rawMin, out rawMax);
+            ComputeRawRange(s.Length, s.IsSigned, out rawMin, out rawMax);
             _txtMinHex.Text = FormatHex(rawMin, s.Length);
             _txtMaxHex.Text = FormatHex(rawMax, s.Length);
-        }
-
-        private static void ComputeRawRange(DbcSignal s, out long rawMin, out long rawMax)
-        {
-            if (s.IsSigned)
-            {
-                if (s.Length >= 64)
-                {
-                    rawMin = long.MinValue;
-                    rawMax = long.MaxValue;
-                }
-                else
-                {
-                    rawMin = -(1L << (s.Length - 1));
-                    rawMax = (1L << (s.Length - 1)) - 1;
-                }
-            }
-            else
-            {
-                rawMin = 0;
-                rawMax = s.Length >= 64 ? long.MaxValue : (1L << s.Length) - 1;
-            }
-        }
-
-        private static string FormatHex(long raw, int length)
-        {
-            int nibbles = Math.Max(1, (length + 3) / 4);
-            ulong masked;
-            if (length >= 64) masked = unchecked((ulong)raw);
-            else
-            {
-                ulong mask = (1UL << length) - 1;
-                masked = unchecked((ulong)raw) & mask;
-            }
-            return masked.ToString("X" + nibbles, CultureInfo.InvariantCulture);
         }
 
         private void OnOk()
@@ -266,7 +232,7 @@ namespace logReader.UI
                 return;
             }
 
-            if (!NumberParseHelper.TryParseDouble(_txtFactor.Text, out double factor))
+            if (!NumberParseHelper.TryParseOrDefault(_txtFactor.Text, 1.0, out double factor))
             {
                 MessageBox.Show(this, "Factor: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
@@ -278,7 +244,7 @@ namespace logReader.UI
                 _txtFactor.Focus();
                 return;
             }
-            if (!NumberParseHelper.TryParseDouble(_txtOffset.Text, out double offset))
+            if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset))
             {
                 MessageBox.Show(this, "Offset: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
@@ -306,29 +272,12 @@ namespace logReader.UI
                 Receiver = Signal.Receiver ?? "Vector__XXX"
             };
 
-            ComputeRawRange(Signal, out long rawMin, out long rawMax);
+            ComputeRawRange(Signal.Length, Signal.IsSigned, out long rawMin, out long rawMax);
             (Signal.Min, Signal.Max) = DbcPhysicalValue.PhysicalBoundsFromRaw(
                 rawMin, rawMax, Signal.Factor, Signal.Offset);
 
             DialogResult = DialogResult.OK;
             Close();
-        }
-
-        private static bool SignalFitsInDlc(int startBit, int length, bool littleEndian, int payloadBits)
-        {
-            if (length <= 0 || length > payloadBits) return false;
-
-            if (littleEndian)
-                return startBit >= 0 && startBit + length <= payloadBits;
-
-            int bit = startBit;
-            for (int i = 0; i < length; i++)
-            {
-                if (bit < 0 || bit >= payloadBits) return false;
-                if ((bit % 8) == 0) bit += 15;
-                else bit -= 1;
-            }
-            return true;
         }
 
         private static DbcSignal Clone(DbcSignal s) => new()

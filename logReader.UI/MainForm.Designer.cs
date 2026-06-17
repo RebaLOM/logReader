@@ -18,15 +18,19 @@ namespace logReader.UI
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             labelCANlog = new Label();
             labelDevices = new Label();
+            labelComposites = new Label();
             labelResult = new Label();
             labelFilterStatus = new Label();
             buttonOpenOutput = new Button();
             textBoxCanLog = new TextBox();
             textBoxDevices = new TextBox();
+            textBoxComposites = new TextBox();
             textBoxOutput = new TextBox();
             buttonCANlog = new Button();
             buttonViewLog = new Button();
             buttonDevices = new Button();
+            buttonComposites = new Button();
+            buttonCompositesCreateOrAdd = new Button();
             buttonOutput = new Button();
             textBoxLog = new TextBox();
             buttonProcess = new Button();
@@ -55,10 +59,19 @@ namespace logReader.UI
             labelDevices.TabIndex = 14;
             labelDevices.Text = "Файл посылок (.xlsx | .dbc)";
             // 
+            // labelComposites
+            // 
+            labelComposites.AutoSize = true;
+            labelComposites.Location = new Point(12, 175);
+            labelComposites.Name = "labelComposites";
+            labelComposites.Size = new Size(120, 15);
+            labelComposites.TabIndex = 18;
+            labelComposites.Text = "Файл составных параметров (.xlsx, опционально)";
+            // 
             // labelResult
             // 
             labelResult.AutoSize = true;
-            labelResult.Location = new Point(12, 175);
+            labelResult.Location = new Point(12, 258);
             labelResult.Name = "labelResult";
             labelResult.Size = new Size(74, 15);
             labelResult.TabIndex = 13;
@@ -73,12 +86,12 @@ namespace logReader.UI
             labelFilterStatus.Location = new Point(285, 143);
             labelFilterStatus.Name = "labelFilterStatus";
             labelFilterStatus.Size = new Size(407, 15);
-            labelFilterStatus.TabIndex = 0;
+            labelFilterStatus.TabIndex = 22;
             labelFilterStatus.Text = "Фильтры: не заданы";
             // 
             // buttonOpenOutput
             // 
-            buttonOpenOutput.Location = new Point(93, 222);
+            buttonOpenOutput.Location = new Point(93, 305);
             buttonOpenOutput.Name = "buttonOpenOutput";
             buttonOpenOutput.Size = new Size(75, 23);
             buttonOpenOutput.TabIndex = 5;
@@ -104,10 +117,19 @@ namespace logReader.UI
             textBoxDevices.TabIndex = 11;
             textBoxDevices.TextChanged += textBoxDevices_TextChanged;
             // 
+            // textBoxComposites
+            // 
+            textBoxComposites.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxComposites.Location = new Point(12, 193);
+            textBoxComposites.Name = "textBoxComposites";
+            textBoxComposites.Size = new Size(776, 23);
+            textBoxComposites.TabIndex = 19;
+            textBoxComposites.TextChanged += textBoxComposites_TextChanged;
+            // 
             // textBoxOutput
             // 
             textBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxOutput.Location = new Point(12, 193);
+            textBoxOutput.Location = new Point(12, 276);
             textBoxOutput.Name = "textBoxOutput";
             textBoxOutput.Size = new Size(776, 23);
             textBoxOutput.TabIndex = 10;
@@ -143,9 +165,30 @@ namespace logReader.UI
             buttonDevices.UseVisualStyleBackColor = true;
             buttonDevices.Click += buttonDevices_Click;
             // 
+            // buttonComposites
+            // 
+            buttonComposites.Location = new Point(12, 222);
+            buttonComposites.Name = "buttonComposites";
+            buttonComposites.Size = new Size(75, 23);
+            buttonComposites.TabIndex = 20;
+            buttonComposites.Text = "Обзор";
+            buttonComposites.UseVisualStyleBackColor = true;
+            buttonComposites.Click += buttonComposites_Click;
+            // 
+            // buttonCompositesCreateOrAdd
+            // 
+            buttonCompositesCreateOrAdd.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            buttonCompositesCreateOrAdd.Location = new Point(698, 222);
+            buttonCompositesCreateOrAdd.Name = "buttonCompositesCreateOrAdd";
+            buttonCompositesCreateOrAdd.Size = new Size(90, 23);
+            buttonCompositesCreateOrAdd.TabIndex = 21;
+            buttonCompositesCreateOrAdd.Text = "Создать .xlsx";
+            buttonCompositesCreateOrAdd.UseVisualStyleBackColor = true;
+            buttonCompositesCreateOrAdd.Click += buttonCompositesCreateOrAdd_Click;
+            // 
             // buttonOutput
             // 
-            buttonOutput.Location = new Point(12, 222);
+            buttonOutput.Location = new Point(12, 305);
             buttonOutput.Name = "buttonOutput";
             buttonOutput.Size = new Size(75, 23);
             buttonOutput.TabIndex = 6;
@@ -166,7 +209,7 @@ namespace logReader.UI
             // 
             // buttonProcess
             // 
-            buttonProcess.Location = new Point(12, 308);
+            buttonProcess.Location = new Point(12, 391);
             buttonProcess.Name = "buttonProcess";
             buttonProcess.Size = new Size(94, 23);
             buttonProcess.TabIndex = 3;
@@ -176,7 +219,7 @@ namespace logReader.UI
             // 
             // buttonHelp
             // 
-            buttonHelp.Location = new Point(112, 308);
+            buttonHelp.Location = new Point(112, 391);
             buttonHelp.Name = "buttonHelp";
             buttonHelp.Size = new Size(75, 23);
             buttonHelp.TabIndex = 2;
@@ -186,7 +229,7 @@ namespace logReader.UI
             // 
             // buttonTrcToAsc
             // 
-            buttonTrcToAsc.Location = new Point(200, 308);
+            buttonTrcToAsc.Location = new Point(200, 391);
             buttonTrcToAsc.Name = "buttonTrcToAsc";
             buttonTrcToAsc.Size = new Size(120, 23);
             buttonTrcToAsc.TabIndex = 17;
@@ -217,7 +260,7 @@ namespace logReader.UI
             // 
             // buttonSaveOptions
             // 
-            buttonSaveOptions.Location = new Point(12, 251);
+            buttonSaveOptions.Location = new Point(12, 334);
             buttonSaveOptions.Name = "buttonSaveOptions";
             buttonSaveOptions.Size = new Size(186, 23);
             buttonSaveOptions.TabIndex = 0;
@@ -229,7 +272,7 @@ namespace logReader.UI
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(800, 533);
             Controls.Add(buttonSaveOptions);
             Controls.Add(labelFilterStatus);
             Controls.Add(buttonDevicesCreateOrAdd);
@@ -240,17 +283,21 @@ namespace logReader.UI
             Controls.Add(textBoxLog);
             Controls.Add(buttonOpenOutput);
             Controls.Add(buttonOutput);
+            Controls.Add(buttonCompositesCreateOrAdd);
+            Controls.Add(buttonComposites);
             Controls.Add(buttonDevices);
             Controls.Add(buttonViewLog);
             Controls.Add(buttonCANlog);
             Controls.Add(textBoxOutput);
+            Controls.Add(textBoxComposites);
             Controls.Add(textBoxDevices);
             Controls.Add(textBoxCanLog);
             Controls.Add(labelResult);
+            Controls.Add(labelComposites);
             Controls.Add(labelDevices);
             Controls.Add(labelCANlog);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MinimumSize = new Size(600, 420);
+            MinimumSize = new Size(600, 503);
             Name = "MainForm";
             Text = "LOGER";
             ResumeLayout(false);
@@ -261,14 +308,18 @@ namespace logReader.UI
 
         private Label labelCANlog;
         private Label labelDevices;
+        private Label labelComposites;
         private Label labelResult;
         private Label labelFilterStatus;
         private TextBox textBoxCanLog;
         private TextBox textBoxDevices;
+        private TextBox textBoxComposites;
         private TextBox textBoxOutput;
         private Button buttonCANlog;
         private Button buttonViewLog;
         private Button buttonDevices;
+        private Button buttonComposites;
+        private Button buttonCompositesCreateOrAdd;
         private Button buttonOutput;
         private Button buttonOpenOutput;
         private TextBox textBoxLog;

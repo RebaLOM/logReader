@@ -18,7 +18,8 @@ namespace logReader.UI
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled,
             Action<string> log,
-            out TrcAggregate aggregate)
+            out TrcAggregate aggregate,
+            CompositeRuntime? composites = null)
         {
             aggregate = default!;
 
@@ -75,8 +76,9 @@ namespace logReader.UI
                     }
                 }
 
-                // Устройства могут переиспользоваться между файлами
+                // Устройства кешируются в UI — сброс перед каждым файлом пакета.
                 logReader.Program.ResetDevicesState(devices);
+                composites?.Reset();
 
                 foreach (var line in File.ReadLines(trcPath, encoding))
                 {
@@ -99,6 +101,9 @@ namespace logReader.UI
                             ? startTime.Value.AddMilliseconds(timeMs).TimeOfDay.TotalDays
                             : timeMs;
                     }
+
+                    composites?.OnMessage(id, bytes, parsedByteCount);
+                    CompositeOutput.EmitTriggered(composites, id, timeVal, deviceData);
 
                     if (!deviceById.TryGetValue(id, out Device? device))
                         continue;
@@ -138,7 +143,8 @@ namespace logReader.UI
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled,
             Action<string> log,
-            out Dictionary<DateOnly, TrcAggregate> aggregatesByDate)
+            out Dictionary<DateOnly, TrcAggregate> aggregatesByDate,
+            CompositeRuntime? composites = null)
         {
             aggregatesByDate = new Dictionary<DateOnly, TrcAggregate>();
 
@@ -193,28 +199,28 @@ namespace logReader.UI
                     continue;
                 }
 
-                // Устройства могут переиспользоваться между файлами
+                // Устройства кешируются в UI — сброс перед каждым файлом пакета.
                 logReader.Program.ResetDevicesState(devices);
+                composites?.Reset();
 
                 foreach (var line in File.ReadLines(trcPath, encoding))
                 {
                     if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out string id, out _, bytes, out int parsedByteCount))
                         continue;
 
-                    if (!deviceById.TryGetValue(id, out Device? device))
-                        continue;
-
-                    bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true);
-                    if (!devOn) continue;
-
-                    for (int i = 0; i < 8; i++)
-                        device.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
-                    device.Decode();
-
                     double timeMs = (double)timeMsRaw;
                     DateTime frameTime = startTime.Value.AddMilliseconds(timeMs);
                     DateOnly date = DateOnly.FromDateTime(frameTime);
                     double timeVal = frameTime.TimeOfDay.TotalDays;
+
+                    composites?.OnMessage(id, bytes, parsedByteCount);
+
+                    bool hasDevice = deviceById.TryGetValue(id, out Device? device);
+                    bool devOn = hasDevice && (deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true));
+                    bool isCompositeSource = composites != null && composites.IsSourceId(id);
+
+                    if (!devOn && !isCompositeSource)
+                        continue;
 
                     if (!aggregatesByDate.TryGetValue(date, out var agg))
                     {
@@ -225,6 +231,14 @@ namespace logReader.UI
                         };
                         aggregatesByDate[date] = agg;
                     }
+
+                    CompositeOutput.EmitTriggered(composites, id, timeVal, agg.DeviceData);
+
+                    if (!devOn) continue;
+
+                    for (int i = 0; i < 8; i++)
+                        device!.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
+                    device!.Decode();
 
                     if (!agg.DeviceData.TryGetValue(id, out var list))
                     {

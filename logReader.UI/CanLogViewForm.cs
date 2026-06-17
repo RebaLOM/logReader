@@ -11,7 +11,6 @@ namespace logReader.UI
         private int RowH => Font.Height + 10;
         private int HeaderH => Font.Height + 14;
 
-        // Список уникальных ID с количеством посылок
         private List<(string ID, int Count)> _packets = new();
 
         public CanLogViewForm(string sourcePath)
@@ -22,7 +21,6 @@ namespace logReader.UI
             Shown += (_, _) => LoadAndBuild();
         }
 
-        // ─── Чтение файла и сбор уникальных ID ──────────────────────────
         private void LoadAndBuild()
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -50,7 +48,6 @@ namespace logReader.UI
                 return;
             }
 
-            // Сортируем по ID
             _packets = counts.OrderBy(kv => kv.Key)
                              .Select(kv => (kv.Key, kv.Value))
                              .ToList();
@@ -128,8 +125,11 @@ namespace logReader.UI
                 }
                 else
                 {
+                    // Как в CanLogProcessor: только priority==1 (заголовок и дубли — иначе).
                     var parts = line.Split(';');
-                    if (parts.Length < 3)
+                    if (parts.Length < 4)
+                        continue;
+                    if (!int.TryParse(parts[3], out int pri) || pri != 1)
                         continue;
                     id = parts[2].Trim();
                 }
@@ -141,7 +141,6 @@ namespace logReader.UI
             }
         }
 
-        // ─── Построение списка ────────────────────────────────────────────
         private void BuildList(List<(string ID, int Count)> items)
         {
             scrollPanel.Controls.Clear();
@@ -175,7 +174,6 @@ namespace logReader.UI
                 Height = totalH
             };
 
-            // Заголовок таблицы
             int colCntW = 140;
             var headerPanel = new Panel
             {
@@ -259,7 +257,6 @@ namespace logReader.UI
             scrollPanel.Controls.Add(_innerPanel);
         }
 
-        // ─── Поиск ────────────────────────────────────────────────────────
         private void textBoxSearch_TextChanged(object? sender, EventArgs e)
         {
             string query = textBoxSearch.Text.Trim();
@@ -277,13 +274,11 @@ namespace logReader.UI
             BuildList(filtered);
         }
 
-        // ─── Resize ───────────────────────────────────────────────────────
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             if (_packets.Count == 0 || scrollPanel == null) return;
 
-            // Пересобираем с учётом текущего фильтра
             string query = textBoxSearch.Text.Trim();
             var current = string.IsNullOrEmpty(query)
                 ? _packets

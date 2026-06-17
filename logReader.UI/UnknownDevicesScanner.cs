@@ -8,7 +8,7 @@ namespace logReader.UI
 {
     internal static class UnknownDevicesScanner
     {
-        public static List<string> ScanForUnknownDevices(string logPath, List<Device> knownDevices)
+        public static List<string> ScanForUnknownDevices(string logPath, List<Device> knownDevices, Action<string>? log = null)
         {
             var knownIds = new HashSet<string>(knownDevices.Select(d => d.ID), StringComparer.OrdinalIgnoreCase);
             var unknownIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -32,7 +32,7 @@ namespace logReader.UI
 
             foreach (var file in filesToProcess)
             {
-                ScanFile(file, knownIds, unknownIds);
+                ScanFile(file, knownIds, unknownIds, log);
             }
 
             var result = unknownIds.ToList();
@@ -40,7 +40,7 @@ namespace logReader.UI
             return result;
         }
 
-        private static void ScanFile(string filePath, HashSet<string> knownIds, HashSet<string> unknownIds)
+        private static void ScanFile(string filePath, HashSet<string> knownIds, HashSet<string> unknownIds, Action<string>? log = null)
         {
             try
             {
@@ -90,9 +90,13 @@ namespace logReader.UI
                     }
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException
+                                       or UnauthorizedAccessException
+                                       or System.Security.SecurityException
+                                       or DecoderFallbackException)
             {
-                // Игнорируем ошибки при сканировании
+                // Один битый файл логируем и продолжаем сканирование остальных.
+                log?.Invoke($"Не удалось просканировать '{Path.GetFileName(filePath)}': {ex.Message}");
             }
         }
     }

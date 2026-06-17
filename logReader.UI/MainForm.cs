@@ -14,18 +14,13 @@ namespace logReader.UI
         private Dictionary<string, bool[]> _paramEnabled = new();
         private List<logReader.Device>? _cachedDevices = null;
         private string _cachedDevicesPath = "";
+        private logReader.CompositeRuntime? _cachedComposites = null;
+        private string _cachedCompositesPath = "";
 
         private sealed class SaveOptions
         {
             public OutputFormat OutputFormat { get; set; } = OutputFormat.Xlsx;
             public BatchOutputMode BatchMode { get; set; } = BatchOutputMode.PerInputFile;
-        }
-
-        internal enum BatchOutputMode
-        {
-            PerInputFile = 0,
-            MergeTrcToSingleFile = 1,
-            SplitTrcByDate = 2,
         }
 
         private readonly SaveOptions _saveOptions = new();
@@ -34,6 +29,7 @@ namespace logReader.UI
         {
             InitializeComponent();
             UpdateDevicesCreateAddButtonState();
+            UpdateCompositesCreateAddButtonState();
             UpdateFilterLabel();
             buttonOpenOutput.Visible = false;
         }
@@ -96,7 +92,6 @@ namespace logReader.UI
             textBoxOutput.Text = EnsureOutputPathMatchesFormat(textBoxOutput.Text, _saveOptions.OutputFormat);
         }
 
-        // ─── Обновить подпись с количеством активных фильтров ─────────────
         private bool IsDevicesFileSelectedAndExists()
         {
             string path = textBoxDevices.Text;
@@ -156,14 +151,14 @@ namespace logReader.UI
                 ? 0
                 : _cachedDevices!.Count(d => _deviceEnabled.GetValueOrDefault(d.ID, true));
 
-            // Параметры выключенного устройства не считаются включёнными
+            // Параметры выключенного устройства не участвуют в подсчёте активных фильтров.
             int totalParams = _cachedDevices?.Sum(d => d.headers.Length) ?? 0;
             int enabledParams = totalParams == 0
                 ? 0
                 : _cachedDevices!.Sum(d =>
                 {
                     bool devOn = _deviceEnabled.GetValueOrDefault(d.ID, true);
-                    if (!devOn) return 0; // устройство выключено — все его параметры тоже
+                    if (!devOn) return 0;
                     if (!_paramEnabled.TryGetValue(d.ID, out var arr))
                         return d.headers.Length;
                     int len = Math.Min(arr.Length, d.headers.Length);
@@ -263,7 +258,7 @@ namespace logReader.UI
                 return;
             }
 
-            var viewForm = new CanLogViewForm(path);
+            using var viewForm = new CanLogViewForm(path);
             viewForm.ShowDialog(this);
         }
 
@@ -288,7 +283,6 @@ namespace logReader.UI
         private void textBoxDevices_TextChanged(object sender, EventArgs e)
         {
             UpdateDevicesCreateAddButtonState();
-            // Автоматически загружаем устройства и обновляем статус при смене файла
             if (!File.Exists(textBoxDevices.Text))
             {
                 _cachedDevices = null;
@@ -297,13 +291,13 @@ namespace logReader.UI
                 return;
             }
 
-            if (_cachedDevicesPath == textBoxDevices.Text) return; // уже загружен
+            if (_cachedDevicesPath == textBoxDevices.Text) return;
 
             try
             {
                 _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, _ => { });
                 _cachedDevicesPath = textBoxDevices.Text;
-                // Сбрасываем фильтры только если это новый файл
+                // Новый файл устройств — сбрасываем фильтры, иначе останутся ID прошлого файла.
                 _deviceEnabled = new();
                 _paramEnabled = new();
             }
@@ -407,6 +401,112 @@ namespace logReader.UI
             }
         }
 
+        private bool IsCompositesFileSelectedAndExists()
+        {
+            string path = textBoxComposites.Text;
+            return !string.IsNullOrWhiteSpace(path)
+                && File.Exists(path)
+                && Path.GetExtension(path).Equals(".xlsx", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void UpdateCompositesCreateAddButtonState()
+        {
+            buttonCompositesCreateOrAdd.Text = IsCompositesFileSelectedAndExists()
+                ? "Редактор"
+                : "Создать .xlsx";
+        }
+
+        private logReader.CompositeRuntime? EnsureCompositesLoaded()
+        {
+            if (!IsCompositesFileSelectedAndExists())
+            {
+                _cachedComposites = null;
+                _cachedCompositesPath = "";
+                return null;
+            }
+
+            if (_cachedComposites != null && _cachedCompositesPath == textBoxComposites.Text)
+                return _cachedComposites;
+
+            _cachedComposites = logReader.Program.LoadCompositesFromFile(textBoxComposites.Text, Log);
+            _cachedCompositesPath = textBoxComposites.Text;
+            return _cachedComposites;
+        }
+
+        private void textBoxComposites_TextChanged(object sender, EventArgs e)
+        {
+            UpdateCompositesCreateAddButtonState();
+            _cachedComposites = null;
+            _cachedCompositesPath = "";
+        }
+
+        private void buttonComposites_Click(object sender, EventArgs e)
+        {
+            using OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "Файл составных параметров (*.xlsx)|*.xlsx";
+            if (ofd.ShowDialog() == DialogResult.OK)
+                textBoxComposites.Text = ofd.FileName;
+        }
+
+        private void buttonCompositesCreateOrAdd_Click(object sender, EventArgs e)
+        {
+            if (IsCompositesFileSelectedAndExists())
+            {
+                OpenCompositesEditor();
+            }
+            else
+            {
+                using SaveFileDialog sfd = new SaveFileDialog();
+                sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
+                sfd.DefaultExt = "xlsx";
+                sfd.AddExtension = true;
+                if (sfd.ShowDialog() != DialogResult.OK) return;
+
+                try
+                {
+                    logReader.CompositeExcelFile.CreateTemplate(sfd.FileName);
+                    _cachedComposites = null;
+                    _cachedCompositesPath = "";
+                    textBoxComposites.Text = sfd.FileName;
+                    Log("Файл составных параметров создан. Откроется редактор.");
+                    OpenCompositesEditor();
+                }
+                catch (Exception ex)
+                {
+                    Log("Ошибка создания файла составных параметров: " + ex.Message);
+                }
+            }
+
+            UpdateCompositesCreateAddButtonState();
+        }
+
+        private void OpenCompositesEditor()
+        {
+            string path = textBoxComposites.Text;
+            if (!IsCompositesFileSelectedAndExists())
+            {
+                Log("Ошибка: файл составных параметров не найден.");
+                return;
+            }
+
+            try { using var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+            catch
+            {
+                Log("Ошибка: файл составных параметров уже открыт в другой программе. Закройте его и попробуйте снова.");
+                return;
+            }
+
+            using var editor = new CompositeEditorForm(path);
+            editor.ShowDialog(this);
+
+            if (editor.Modified)
+            {
+                _cachedComposites = null;
+                _cachedCompositesPath = "";
+                Log("Файл составных параметров обновлён.");
+            }
+        }
+
         private void buttonOutput_Click(object sender, EventArgs e)
         {
             using SaveFileDialog sfd = new SaveFileDialog();
@@ -422,25 +522,6 @@ namespace logReader.UI
             }
         }
 
-        private static bool IsPCanLog(string path)
-        {
-            if (Path.GetExtension(path).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (!File.Exists(path)) return false;
-            try
-            {
-                var enc = LogFileEncoding.Detect(path);
-                return CanfoxLogParser.LooksLikeCanfoxLog(path, enc);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool IsAscLog(string path) =>
-            Path.GetExtension(path).Equals(".asc", StringComparison.OrdinalIgnoreCase);
-
         private static IEnumerable<string> EnumerateLogFilesInFolder(string folder)
         {
             string[] patterns = { "*.csv", "*.trc", "*.asc", "*.txt" };
@@ -449,14 +530,6 @@ namespace logReader.UI
                 foreach (string path in Directory.EnumerateFiles(folder, pattern, SearchOption.TopDirectoryOnly))
                     yield return path;
             }
-        }
-
-        private static string BuildBatchOutputPath(string logFilePath, string outputFolder, OutputFormat outputFormat)
-        {
-            string stem = Path.GetFileNameWithoutExtension(logFilePath);
-            string ext = Path.GetExtension(logFilePath).TrimStart('.');
-            if (string.IsNullOrEmpty(ext)) ext = "log";
-            return Path.Combine(outputFolder, $"{stem}_{ext}_result{GetOutputExtension(outputFormat)}");
         }
 
         private static bool TryResolveOutputDirectoryForBatch(string? outputPath, Action<string> log, out string outputDir)
@@ -506,71 +579,6 @@ namespace logReader.UI
             }
         }
 
-        private static void ProcessSingleLogFile(
-            string logPath,
-            string outputPath,
-            OutputFormat outputFormat,
-            List<logReader.Device> allDevices,
-            bool hasFilter,
-            Dictionary<string, bool> deviceEnabled,
-            Dictionary<string, bool[]> paramEnabled,
-            Action<string> log)
-        {
-            bool isPCan = IsPCanLog(logPath);
-            bool isAsc = IsAscLog(logPath);
-            if (isPCan)
-            {
-                if (Path.GetExtension(logPath).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                    log("Формат: pCAN Viewer");
-                else
-                    log("Формат: CANfox (PCAN-View / CAN.txt)");
-            }
-            else if (isAsc) log("Формат: ASC");
-            else log("Формат: CAN лог");
-
-            if (isPCan)
-            {
-                var processor = new PCanLogProcessor();
-                processor.Process(
-                    logPath,
-                    allDevices,
-                    outputPath,
-                    outputFormat,
-                    log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null);
-            }
-            else if (isAsc)
-            {
-                var processor = new AscLogProcessor();
-                processor.Process(
-                    logPath,
-                    allDevices,
-                    outputPath,
-                    outputFormat,
-                    log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null);
-            }
-            else
-            {
-                if (Path.GetExtension(logPath).Equals(".txt", StringComparison.OrdinalIgnoreCase))
-                {
-                    log("Пропуск: текстовый файл не распознан как лог CANfox (нужен формат с колонками Date, Time, ID, Data).");
-                    return;
-                }
-                var processor = new CanLogProcessor();
-                processor.Process(
-                    logPath,
-                    allDevices,
-                    outputPath,
-                    outputFormat,
-                    log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null);
-            }
-        }
-
         private void textBoxOutput_TextChanged(object sender, EventArgs e)
         {
             SyncOutputFormatWithPath(textBoxOutput.Text);
@@ -595,6 +603,7 @@ namespace logReader.UI
 
             try
             {
+                // Путь вывода выбрал пользователь; UseShellExecute открывает его ассоциацией ОС.
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = p,
@@ -607,10 +616,20 @@ namespace logReader.UI
             }
         }
 
+        private HelpForm? _helpForm;
+
         private void buttonHelp_Click(object sender, EventArgs e)
         {
-            var helpForm = new HelpForm();
-            helpForm.Show(this);
+            // Немодальная справка: один экземпляр, ссылку обнуляем при закрытии.
+            if (_helpForm is { IsDisposed: false })
+            {
+                _helpForm.Activate();
+                return;
+            }
+
+            _helpForm = new HelpForm();
+            _helpForm.FormClosed += (_, _) => _helpForm = null;
+            _helpForm.Show(this);
         }
 
         private async void buttonFormatConvert_Click(object sender, EventArgs e)
@@ -734,14 +753,28 @@ namespace logReader.UI
 
                 EnsureFiltersMatchDevices();
 
+                var composites = EnsureCompositesLoaded();
+
+                // Список для фильтра: устройства + составные блоки.
+                var filterDevices = new List<logReader.Device>(_cachedDevices);
+                if (composites != null)
+                    filterDevices.AddRange(composites.Blocks);
+
+                string canLogPath = textBoxCanLog.Text;
                 Cursor = Cursors.WaitCursor;
-                var unknownDevices = await Task.Run(() => UnknownDevicesScanner.ScanForUnknownDevices(textBoxCanLog.Text, _cachedDevices));
+                var unknownDevices = await Task.Run(() => UnknownDevicesScanner.ScanForUnknownDevices(canLogPath, _cachedDevices, Log));
                 Cursor = Cursors.Default;
 
-                var form = new Devices_ParametrsForm(_cachedDevices, _deviceEnabled, _paramEnabled, unknownDevices);
-                form.ShowDialog(this);
+                // Источники составных параметров не считаем неизвестными устройствами.
+                if (composites != null)
+                {
+                    var srcIds = new HashSet<string>(composites.SourceIds, StringComparer.OrdinalIgnoreCase);
+                    unknownDevices = unknownDevices.Where(id => !srcIds.Contains(id)).ToList();
+                }
 
-                // Обновляем статус фильтров после закрытия диалога
+                using (var form = new Devices_ParametrsForm(filterDevices, _deviceEnabled, _paramEnabled, unknownDevices))
+                    form.ShowDialog(this);
+
                 UpdateFilterLabel();
             }
             catch (Exception ex)
@@ -820,6 +853,7 @@ namespace logReader.UI
                     }
 
                     var allDevices = _cachedDevices;
+                    var composites = EnsureCompositesLoaded();
                     bool anyDeviceOff = _deviceEnabled.Any(kv => !kv.Value);
                     bool anyParamOff = _paramEnabled.Any(kv => kv.Value.Any(v => !v));
                     var hasFilter = anyDeviceOff || anyParamOff;
@@ -827,174 +861,14 @@ namespace logReader.UI
                     Log($"Папка с логами: найдено {files.Count} файл(ов).");
                     Log($"Каталог результатов: {outputDir}");
 
-                int ok = 0;
-                int expectedOut = 0;
-                await Task.Run(() =>
-                {
-                    var trcFiles = files
-                        .Where(p => Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
+                var service = new LogProcessingService(Log);
+                var outcome = await Task.Run(() => service.ProcessFolderBatch(
+                    files, outputDir, devFull, outputFormat, _saveOptions.BatchMode,
+                    allDevices, hasFilter, _deviceEnabled, _paramEnabled, composites));
 
-                    var otherFiles = files
-                        .Where(p => !Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-
-                    void ProcessPerFile(IEnumerable<string> inputFiles)
-                    {
-                        foreach (string logPath in inputFiles)
-                        {
-                            string outPath = BuildBatchOutputPath(logPath, outputDir, outputFormat);
-                            if (string.Equals(Path.GetFullPath(outPath), devFull, StringComparison.OrdinalIgnoreCase))
-                            {
-                                Log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
-                                continue;
-                            }
-
-                            if (File.Exists(outPath))
-                            {
-                                try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
-                                catch
-                                {
-                                    Log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
-                                    continue;
-                                }
-                            }
-
-                            Log($"--- {Path.GetFileName(logPath)} ---");
-                            expectedOut++;
-                            ProcessSingleLogFile(
-                                logPath,
-                                outPath,
-                                outputFormat,
-                                allDevices,
-                                hasFilter,
-                                _deviceEnabled,
-                                _paramEnabled,
-                                Log);
-
-                            if (File.Exists(outPath))
-                                ok++;
-                        }
-                    }
-
-                    // Всегда обрабатываем не-.trc поштучно (как раньше)
-                    ProcessPerFile(otherFiles);
-
-                    if (_saveOptions.BatchMode == BatchOutputMode.PerInputFile || trcFiles.Count == 0)
-                    {
-                        ProcessPerFile(trcFiles);
-                        return;
-                    }
-
-                    if (_saveOptions.BatchMode == BatchOutputMode.MergeTrcToSingleFile)
-                    {
-                        string mergedOut = Path.Combine(outputDir, "result_trc_merged" + GetOutputExtension(outputFormat));
-                        if (string.Equals(Path.GetFullPath(mergedOut), devFull, StringComparison.OrdinalIgnoreCase))
-                        {
-                            Log("Пропуск: выходной файл совпадает с файлом посылок.");
-                            return;
-                        }
-
-                        if (File.Exists(mergedOut))
-                        {
-                            try { using var fs = new FileStream(mergedOut, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
-                            catch
-                            {
-                                Log($"Пропуск (файл занят): {Path.GetFileName(mergedOut)}");
-                                return;
-                            }
-                        }
-
-                        Log("--- .trc: объединение в один файл ---");
-                        expectedOut++;
-                        if (!TrcBatchAggregator.TryBuildMergedAggregate(
-                                trcFiles,
-                                allDevices,
-                                hasFilter ? _deviceEnabled : null,
-                                hasFilter ? _paramEnabled : null,
-                                Log,
-                                out var agg))
-                        {
-                            Log("Ошибка: не удалось собрать данные из .trc для объединения.");
-                            return;
-                        }
-
-                        PCanLogProcessor.WriteOutput(
-                            allDevices,
-                            agg.DeviceData,
-                            hasFilter ? _deviceEnabled : null,
-                            hasFilter ? _paramEnabled : null,
-                            mergedOut,
-                            outputFormat,
-                            agg.IsCanfox,
-                            Log);
-
-                        if (File.Exists(mergedOut))
-                            ok++;
-
-                        return;
-                    }
-
-                    if (_saveOptions.BatchMode == BatchOutputMode.SplitTrcByDate)
-                    {
-                        Log("--- .trc: разбивка по датам ---");
-                        if (!TrcBatchAggregator.TryBuildAggregatesByDate(
-                                trcFiles,
-                                allDevices,
-                                hasFilter ? _deviceEnabled : null,
-                                hasFilter ? _paramEnabled : null,
-                                Log,
-                                out var byDate))
-                        {
-                            Log("Ошибка: не удалось собрать данные из .trc для разбивки по датам.");
-                            return;
-                        }
-
-                        foreach (var kv in byDate.OrderBy(k => k.Key))
-                        {
-                            string datePart = kv.Key.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                            string outPath = Path.Combine(outputDir, "result_" + datePart + GetOutputExtension(outputFormat));
-                            if (string.Equals(Path.GetFullPath(outPath), devFull, StringComparison.OrdinalIgnoreCase))
-                            {
-                                Log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
-                                continue;
-                            }
-
-                            if (File.Exists(outPath))
-                            {
-                                try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
-                                catch
-                                {
-                                    Log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
-                                    continue;
-                                }
-                            }
-
-                            Log($"--- {Path.GetFileName(outPath)} ---");
-                            expectedOut++;
-                            PCanLogProcessor.WriteOutput(
-                                allDevices,
-                                kv.Value.DeviceData,
-                                hasFilter ? _deviceEnabled : null,
-                                hasFilter ? _paramEnabled : null,
-                                outPath,
-                                outputFormat,
-                                isCanfox: false,
-                                Log);
-
-                            if (File.Exists(outPath))
-                                ok++;
-                        }
-
-                        return;
-                    }
-                });
-
-                int totalOut = expectedOut > 0 ? expectedOut : ok;
-                Log($"Готово: создано файлов: {ok} из {totalOut}.");
-                buttonOpenOutput.Visible = ok > 0;
+                int totalOut = outcome.Expected > 0 ? outcome.Expected : outcome.Created;
+                Log($"Готово: создано файлов: {outcome.Created} из {totalOut}.");
+                buttonOpenOutput.Visible = outcome.Created > 0;
                 }
                 catch (Exception ex)
                 {
@@ -1007,7 +881,7 @@ namespace logReader.UI
                 return;
             }
 
-            // Один файл лога
+            // Один файл лога — без пакетного режима.
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
             {
                 Log("Ошибка: не указан путь сохранения.");
@@ -1061,22 +935,15 @@ namespace logReader.UI
                 }
 
                 var allDevices = _cachedDevices;
+                var composites = EnsureCompositesLoaded();
                 bool anyDeviceOff = _deviceEnabled.Any(kv => !kv.Value);
                 bool anyParamOff = _paramEnabled.Any(kv => kv.Value.Any(v => !v));
                 var hasFilter = anyDeviceOff || anyParamOff;
 
-                await Task.Run(() =>
-                {
-                    ProcessSingleLogFile(
-                        canInput,
-                        outputPath,
-                        outputFormat,
-                        allDevices,
-                        hasFilter,
-                        _deviceEnabled,
-                        _paramEnabled,
-                        Log);
-                });
+                var service = new LogProcessingService(Log);
+                await Task.Run(() => service.ProcessSingleFile(
+                    canInput, outputPath, outputFormat, allDevices, hasFilter,
+                    _deviceEnabled, _paramEnabled, composites));
 
                 if (File.Exists(outputPath))
                 {

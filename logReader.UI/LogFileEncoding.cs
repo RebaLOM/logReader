@@ -13,35 +13,33 @@ namespace logReader.UI
 
         public static Encoding Detect(string path)
         {
-            // BOM приоритетнее эвристики
-            using (var fs = File.OpenRead(path))
+            using var fs = File.OpenRead(path);
+
+            // BOM надёжнее эвристики по содержимому.
+            if (fs.Length >= 3)
             {
-                if (fs.Length >= 3)
-                {
-                    Span<byte> bom = stackalloc byte[3];
-                    _ = fs.Read(bom);
-                    if (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
-                        return new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
-                }
+                Span<byte> bom = stackalloc byte[3];
+                if (fs.Read(bom) == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
+                    return new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+                fs.Position = 0;
             }
 
-            // Проверяем только первые 64 KB файла — этого достаточно, чтобы поймать
-            // некорректную UTF-8 кодировку, и не нужно читать логи в сотни МБ целиком.
+            // Достаточно первых 64 KB — не читаем многомегабайтные логи целиком.
+            const int sampleSize = 64 * 1024;
+            byte[] buffer = new byte[sampleSize];
+            int total = 0;
+            while (total < sampleSize)
+            {
+                int n = fs.Read(buffer, total, sampleSize - total);
+                if (n <= 0) break;
+                total += n;
+            }
+
+            // На границе выборки UTF-8-символ может быть обрезан — flush:false не считает это ошибкой.
+            bool reachedEof = total < sampleSize || fs.Position >= fs.Length;
             try
             {
-                const int sampleSize = 64 * 1024;
-                using var fs = File.OpenRead(path);
-                using var sr = new StreamReader(fs, Utf8Strict);
-                byte[] buffer = new byte[sampleSize];
-                int total = 0;
-                while (total < sampleSize)
-                {
-                    int n = fs.Read(buffer, 0, Math.Min(buffer.Length - total, sampleSize - total));
-                    if (n <= 0) break;
-                    total += n;
-                }
-
-                Utf8Strict.GetCharCount(buffer, 0, total);
+                Utf8Strict.GetDecoder().GetCharCount(buffer, 0, total, flush: reachedEof);
                 return Encoding.UTF8;
             }
             catch (DecoderFallbackException)
@@ -51,4 +49,3 @@ namespace logReader.UI
         }
     }
 }
-

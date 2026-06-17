@@ -3,10 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace logReader
 {
-    /// <summary>
-    /// Единый синтаксический разбор строк DBC (BO_ и SG_). Используется и редактором,
-    /// и загрузчиком устройств, чтобы правила распознавания совпадали один к одному.
-    /// </summary>
+    // Единый разбор строк BO_/SG_ для редактора и загрузчика — одни и те же правила.
     public static class DbcLineParser
     {
         internal const uint ExtendedIdFlag = 0x80000000u;

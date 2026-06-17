@@ -1,39 +1,52 @@
 namespace logReader
 {
-    /// <summary>
-    /// Атомарная запись: пишем во временный файл, затем File.Replace на целевой
-    /// с созданием резервной копии *.bak. При сбое — оригинал остаётся неповреждённым.
-    /// </summary>
+    // Атомарная запись: tmp → Replace с .bak, чтобы сбой не оставил битый целевой файл.
     public static class SafeFileWriter
     {
+        public static string CreateTempPath(string path)
+        {
+            string? dir = Path.GetDirectoryName(path);
+            string ext = Path.GetExtension(path);
+            if (string.IsNullOrEmpty(ext)) ext = ".xlsx";
+            string tmpName = Path.GetFileNameWithoutExtension(path) + ".tmp" + ext;
+            return string.IsNullOrEmpty(dir) ? tmpName : Path.Combine(dir, tmpName);
+        }
+
         public static void Write(string path, Action<string> writeToPath)
         {
             string? dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            // Временный файл с тем же «настоящим» расширением, иначе ClosedXML.SaveAs
-            // отклоняет, например, "file.xlsx.tmp" (считает расширение .tmp).
-            string ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext)) ext = ".xlsx";
-            string tmpName = Path.GetFileNameWithoutExtension(path) + ".tmp" + ext;
-            string tmpPath = string.IsNullOrEmpty(dir) ? tmpName : Path.Combine(dir, tmpName);
+            string tmpPath = CreateTempPath(path);
             string bakPath = path + ".bak";
 
             if (File.Exists(tmpPath))
             {
-                try { File.Delete(tmpPath); } catch { /* перезапишем */ }
+                try { File.Delete(tmpPath); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
 
             writeToPath(tmpPath);
+            Publish(tmpPath, path, bakPath);
+        }
 
-            if (!File.Exists(path))
+        public static void Publish(string tempPath, string destinationPath)
+            => Publish(tempPath, destinationPath, destinationPath + ".bak");
+
+        public static void Publish(string tempPath, string destinationPath, string backupPath)
+        {
+            string? dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            if (!File.Exists(destinationPath))
             {
-                File.Move(tmpPath, path);
+                File.Move(tempPath, destinationPath);
                 return;
             }
 
-            File.Replace(tmpPath, path, bakPath, ignoreMetadataErrors: true);
+            File.Replace(tempPath, destinationPath, backupPath, ignoreMetadataErrors: true);
         }
     }
 }

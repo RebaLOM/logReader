@@ -21,7 +21,6 @@ namespace logReader
 
         public void ToBinaries(int index)
         {
-            // 🟡 УЛУЧШЕНО: проверка диапазона индекса
             if (index < 0 || index >= RawBytes.Length) return;
             RawBinaries[index] = Convert.ToString(RawBytes[index], 2).PadLeft(8, '0');
         }
@@ -152,7 +151,7 @@ namespace logReader
 
             int b = RawBytes[instr.ByteLow] & 0xFF;
             int mask = (1 << instr.LengthBit) - 1;
-            int shift = 8 - instr.StartBit - instr.LengthBit; // DBC-стиль: StartBit — MSB поля
+            int shift = 8 - instr.StartBit - instr.LengthBit; // DBC: StartBit — MSB поля
             if (shift < 0) shift = 0;
             int raw = (b >> shift) & mask;
             ProcessedData[instr.FieldIndex] = raw.ToString(CultureInfo.InvariantCulture);
@@ -177,9 +176,7 @@ namespace logReader
             }
             else
             {
-                // Motorola big-endian: StartBit указывает MSB сигнала.
-                // Итерация по DBC: внутри байта идём вниз (MSB -> LSB),
-                // затем переходим в следующий байт снова на MSB.
+                // Motorola: StartBit — MSB; внутри байта вниз, затем MSB следующего байта.
                 if (!TryReadMotorolaField(payload, instr.StartBit, instr.LengthBit, out rawValue))
                     return false;
             }
@@ -215,11 +212,7 @@ namespace logReader
             return payload;
         }
 
-        /// <summary>
-        /// Извлечение big-endian (Motorola) сигнала согласно DBC: <paramref name="startBit"/>
-        /// указывает MSB сигнала. Последующие биты идут вниз по байту (−1), при переходе
-        /// из LSB текущего байта попадают в MSB следующего (+15).
-        /// </summary>
+        // Motorola: startBit — MSB; далее −1 по байту, на границе байта +15.
         private static bool TryReadMotorolaField(ulong payload, int startBit, int length, out ulong result)
         {
             result = 0;
@@ -232,7 +225,7 @@ namespace logReader
                 result = (result << 1) | b;
 
                 if ((bit % 8) == 0)
-                    bit += 15; // перешагиваем в MSB следующего байта
+                    bit += 15;
                 else
                     bit -= 1;
             }
@@ -240,7 +233,7 @@ namespace logReader
         }
     }
 
-    // Статические устройства — без изменений
+    // Жёстко закодированные устройства (legacy CSV-описания).
     internal class Device_180128D0 : Device
     {
         public Device_180128D0() : base("180128D0", 2)
@@ -485,20 +478,7 @@ namespace logReader
 
     public class Program
     {
-        // Цвета для чередования групп устройств в заголовке
-        public static readonly XLColor[] DeviceColors =
-        {
-            XLColor.FromArgb(198, 214, 240), // синий
-            XLColor.FromArgb(198, 232, 210), // зелёный
-            XLColor.FromArgb(255, 229, 190), // оранжевый
-            XLColor.FromArgb(230, 210, 240), // фиолетовый
-            XLColor.FromArgb(255, 210, 210), // красный
-            XLColor.FromArgb(210, 245, 245), // голубой
-            XLColor.FromArgb(255, 240, 180), // жёлтый
-            XLColor.FromArgb(200, 240, 220), // мятный
-            XLColor.FromArgb(240, 210, 200), // персиковый
-            XLColor.FromArgb(220, 220, 240), // лавандовый
-        };
+        public static readonly XLColor[] DeviceColors = ExcelLayoutBuilder.DeviceColors;
 
         public static int BuildExcelHeaders(
             IXLWorksheet ws, List<Device> devices)
@@ -508,73 +488,7 @@ namespace logReader
             IXLWorksheet ws, List<Device> devices,
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled)
-        {
-            // Строка 1 — общий заголовок (Шаг, Время, затем ID устройства растянутый на его параметры)
-            // Строка 2 — имена параметров
-
-            int col = 1;
-            int colorIdx = 0;
-
-            // Шаг и Время — занимают обе строки
-            StyleMergedHeader(ws, 1, col, XLColor.FromArgb(180, 180, 180));
-            StyleMergedHeader(ws, 2, col, XLColor.FromArgb(180, 180, 180));
-            ws.Cell(1, col).Value = "Шаг";
-            col++;
-
-            StyleMergedHeader(ws, 1, col, XLColor.FromArgb(180, 180, 180));
-            StyleMergedHeader(ws, 2, col, XLColor.FromArgb(180, 180, 180));
-            ws.Cell(1, col).Value = "Время";
-            col++;
-
-            foreach (var device in devices)
-            {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn) continue;
-
-                // Собираем активные параметры
-                var activeParams = new List<string>();
-                for (int i = 0; i < device.headers.Length; i++)
-                {
-                    bool paramOn = paramEnabled == null
-                        || !paramEnabled.TryGetValue(device.ID, out var arr)
-                        || (i < arr.Length && arr[i]);
-                    if (paramOn) activeParams.Add(device.headers[i]);
-                }
-                if (activeParams.Count == 0) continue;
-
-                XLColor bg = DeviceColors[colorIdx % DeviceColors.Length];
-                colorIdx++;
-
-                // Строка 1 — ID устройства, растянутый на все его колонки
-                int devStartCol = col;
-                int devEndCol = col + activeParams.Count - 1;
-
-                if (devStartCol == devEndCol)
-                {
-                    ws.Cell(1, devStartCol).Value = device.ID;
-                }
-                else
-                {
-                    ws.Range(1, devStartCol, 1, devEndCol).Merge();
-                    ws.Cell(1, devStartCol).Value = device.ID;
-                }
-                StyleDeviceHeader(ws.Cell(1, devStartCol), bg);
-
-                // Строка 2 — имена параметров
-                foreach (var header in activeParams)
-                {
-                    var cell = ws.Cell(2, col);
-                    cell.Value = header;
-                    StyleParamHeader(cell, bg);
-                    col++;
-                }
-            }
-
-            // Заморозить первые две строки
-            ws.SheetView.FreezeRows(2);
-
-            return 3; // данные начинаются со строки 3
-        }
+            => ExcelLayoutBuilder.BuildStepLogHeaders(ws, devices, deviceEnabled, paramEnabled);
 
         public static int BuildExcelRow(
             IXLWorksheet ws, int excelRow, int step, string time, List<Device> devices)
@@ -610,39 +524,6 @@ namespace logReader
                 }
             }
             return excelRow + 1;
-        }
-
-        private static void StyleMergedHeader(IXLWorksheet ws, int row, int col, XLColor bg)
-        {
-            var cell = ws.Cell(row, col);
-            cell.Style.Fill.BackgroundColor = bg;
-            cell.Style.Font.Bold = true;
-            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-        }
-
-        private static void StyleDeviceHeader(IXLCell cell, XLColor bg)
-        {
-            var darker = XLColor.FromArgb(
-                Math.Max(bg.Color.R - 30, 0),
-                Math.Max(bg.Color.G - 30, 0),
-                Math.Max(bg.Color.B - 30, 0));
-            cell.Style.Fill.BackgroundColor = darker;
-            cell.Style.Font.Bold = true;
-            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-        }
-
-        private static void StyleParamHeader(IXLCell cell, XLColor bg)
-        {
-            cell.Style.Fill.BackgroundColor = bg;
-            cell.Style.Font.Bold = true;
-            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-            cell.Style.Alignment.WrapText = true;
         }
 
         public static List<Device> LoadDevicesFromExcel(string excelPath, Action<string>? log = null)
@@ -776,6 +657,21 @@ namespace logReader
             throw new NotSupportedException($"Поддерживаются только файлы .xlsx и .dbc: {path}");
         }
 
+        public static CompositeRuntime LoadCompositesFromFile(string? path, Action<string>? log = null)
+        {
+            var logger = log ?? Console.WriteLine;
+
+            if (string.IsNullOrWhiteSpace(path))
+                return CompositeRuntime.Build(Array.Empty<CompositeSignal>());
+
+            string extension = Path.GetExtension(path);
+            if (!extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                throw new NotSupportedException($"Файл составных параметров должен быть .xlsx: {path}");
+
+            var signals = CompositeExcelFile.ReadAll(path, logger);
+            return CompositeRuntime.Build(signals);
+        }
+
         public static void ResetDevicesState(IEnumerable<Device> devices)
         {
             if (devices == null) return;
@@ -803,11 +699,5 @@ namespace logReader
                 }
             }
         }
-
-        static void Main(string[] args)
-        {
-            Console.WriteLine("Используйте UI-версию приложения (logReader.UI).");
-        }
-
     }
 }

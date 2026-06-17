@@ -3,9 +3,7 @@ using System.Text;
 
 namespace logReader.UI
 {
-    /// <summary>
-    /// Логи PCAN-View с CANfox: колонки Date, Time, ID, Len, Data; дата и длина для декодирования не используются.
-    /// </summary>
+    // Логи CANfox/PCAN-View: Date и Len в файле есть, для декодирования используем Time и Data.
     internal static class CanfoxLogParser
     {
         private const int PeekLineCount = 120;
@@ -40,9 +38,7 @@ namespace logReader.UI
             return false;
         }
 
-        /// <summary>
-        /// Доля суток (0..1) по времени HH:mm:ss.fff в строке лога — как в pCAN+Excel.
-        /// </summary>
+        // timeDayFraction — доля суток, как в pCAN/Excel, а не абсолютные секунды.
         internal static bool TryParseCanfoxFrameLine(
             string line,
             out double timeDayFraction,
@@ -63,14 +59,14 @@ namespace logReader.UI
             if (!TryParseHmsFff(tokens[1], out timeDayFraction)) return false;
             if (!tokens[2].Equals("-", StringComparison.Ordinal)) return false;
 
-            if (!TryNormalizeId(tokens[3], out id)) return false;
+            if (!CanToken.TryNormalizeId(tokens[3], out id)) return false;
 
             if (!int.TryParse(tokens[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc) || dlc < 0)
                 return false;
 
             for (int i = 5; i < tokens.Length && parsedByteCount < bytes.Length; i++)
             {
-                if (!TryParseHexByte(tokens[i], out int value)) break;
+                if (!CanToken.TryParseHexByte(tokens[i], out int value)) break;
                 bytes[parsedByteCount++] = value;
             }
 
@@ -104,42 +100,6 @@ namespace logReader.UI
                 return false;
 
             return true;
-        }
-
-        private static bool TryNormalizeId(string rawToken, out string id)
-        {
-            id = "";
-            if (string.IsNullOrWhiteSpace(rawToken)) return false;
-
-            string token = rawToken.Trim();
-            if (token.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                token = token[2..];
-
-            if (token.Length == 0) return false;
-
-            for (int i = 0; i < token.Length; i++)
-            {
-                char c = token[i];
-                bool isHex = (c >= '0' && c <= '9')
-                             || (c >= 'A' && c <= 'F')
-                             || (c >= 'a' && c <= 'f');
-                if (!isHex) return false;
-            }
-
-            id = token.ToUpperInvariant();
-            return true;
-        }
-
-        private static bool TryParseHexByte(string rawToken, out int value)
-        {
-            value = 0;
-            if (string.IsNullOrWhiteSpace(rawToken)) return false;
-
-            string token = rawToken.Trim();
-            if (token.Length is 0 or > 2) return false;
-
-            return int.TryParse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value)
-                   && value is >= 0 and <= byte.MaxValue;
         }
     }
 }

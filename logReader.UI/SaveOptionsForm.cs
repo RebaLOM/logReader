@@ -6,9 +6,9 @@ namespace logReader.UI
         private readonly ComboBox _comboBatchMode;
 
         internal OutputFormat SelectedOutputFormat { get; private set; }
-        internal MainForm.BatchOutputMode SelectedBatchMode { get; private set; }
+        internal BatchOutputMode SelectedBatchMode { get; private set; }
 
-        internal SaveOptionsForm(OutputFormat currentFormat, MainForm.BatchOutputMode currentBatchMode)
+        internal SaveOptionsForm(OutputFormat currentFormat, BatchOutputMode currentBatchMode)
         {
             Text = "Параметры сохранения";
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -83,8 +83,8 @@ namespace logReader.UI
             _comboOutputFormat.SelectedIndex = currentFormat == OutputFormat.Csv ? 1 : 0;
             _comboBatchMode.SelectedIndex = currentBatchMode switch
             {
-                MainForm.BatchOutputMode.MergeTrcToSingleFile => 1,
-                MainForm.BatchOutputMode.SplitTrcByDate => 2,
+                BatchOutputMode.MergeTrcToSingleFile => 1,
+                BatchOutputMode.SplitTrcByDate => 2,
                 _ => 0
             };
         }
@@ -94,9 +94,9 @@ namespace logReader.UI
             SelectedOutputFormat = _comboOutputFormat.SelectedIndex == 1 ? OutputFormat.Csv : OutputFormat.Xlsx;
             SelectedBatchMode = _comboBatchMode.SelectedIndex switch
             {
-                1 => MainForm.BatchOutputMode.MergeTrcToSingleFile,
-                2 => MainForm.BatchOutputMode.SplitTrcByDate,
-                _ => MainForm.BatchOutputMode.PerInputFile
+                1 => BatchOutputMode.MergeTrcToSingleFile,
+                2 => BatchOutputMode.SplitTrcByDate,
+                _ => BatchOutputMode.PerInputFile
             };
         }
     }

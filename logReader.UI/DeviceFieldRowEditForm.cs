@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Linq;
 using logReader;
+using static logReader.BitMath;
 
 namespace logReader.UI
 {
-    /// <summary>Параметр XLSX — окно повторяет DBC "Signal Details" + опциональный режим BIN.</summary>
     internal sealed class DeviceFieldRowEditForm : Form
     {
         private readonly RadioButton _rbKindNum = new();
@@ -307,33 +307,6 @@ namespace logReader.UI
             _txtMaxHex.Text = FormatHex(rawMax, length);
         }
 
-        private static void ComputeRawRange(int length, bool signed, out long rawMin, out long rawMax)
-        {
-            if (signed)
-            {
-                if (length >= 64) { rawMin = long.MinValue; rawMax = long.MaxValue; }
-                else { rawMin = -(1L << (length - 1)); rawMax = (1L << (length - 1)) - 1; }
-            }
-            else
-            {
-                rawMin = 0;
-                rawMax = length >= 64 ? long.MaxValue : (1L << length) - 1;
-            }
-        }
-
-        private static string FormatHex(long raw, int length)
-        {
-            int nibbles = Math.Max(1, (length + 3) / 4);
-            ulong masked;
-            if (length >= 64) masked = unchecked((ulong)raw);
-            else
-            {
-                ulong mask = (1UL << length) - 1;
-                masked = unchecked((ulong)raw) & mask;
-            }
-            return masked.ToString("X" + nibbles, CultureInfo.InvariantCulture);
-        }
-
         private void OnOk()
         {
             if (_rbKindBin.Checked)
@@ -393,14 +366,16 @@ namespace logReader.UI
             int bitInByte = (int)_numStartBitInByte.Value;
             int length = (int)_numLength.Value;
             int globalStartBit = byteIndex * 8 + bitInByte;
+            bool littleEndian = !_rbMotorola.Checked;
 
-            if (globalStartBit + length > _dlc * 8)
+            // Motorola: start+length не описывает раскладку по байтам.
+            if (!SignalFitsInDlc(globalStartBit, length, littleEndian, _dlc * 8))
             {
                 MessageBox.Show(this, $"Сигнал выходит за пределы DLC ({_dlc} байт).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (!NumberParseHelper.TryParseDouble(_txtFactor.Text, out double factor))
+            if (!NumberParseHelper.TryParseOrDefault(_txtFactor.Text, 1.0, out double factor))
             {
                 MessageBox.Show(this, "Factor: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
@@ -408,7 +383,7 @@ namespace logReader.UI
             }
             if (factor == 0) factor = 1;
 
-            if (!NumberParseHelper.TryParseDouble(_txtOffset.Text, out double offset))
+            if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset))
             {
                 MessageBox.Show(this, "Offset: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
@@ -416,7 +391,6 @@ namespace logReader.UI
             }
 
             bool isSigned = _cmbRawType.SelectedIndex == 0;
-            bool littleEndian = !_rbMotorola.Checked;
 
             ComputeRawRange(length, isSigned, out long rawMin, out long rawMax);
             (double minP, double maxP) = DbcPhysicalValue.PhysicalBoundsFromRaw(rawMin, rawMax, factor, offset);

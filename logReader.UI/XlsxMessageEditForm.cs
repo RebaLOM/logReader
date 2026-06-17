@@ -4,7 +4,6 @@ using logReader;
 
 namespace logReader.UI
 {
-    /// <summary>Редактирование одной посылки в XLSX — тот же каркас, что <see cref="DbcMessageEditForm"/>.</summary>
     internal sealed class XlsxMessageEditForm : Form
     {
         private readonly TextBox _txtName = new();
@@ -306,7 +305,8 @@ namespace logReader.UI
             {
                 if (string.Equals(r.Type, "NUM", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (r.StartBit + r.Length > dlc * 8)
+                    // Motorola: start+length не описывает раскладку по байтам.
+                    if (!BitMath.SignalFitsInDlc(r.StartBit, r.Length, r.IsLittleEndian, dlc * 8))
                     {
                         MessageBox.Show(
                             this,
