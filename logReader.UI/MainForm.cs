@@ -762,17 +762,20 @@ namespace logReader.UI
 
                 string canLogPath = textBoxCanLog.Text;
                 Cursor = Cursors.WaitCursor;
-                var unknownDevices = await Task.Run(() => UnknownDevicesScanner.ScanForUnknownDevices(canLogPath, _cachedDevices, Log));
+                var scan = await Task.Run(() => UnknownDevicesScanner.ScanLogDevices(canLogPath, _cachedDevices, Log));
                 Cursor = Cursors.Default;
 
-                // Источники составных параметров не считаем неизвестными устройствами.
+                var missingInDevices = scan.MissingInDevices;
+                // Источники составных параметров не считаем отсутствующими устройствами.
                 if (composites != null)
                 {
                     var srcIds = new HashSet<string>(composites.SourceIds, StringComparer.OrdinalIgnoreCase);
-                    unknownDevices = unknownDevices.Where(id => !srcIds.Contains(id)).ToList();
+                    missingInDevices = missingInDevices.Where(id => !srcIds.Contains(id)).ToList();
                 }
 
-                using (var form = new Devices_ParametrsForm(filterDevices, _deviceEnabled, _paramEnabled, unknownDevices))
+                using (var form = new Devices_ParametrsForm(
+                    filterDevices, _deviceEnabled, _paramEnabled,
+                    missingInDevices, scan.MatchedInDevices))
                     form.ShowDialog(this);
 
                 UpdateFilterLabel();

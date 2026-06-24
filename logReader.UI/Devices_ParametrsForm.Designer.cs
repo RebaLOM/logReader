@@ -25,12 +25,16 @@ namespace logReader.UI
             buttonDisableAll = new Button();
             textBoxSearch = new TextBox();
             labelSearch = new Label();
-            listBoxUnknown = new ListBox();
+            listBoxMissing = new ListBox();
+            listBoxMatched = new ListBox();
             panelSearchUnknown = new Panel();
             labelSearchUnknown = new Label();
             textBoxSearchUnknown = new TextBox();
-            panelUnknownList = new Panel();
-            labelUnknownTitle = new Label();
+            splitContainerLog = new SplitContainer();
+            panelMissingColumn = new Panel();
+            panelMatchedColumn = new Panel();
+            labelMissingTitle = new Label();
+            labelMatchedTitle = new Label();
             
             tabControlMain.SuspendLayout();
             tabKnown.SuspendLayout();
@@ -38,7 +42,12 @@ namespace logReader.UI
             panelButtons.SuspendLayout();
             panelSearch.SuspendLayout();
             panelSearchUnknown.SuspendLayout();
-            panelUnknownList.SuspendLayout();
+            splitContainerLog.Panel1.SuspendLayout();
+            splitContainerLog.Panel2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainerLog).BeginInit();
+            splitContainerLog.SuspendLayout();
+            panelMissingColumn.SuspendLayout();
+            panelMatchedColumn.SuspendLayout();
             SuspendLayout();
             // 
             // tabControlMain
@@ -67,14 +76,14 @@ namespace logReader.UI
             // 
             // tabUnknown
             // 
-            tabUnknown.Controls.Add(panelUnknownList);
+            tabUnknown.Controls.Add(splitContainerLog);
             tabUnknown.Controls.Add(panelSearchUnknown);
             tabUnknown.Location = new Point(4, 24);
             tabUnknown.Name = "tabUnknown";
             tabUnknown.Padding = new Padding(3);
             tabUnknown.Size = new Size(572, 592);
             tabUnknown.TabIndex = 1;
-            tabUnknown.Text = "Отсутствующие";
+            tabUnknown.Text = "Сверка с логом";
             tabUnknown.UseVisualStyleBackColor = true;
             // 
             // panelSearchUnknown
@@ -104,37 +113,76 @@ namespace logReader.UI
             textBoxSearchUnknown.TabIndex = 1;
             textBoxSearchUnknown.TextChanged += textBoxSearchUnknown_TextChanged;
             // 
-            // panelUnknownList
+            // splitContainerLog
             // 
-            panelUnknownList.Controls.Add(listBoxUnknown);
-            panelUnknownList.Controls.Add(labelUnknownTitle);
-            panelUnknownList.Dock = DockStyle.Fill;
-            panelUnknownList.Name = "panelUnknownList";
-            panelUnknownList.Padding = new Padding(10);
-            panelUnknownList.TabIndex = 1;
+            splitContainerLog.Dock = DockStyle.Fill;
+            splitContainerLog.Location = new Point(3, 47);
+            splitContainerLog.Name = "splitContainerLog";
+            splitContainerLog.Size = new Size(566, 542);
+            splitContainerLog.SplitterDistance = 283;
+            splitContainerLog.TabIndex = 1;
             // 
-            // labelUnknownTitle
+            // panelMissingColumn
             // 
-            labelUnknownTitle.Dock = DockStyle.Top;
-            labelUnknownTitle.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold, GraphicsUnit.Point);
-            labelUnknownTitle.ForeColor = Color.FromArgb(64, 64, 64);
-            labelUnknownTitle.Location = new Point(10, 10);
-            labelUnknownTitle.Name = "labelUnknownTitle";
-            labelUnknownTitle.Size = new Size(552, 28);
-            labelUnknownTitle.TabIndex = 0;
-            labelUnknownTitle.Text = "Список устройств, найденных в логах, но отсутствующих в файле посылок:";
+            panelMissingColumn.Controls.Add(listBoxMissing);
+            panelMissingColumn.Controls.Add(labelMissingTitle);
+            panelMissingColumn.Dock = DockStyle.Fill;
+            panelMissingColumn.Name = "panelMissingColumn";
+            panelMissingColumn.Padding = new Padding(6, 4, 3, 4);
+            panelMissingColumn.TabIndex = 0;
             // 
-            // listBoxUnknown
+            // labelMissingTitle
             // 
-            listBoxUnknown.Dock = DockStyle.Fill;
-            listBoxUnknown.Font = new Font("Consolas", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
-            listBoxUnknown.FormattingEnabled = true;
-            listBoxUnknown.ItemHeight = 18;
-            listBoxUnknown.Location = new Point(10, 38);
-            listBoxUnknown.Name = "listBoxUnknown";
-            listBoxUnknown.Size = new Size(552, 544);
-            listBoxUnknown.TabIndex = 1;
-            listBoxUnknown.BorderStyle = BorderStyle.FixedSingle;
+            labelMissingTitle.Dock = DockStyle.Top;
+            labelMissingTitle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            labelMissingTitle.ForeColor = Color.FromArgb(64, 64, 64);
+            labelMissingTitle.Name = "labelMissingTitle";
+            labelMissingTitle.Padding = new Padding(0, 0, 0, 4);
+            labelMissingTitle.Size = new Size(268, 40);
+            labelMissingTitle.TabIndex = 0;
+            labelMissingTitle.Text = "В логе, но нет в файле посылок:";
+            // 
+            // listBoxMissing
+            // 
+            listBoxMissing.BorderStyle = BorderStyle.FixedSingle;
+            listBoxMissing.Dock = DockStyle.Fill;
+            listBoxMissing.Font = new Font("Consolas", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            listBoxMissing.FormattingEnabled = true;
+            listBoxMissing.ItemHeight = 18;
+            listBoxMissing.Name = "listBoxMissing";
+            listBoxMissing.TabIndex = 1;
+            // 
+            // panelMatchedColumn
+            // 
+            panelMatchedColumn.Controls.Add(listBoxMatched);
+            panelMatchedColumn.Controls.Add(labelMatchedTitle);
+            panelMatchedColumn.Dock = DockStyle.Fill;
+            panelMatchedColumn.Name = "panelMatchedColumn";
+            panelMatchedColumn.Padding = new Padding(3, 4, 6, 4);
+            panelMatchedColumn.TabIndex = 0;
+            // 
+            // labelMatchedTitle
+            // 
+            labelMatchedTitle.Dock = DockStyle.Top;
+            labelMatchedTitle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            labelMatchedTitle.ForeColor = Color.FromArgb(64, 64, 64);
+            labelMatchedTitle.Name = "labelMatchedTitle";
+            labelMatchedTitle.Padding = new Padding(0, 0, 0, 4);
+            labelMatchedTitle.Size = new Size(268, 40);
+            labelMatchedTitle.TabIndex = 0;
+            labelMatchedTitle.Text = "Есть и в логе, и в файле посылок:";
+            // 
+            // listBoxMatched
+            // 
+            listBoxMatched.BorderStyle = BorderStyle.FixedSingle;
+            listBoxMatched.Dock = DockStyle.Fill;
+            listBoxMatched.Font = new Font("Consolas", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
+            listBoxMatched.FormattingEnabled = true;
+            listBoxMatched.ItemHeight = 18;
+            listBoxMatched.Name = "listBoxMatched";
+            listBoxMatched.TabIndex = 1;
+            splitContainerLog.Panel1.Controls.Add(panelMissingColumn);
+            splitContainerLog.Panel2.Controls.Add(panelMatchedColumn);
             // 
             // panelButtons
             // 
@@ -218,7 +266,12 @@ namespace logReader.UI
             panelSearch.PerformLayout();
             panelSearchUnknown.ResumeLayout(false);
             panelSearchUnknown.PerformLayout();
-            panelUnknownList.ResumeLayout(false);
+            splitContainerLog.Panel1.ResumeLayout(false);
+            splitContainerLog.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainerLog).EndInit();
+            splitContainerLog.ResumeLayout(false);
+            panelMissingColumn.ResumeLayout(false);
+            panelMatchedColumn.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -234,11 +287,15 @@ namespace logReader.UI
         private Button buttonDisableAll;
         private TextBox textBoxSearch;
         private Label labelSearch;
-        private ListBox listBoxUnknown;
+        private ListBox listBoxMissing;
+        private ListBox listBoxMatched;
         private Panel panelSearchUnknown;
         private Label labelSearchUnknown;
         private TextBox textBoxSearchUnknown;
-        private Panel panelUnknownList;
-        private Label labelUnknownTitle;
+        private SplitContainer splitContainerLog;
+        private Panel panelMissingColumn;
+        private Panel panelMatchedColumn;
+        private Label labelMissingTitle;
+        private Label labelMatchedTitle;
     }
 }

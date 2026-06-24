@@ -33,7 +33,10 @@ namespace logReader.UI
                     _log("Формат: CANfox (PCAN-View / CAN.txt)");
             }
             else if (isAsc) _log("Формат: ASC");
-            else _log("Формат: CAN лог");
+            else if (Path.GetExtension(logPath).Equals(".csv", StringComparison.OrdinalIgnoreCase)
+                     && MatrixCsvLogParser.LooksLikeMatrixCsv(logPath, LogFileEncoding.Detect(logPath)))
+                _log("Формат: matrix CSV (широкий, 20 мс)");
+            else _log("Формат: CAN лог (step-CSV)");
 
             if (isPCan)
             {
@@ -58,6 +61,21 @@ namespace logReader.UI
                     _log("Пропуск: текстовый файл не распознан как лог CANfox (нужен формат с колонками Date, Time, ID, Data).");
                     return;
                 }
+
+                if (Path.GetExtension(logPath).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    var enc = LogFileEncoding.Detect(logPath);
+                    if (MatrixCsvLogParser.LooksLikeMatrixCsv(logPath, enc))
+                    {
+                        new MatrixCsvLogProcessor().Process(
+                            logPath, allDevices, outputPath, outputFormat, _log,
+                            hasFilter ? deviceEnabled : null,
+                            hasFilter ? paramEnabled : null,
+                            composites);
+                        return;
+                    }
+                }
+
                 new CanLogProcessor().Process(
                     logPath, allDevices, outputPath, outputFormat, _log,
                     hasFilter ? deviceEnabled : null,

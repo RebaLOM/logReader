@@ -8,7 +8,8 @@ namespace logReader.UI
         private readonly List<Device> _devices;
         private readonly Dictionary<string, bool> _deviceEnabled;
         private readonly Dictionary<string, bool[]> _paramEnabled;
-        private readonly List<string> _unknownDevices;
+        private readonly List<string> _missingDevices;
+        private readonly List<string> _matchedDevices;
 
         private const int GB_MARGIN = 8;
 
@@ -26,28 +27,19 @@ namespace logReader.UI
         public Devices_ParametrsForm(List<Device> devices,
             Dictionary<string, bool> deviceEnabled,
             Dictionary<string, bool[]> paramEnabled,
-            List<string>? unknownDevices = null)
+            List<string>? missingDevices = null,
+            List<string>? matchedDevices = null)
         {
             InitializeComponent();
             _devices = devices;
             _deviceEnabled = deviceEnabled;
             _paramEnabled = paramEnabled;
-            _unknownDevices = unknownDevices ?? new List<string>();
+            _missingDevices = missingDevices ?? new List<string>();
+            _matchedDevices = matchedDevices ?? new List<string>();
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
-            
-            if (_unknownDevices.Count == 0)
-            {
-                listBoxUnknown.Items.Add("В выбранном лог-файле нет неизвестных устройств,");
-                listBoxUnknown.Items.Add("или лог-файл не выбран.");
-            }
-            else
-            {
-                foreach (var id in _unknownDevices)
-                {
-                    listBoxUnknown.Items.Add(id);
-                }
-            }
+
+            RefreshLogDeviceLists("");
 
             Shown += (_, _) => BuildDevicePanels();
         }
@@ -235,24 +227,47 @@ namespace logReader.UI
 
         private void textBoxSearchUnknown_TextChanged(object? sender, EventArgs e)
         {
-            if (textBoxSearchUnknown == null || listBoxUnknown == null) return;
-
             string query = textBoxSearchUnknown.Text.Trim().ToLowerInvariant();
-            listBoxUnknown.Items.Clear();
+            RefreshLogDeviceLists(query);
+        }
 
-            if (_unknownDevices == null || _unknownDevices.Count == 0)
+        private void RefreshLogDeviceLists(string query)
+        {
+            listBoxMissing.Items.Clear();
+            listBoxMatched.Items.Clear();
+
+            if (_missingDevices.Count == 0)
             {
-                listBoxUnknown.Items.Add("В выбранном лог-файле нет неизвестных устройств,");
-                listBoxUnknown.Items.Add("или лог-файл не выбран.");
-                return;
+                listBoxMissing.Items.Add("Нет отсутствующих устройств");
+                listBoxMissing.Items.Add("или лог не выбран.");
+            }
+            else
+            {
+                foreach (string id in _missingDevices)
+                {
+                    if (string.IsNullOrEmpty(query) || id.ToLowerInvariant().Contains(query))
+                        listBoxMissing.Items.Add(id);
+                }
+
+                if (listBoxMissing.Items.Count == 0)
+                    listBoxMissing.Items.Add("Нет совпадений по поиску.");
             }
 
-            foreach (var id in _unknownDevices)
+            if (_matchedDevices.Count == 0)
             {
-                if (string.IsNullOrEmpty(query) || id.ToLowerInvariant().Contains(query))
+                listBoxMatched.Items.Add("Нет совпадающих устройств");
+                listBoxMatched.Items.Add("или лог не выбран.");
+            }
+            else
+            {
+                foreach (string id in _matchedDevices)
                 {
-                    listBoxUnknown.Items.Add(id);
+                    if (string.IsNullOrEmpty(query) || id.ToLowerInvariant().Contains(query))
+                        listBoxMatched.Items.Add(id);
                 }
+
+                if (listBoxMatched.Items.Count == 0)
+                    listBoxMatched.Items.Add("Нет совпадений по поиску.");
             }
         }
 

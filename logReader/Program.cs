@@ -151,9 +151,8 @@ namespace logReader
 
             int b = RawBytes[instr.ByteLow] & 0xFF;
             int mask = (1 << instr.LengthBit) - 1;
-            int shift = 8 - instr.StartBit - instr.LengthBit; // DBC: StartBit — MSB поля
-            if (shift < 0) shift = 0;
-            int raw = (b >> shift) & mask;
+            // StartBit для BIN — LSB поля внутри байта (как BitStart в xlsx и Composite).
+            int raw = (b >> instr.StartBit) & mask;
             ProcessedData[instr.FieldIndex] = raw.ToString(CultureInfo.InvariantCulture);
         }
 
