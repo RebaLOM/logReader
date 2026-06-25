@@ -16,8 +16,16 @@ namespace logReader
             else
             {
                 rawMin = 0;
-                rawMax = length >= 64 ? long.MaxValue : (1L << length) - 1;
+                rawMax = length >= 64 ? long.MaxValue : (long)((1UL << length) - 1);
             }
+        }
+
+        // Десятичное raw-значение: знаковое (−128..127) или беззнаковое (0..255).
+        public static string FormatRawBound(long raw, int length, bool signed)
+        {
+            if (!signed && length > 0 && length < 64)
+                return ((long)((ulong)raw & ((1UL << length) - 1))).ToString(CultureInfo.InvariantCulture);
+            return raw.ToString(CultureInfo.InvariantCulture);
         }
 
         public static string FormatHex(long raw, int length)

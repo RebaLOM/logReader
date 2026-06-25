@@ -95,12 +95,14 @@ namespace logReader.UI
             Controls.Add(_numLength);
             Controls.Add(MakeLabel("Bits", 135, 80));
 
-            Controls.Add(MakeLabel("Min Val: 0x", 165, 80));
+            Controls.Add(MakeLabel("Min Val:", 165, 80));
+            _txtMinHex.ReadOnly = true;
             _txtMinHex.Location = new Point(242, 77);
             _txtMinHex.Size = new Size(70, 23);
             Controls.Add(_txtMinHex);
 
-            Controls.Add(MakeLabel("Max Val: 0x", 325, 80));
+            Controls.Add(MakeLabel("Max Val:", 325, 80));
+            _txtMaxHex.ReadOnly = true;
             _txtMaxHex.Location = new Point(402, 77);
             _txtMaxHex.Size = new Size(60, 23);
             Controls.Add(_txtMaxHex);
@@ -152,8 +154,8 @@ namespace logReader.UI
                 IsSigned = _cmbType.SelectedIndex == 0
             };
             ComputeRawRange(tmp.Length, tmp.IsSigned, out long rawMin, out long rawMax);
-            _txtMinHex.Text = FormatHex(rawMin, tmp.Length);
-            _txtMaxHex.Text = FormatHex(rawMax, tmp.Length);
+            _txtMinHex.Text = FormatRawBound(rawMin, tmp.Length, tmp.IsSigned);
+            _txtMaxHex.Text = FormatRawBound(rawMax, tmp.Length, tmp.IsSigned);
         }
 
         private static Label MakeLabel(string text, int x, int y)
@@ -181,8 +183,8 @@ namespace logReader.UI
 
             long rawMin, rawMax;
             ComputeRawRange(s.Length, s.IsSigned, out rawMin, out rawMax);
-            _txtMinHex.Text = FormatHex(rawMin, s.Length);
-            _txtMaxHex.Text = FormatHex(rawMax, s.Length);
+            _txtMinHex.Text = FormatRawBound(rawMin, s.Length, s.IsSigned);
+            _txtMaxHex.Text = FormatRawBound(rawMax, s.Length, s.IsSigned);
         }
 
         private void OnOk()

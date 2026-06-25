@@ -172,10 +172,12 @@ namespace logReader.UI
             Add(_numLength, 70, y);
             Lbl("Bits", 130, y);
 
-            Lbl("Min Val: 0x", 175, y);
+            Lbl("Min Val:", 175, y);
+            _txtMinHex.ReadOnly = true;
             _txtMinHex.Size = new Size(75, 23);
             Add(_txtMinHex, 254, y);
-            Lbl("Max Val: 0x", 345, y);
+            Lbl("Max Val:", 345, y);
+            _txtMaxHex.ReadOnly = true;
             _txtMaxHex.Size = new Size(75, 23);
             Add(_txtMaxHex, 425, y);
             y += 32;
@@ -303,8 +305,8 @@ namespace logReader.UI
             int length = (int)_numLength.Value;
             bool signed = _cmbRawType.SelectedIndex == 0;
             ComputeRawRange(length, signed, out long rawMin, out long rawMax);
-            _txtMinHex.Text = FormatHex(rawMin, length);
-            _txtMaxHex.Text = FormatHex(rawMax, length);
+            _txtMinHex.Text = FormatRawBound(rawMin, length, signed);
+            _txtMaxHex.Text = FormatRawBound(rawMax, length, signed);
         }
 
         private void OnOk()
