@@ -17,6 +17,12 @@ namespace logReader.UI
         private readonly Button _btnDelete = new();
         private readonly Button _btnOk = new();
         private readonly Button _btnCancel = new();
+        private readonly TextBox _txtSearch = new();
+        private readonly ComboBox _cmbType = MessageEditFormHelpers.MakeSignalTypeFilterCombo(includeBin: true);
+        private readonly ComboBox _cmbOrder = MessageEditFormHelpers.MakeByteOrderFilterCombo();
+        private readonly TextBox _txtLenMin = MessageEditFormHelpers.MakeFilterTextBox();
+        private readonly TextBox _txtLenMax = MessageEditFormHelpers.MakeFilterTextBox();
+        private readonly Label _lblFilterStatus = new();
 
         public DeviceDefinition Definition { get; private set; }
         private readonly List<DeviceFieldRow> _rows;
@@ -115,6 +121,14 @@ namespace logReader.UI
             _btnDelete.Click += (_, _) => DeleteSignal();
             signalButtons.Controls.AddRange(new Control[] { _btnAdd, _btnEdit, _btnDelete });
 
+            var filterPanel = BuildSignalFilterPanel();
+
+            _lblFilterStatus.Dock = DockStyle.Top;
+            _lblFilterStatus.AutoSize = false;
+            _lblFilterStatus.Height = 22;
+            _lblFilterStatus.Padding = new Padding(12, 0, 12, 2);
+            _lblFilterStatus.ForeColor = Color.DimGray;
+
             _grid.Dock = DockStyle.Fill;
             _grid.AllowUserToAddRows = false;
             _grid.AllowUserToDeleteRows = false;
@@ -134,9 +148,9 @@ namespace logReader.UI
             _grid.Columns.Add("Offset", "Offset");
             _grid.Columns.Add("Unit", "Unit");
             _grid.Columns.Add("Order", "Order");
-            _grid.Columns["Name"]!.FillWeight = 25;
             foreach (DataGridViewColumn col in _grid.Columns)
                 col.SortMode = DataGridViewColumnSortMode.NotSortable;
+            MessageEditFormHelpers.ApplySignalListColumnWeights(_grid);
 
             var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
             gridHost.Controls.Add(_grid);
@@ -159,10 +173,84 @@ namespace logReader.UI
             bottom.Controls.Add(_btnCancel);
 
             Controls.Add(gridHost);
+            Controls.Add(_lblFilterStatus);
+            Controls.Add(filterPanel);
             Controls.Add(signalButtons);
             Controls.Add(fmtPanel);
             Controls.Add(top);
             Controls.Add(bottom);
+        }
+
+        private Panel BuildSignalFilterPanel()
+        {
+            var panel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                Padding = new Padding(12, 0, 12, 4),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true
+            };
+
+            _txtSearch.Width = 160;
+            _txtSearch.Margin = new Padding(3, 3, 8, 0);
+            _txtSearch.PlaceholderText = "Имя параметра…";
+            _txtLenMin.PlaceholderText = "—";
+            _txtLenMax.PlaceholderText = "—";
+
+            void OnFilterChanged(object? s, EventArgs e) => RefreshGrid();
+            _txtSearch.TextChanged += OnFilterChanged;
+            _cmbType.SelectedIndexChanged += OnFilterChanged;
+            _cmbOrder.SelectedIndexChanged += OnFilterChanged;
+            _txtLenMin.TextChanged += OnFilterChanged;
+            _txtLenMax.TextChanged += OnFilterChanged;
+
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Поиск:"));
+            panel.Controls.Add(_txtSearch);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Тип:"));
+            panel.Controls.Add(_cmbType);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Длина от:"));
+            panel.Controls.Add(_txtLenMin);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до:"));
+            panel.Controls.Add(_txtLenMax);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Порядок:"));
+            panel.Controls.Add(_cmbOrder);
+
+            return panel;
+        }
+
+        private bool TryGetSignalLengthFilters(out int? lenMin, out int? lenMax)
+        {
+            lenMin = lenMax = null;
+            if (!MessageEditFormHelpers.TryParseOptionalInt(_txtLenMin.Text, out lenMin)) return false;
+            if (!MessageEditFormHelpers.TryParseOptionalInt(_txtLenMax.Text, out lenMax)) return false;
+            return true;
+        }
+
+
+        private bool PassesSignalTypeFilter(DeviceFieldRow r)
+        {
+            string type = (r.Type ?? "").Trim().ToUpperInvariant();
+            return _cmbType.SelectedIndex switch
+            {
+                1 => type == "NUM" && r.SignedRaw,
+                2 => type == "NUM" && !r.SignedRaw,
+                3 => type == "BIN",
+                _ => true
+            };
+        }
+
+        private bool PassesByteOrderFilter(DeviceFieldRow r)
+        {
+            if (string.Equals(r.Type, "BIN", StringComparison.OrdinalIgnoreCase))
+                return _cmbOrder.SelectedIndex == 0;
+
+            return _cmbOrder.SelectedIndex switch
+            {
+                1 => r.IsLittleEndian,
+                2 => !r.IsLittleEndian,
+                _ => true
+            };
         }
 
         private void LoadFromDefinition(DeviceDefinition d)
@@ -178,12 +266,28 @@ namespace logReader.UI
         private void RefreshGrid()
         {
             _grid.Rows.Clear();
-            foreach (var r in _rows)
+            string query = _txtSearch.Text.Trim();
+
+            if (!TryGetSignalLengthFilters(out int? lenMin, out int? lenMax))
             {
+                _lblFilterStatus.Text = "Фильтр: неверное число в «Длина»";
+                return;
+            }
+
+            int shown = 0;
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                var r = _rows[i];
+                if (!MessageEditFormHelpers.TextMatchesQuery(r.Header, query)) continue;
+                if (!PassesSignalTypeFilter(r)) continue;
+                if (!PassesByteOrderFilter(r)) continue;
+                if (!MessageEditFormHelpers.InOptionalRange(r.Length, lenMin, lenMax)) continue;
+
                 string type = (r.Type ?? "").Trim().ToUpperInvariant();
+                int rowIdx;
                 if (type == "BIN")
                 {
-                    _grid.Rows.Add(
+                    rowIdx = _grid.Rows.Add(
                         r.Header,
                         r.StartBit.ToString(CultureInfo.InvariantCulture),
                         (r.BitStart ?? 0).ToString(CultureInfo.InvariantCulture),
@@ -198,7 +302,7 @@ namespace logReader.UI
                 {
                     int byteIdx = r.Length > 0 ? r.StartBit / 8 : 0;
                     int bitInByte = r.StartBit % 8;
-                    _grid.Rows.Add(
+                    rowIdx = _grid.Rows.Add(
                         r.Header,
                         byteIdx.ToString(CultureInfo.InvariantCulture),
                         bitInByte.ToString(CultureInfo.InvariantCulture),
@@ -209,13 +313,29 @@ namespace logReader.UI
                         r.Unit ?? "",
                         r.IsLittleEndian ? "Intel" : "Motorola");
                 }
+
+                _grid.Rows[rowIdx].Tag = i;
+                shown++;
             }
+
+            _lblFilterStatus.Text = shown == _rows.Count
+                ? $"Показано: {shown}"
+                : $"Показано: {shown} из {_rows.Count}";
         }
 
-        private int SelectedIndex()
+        private int SelectedIndex() => MessageEditFormHelpers.SelectedSourceIndex(_grid);
+
+        private void SelectRowBySourceIndex(int sourceIndex)
         {
-            if (_grid.CurrentRow == null) return -1;
-            return _grid.CurrentRow.Index;
+            foreach (DataGridViewRow row in _grid.Rows)
+            {
+                if (row.Tag is int t && t == sourceIndex)
+                {
+                    row.Selected = true;
+                    _grid.CurrentCell = row.Cells[0];
+                    return;
+                }
+            }
         }
 
         private void AddSignal()
@@ -231,6 +351,7 @@ namespace logReader.UI
 
             _rows.Add(dlg.Row);
             RefreshGrid();
+            SelectRowBySourceIndex(_rows.Count - 1);
         }
 
         private void EditSignal()
@@ -251,7 +372,7 @@ namespace logReader.UI
 
             _rows[idx] = dlg.Row;
             RefreshGrid();
-            if (idx < _grid.Rows.Count) _grid.Rows[idx].Selected = true;
+            SelectRowBySourceIndex(idx);
         }
 
         private void DeleteSignal()

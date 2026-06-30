@@ -50,5 +50,120 @@ namespace logReader.UI
             foreach (DataGridViewColumn col in grid.Columns)
                 col.SortMode = DataGridViewColumnSortMode.NotSortable;
         }
+
+        // Пропорции Fill: широкие Name/ID, узкие DLC и счётчики.
+        public static void ApplyDevicesListColumnWeights(DataGridView grid)
+        {
+            SetFill(grid, "Name", 44, 120);
+            SetFill(grid, "Id", 32, 100);
+            SetFill(grid, "Fmt", 14, 72);
+            SetFill(grid, "Dlc", 5, 40);
+            SetFill(grid, "Count", 7, 56);
+        }
+
+        public static void ApplySignalListColumnWeights(DataGridView grid)
+        {
+            SetFill(grid, "Name", 36, 140);
+            SetFill(grid, "ByteIdx", 7, 52);
+            SetFill(grid, "StartBit", 7, 52);
+            SetFill(grid, "Length", 7, 52);
+            SetFill(grid, "Type", 9, 64);
+            SetFill(grid, "Factor", 11, 56);
+            SetFill(grid, "Offset", 11, 56);
+            SetFill(grid, "Unit", 10, 48);
+            SetFill(grid, "Order", 12, 72);
+        }
+
+        private static void SetFill(DataGridView grid, string name, int weight, int minWidth)
+        {
+            if (grid.Columns[name] is not DataGridViewColumn col) return;
+            col.FillWeight = weight;
+            col.MinimumWidth = minWidth;
+        }
+
+        public static bool TryParseOptionalInt(string? text, out int? value)
+        {
+            value = null;
+            string t = (text ?? "").Trim();
+            if (t.Length == 0) return true;
+            if (!int.TryParse(t, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n))
+                return false;
+            value = n;
+            return true;
+        }
+
+        public static bool InOptionalRange(int value, int? min, int? max)
+        {
+            if (min.HasValue && value < min.Value) return false;
+            if (max.HasValue && value > max.Value) return false;
+            return true;
+        }
+
+        public static bool TextMatchesQuery(string? haystack, string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return true;
+            return (haystack ?? "").Contains(query.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IdMatchesQuery(string idHex, string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return true;
+            string q = query.Trim();
+            if (q.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                q = q.Substring(2);
+            return idHex.Contains(q, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static int SelectedSourceIndex(DataGridView grid)
+            => grid.CurrentRow?.Tag is int idx ? idx : -1;
+
+        public static TextBox MakeFilterTextBox(int width = 44)
+            => new()
+            {
+                Width = width,
+                Margin = new Padding(3, 3, 8, 0)
+            };
+
+        public static ComboBox MakeFormatFilterCombo()
+        {
+            var cmb = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 110,
+                Margin = new Padding(3, 3, 8, 0)
+            };
+            cmb.Items.AddRange(new object[] { "Все", "Standard", "Extended" });
+            cmb.SelectedIndex = 0;
+            return cmb;
+        }
+
+        public static ComboBox MakeSignalTypeFilterCombo(bool includeBin)
+        {
+            var cmb = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 100,
+                Margin = new Padding(3, 3, 8, 0)
+            };
+            if (includeBin)
+                cmb.Items.AddRange(new object[] { "Все", "int", "unsigned", "BIN" });
+            else
+                cmb.Items.AddRange(new object[] { "Все", "int", "unsigned" });
+            cmb.SelectedIndex = 0;
+            return cmb;
+        }
+
+        public static ComboBox MakeByteOrderFilterCombo()
+        {
+            var cmb = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 100,
+                Margin = new Padding(3, 3, 8, 0)
+            };
+            cmb.Items.AddRange(new object[] { "Все", "Intel", "Motorola" });
+            cmb.SelectedIndex = 0;
+            return cmb;
+        }
     }
 }

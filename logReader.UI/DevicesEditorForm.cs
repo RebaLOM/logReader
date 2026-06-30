@@ -18,6 +18,13 @@ namespace logReader.UI
         private readonly Button _btnDelete = new();
         private readonly Button _btnClose = new();
         private readonly Label _lblInfo = new();
+        private readonly TextBox _txtSearch = new();
+        private readonly ComboBox _cmbFormat = MessageEditFormHelpers.MakeFormatFilterCombo();
+        private readonly TextBox _txtDlcMin = MessageEditFormHelpers.MakeFilterTextBox();
+        private readonly TextBox _txtDlcMax = MessageEditFormHelpers.MakeFilterTextBox();
+        private readonly TextBox _txtSigMin = MessageEditFormHelpers.MakeFilterTextBox();
+        private readonly TextBox _txtSigMax = MessageEditFormHelpers.MakeFilterTextBox();
+        private readonly Label _lblFilterStatus = new();
 
         private List<DeviceDefinition> _xlsxDevices = new();
         private List<DbcMessage> _dbcMessages = new();
@@ -42,8 +49,8 @@ namespace logReader.UI
             };
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
-            MinimumSize = new Size(760, 480);
-            ClientSize = new Size(760, 480);
+            MinimumSize = new Size(820, 520);
+            ClientSize = new Size(820, 520);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -76,9 +83,8 @@ namespace logReader.UI
             _grid.Columns.Add("Fmt", "Формат");
             _grid.Columns.Add("Dlc", "DLC");
             _grid.Columns.Add("Count", "Сигналов");
-            _grid.Columns["Name"]!.FillWeight = 35;
-            _grid.Columns["Id"]!.FillWeight = 18;
             MessageEditFormHelpers.MakeGridColumnsNotSortable(_grid);
+            MessageEditFormHelpers.ApplyDevicesListColumnWeights(_grid);
 
             var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
             gridHost.Controls.Add(_grid);
@@ -105,6 +111,14 @@ namespace logReader.UI
 
             topBtns.Controls.AddRange(new Control[] { _btnAdd, _btnEdit, _btnDelete });
 
+            var filterPanel = BuildMessageFilterPanel();
+
+            _lblFilterStatus.Dock = DockStyle.Top;
+            _lblFilterStatus.AutoSize = false;
+            _lblFilterStatus.Height = 22;
+            _lblFilterStatus.Padding = new Padding(12, 2, 12, 0);
+            _lblFilterStatus.ForeColor = Color.DimGray;
+
             var bottom = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
@@ -119,11 +133,77 @@ namespace logReader.UI
             bottom.Controls.Add(_btnClose);
 
             Controls.Add(gridHost);
+            Controls.Add(_lblFilterStatus);
+            Controls.Add(filterPanel);
             Controls.Add(topBtns);
             Controls.Add(_lblInfo);
             Controls.Add(bottom);
 
             CancelButton = _btnClose;
+        }
+
+        private Panel BuildMessageFilterPanel()
+        {
+            var panel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                Padding = new Padding(12, 0, 12, 4),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true
+            };
+
+            _txtSearch.Width = 160;
+            _txtSearch.Margin = new Padding(3, 3, 8, 0);
+            _txtSearch.PlaceholderText = "Имя или ID…";
+
+            _txtDlcMin.PlaceholderText = "—";
+            _txtDlcMax.PlaceholderText = "—";
+            _txtSigMin.PlaceholderText = "—";
+            _txtSigMax.PlaceholderText = "—";
+
+            void OnFilterChanged(object? s, EventArgs e) => RefreshGrid();
+            _txtSearch.TextChanged += OnFilterChanged;
+            _cmbFormat.SelectedIndexChanged += OnFilterChanged;
+            _txtDlcMin.TextChanged += OnFilterChanged;
+            _txtDlcMax.TextChanged += OnFilterChanged;
+            _txtSigMin.TextChanged += OnFilterChanged;
+            _txtSigMax.TextChanged += OnFilterChanged;
+
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Поиск:"));
+            panel.Controls.Add(_txtSearch);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Формат:"));
+            panel.Controls.Add(_cmbFormat);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("DLC от:"));
+            panel.Controls.Add(_txtDlcMin);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до:"));
+            panel.Controls.Add(_txtDlcMax);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Сигналов от:"));
+            panel.Controls.Add(_txtSigMin);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до:"));
+            panel.Controls.Add(_txtSigMax);
+
+            return panel;
+        }
+
+        private bool TryGetMessageFilters(out int? dlcMin, out int? dlcMax, out int? sigMin, out int? sigMax)
+        {
+            dlcMin = dlcMax = sigMin = sigMax = null;
+            if (!MessageEditFormHelpers.TryParseOptionalInt(_txtDlcMin.Text, out dlcMin)) return false;
+            if (!MessageEditFormHelpers.TryParseOptionalInt(_txtDlcMax.Text, out dlcMax)) return false;
+            if (!MessageEditFormHelpers.TryParseOptionalInt(_txtSigMin.Text, out sigMin)) return false;
+            if (!MessageEditFormHelpers.TryParseOptionalInt(_txtSigMax.Text, out sigMax)) return false;
+            return true;
+        }
+
+        private bool PassesFormatFilter(bool isExtended)
+        {
+            return _cmbFormat.SelectedIndex switch
+            {
+                1 => !isExtended,
+                2 => isExtended,
+                _ => true
+            };
         }
 
         private void LoadFromFile()
@@ -151,38 +231,85 @@ namespace logReader.UI
         private void RefreshGrid()
         {
             _grid.Rows.Clear();
+            string query = _txtSearch.Text.Trim();
+
+            if (!TryGetMessageFilters(out int? dlcMin, out int? dlcMax, out int? sigMin, out int? sigMax))
+            {
+                _lblFilterStatus.Text = "Фильтр: неверное число в DLC или «Сигналов»";
+                return;
+            }
+
+            int total;
+            int shown = 0;
 
             if (UsesDbcModel)
             {
-                foreach (var m in _dbcMessages)
+                total = _dbcMessages.Count;
+                for (int i = 0; i < _dbcMessages.Count; i++)
                 {
-                    _grid.Rows.Add(
+                    var m = _dbcMessages[i];
+                    if (!PassesFormatFilter(m.IsExtended)) continue;
+                    if (!MessageEditFormHelpers.InOptionalRange(m.Dlc, dlcMin, dlcMax)) continue;
+                    if (!MessageEditFormHelpers.InOptionalRange(m.Signals.Count, sigMin, sigMax)) continue;
+                    string idHex = m.Id.ToString("X", CultureInfo.InvariantCulture);
+                    if (!MessageEditFormHelpers.TextMatchesQuery(m.Name, query)
+                        && !MessageEditFormHelpers.IdMatchesQuery(idHex, query))
+                        continue;
+
+                    int rowIdx = _grid.Rows.Add(
                         m.Name,
-                        m.Id.ToString("X", CultureInfo.InvariantCulture),
+                        idHex,
                         m.IsExtended ? "Extended" : "Standard",
                         m.Dlc.ToString(CultureInfo.InvariantCulture),
                         m.Signals.Count.ToString(CultureInfo.InvariantCulture));
+                    _grid.Rows[rowIdx].Tag = i;
+                    shown++;
                 }
             }
             else
             {
-                foreach (var d in _xlsxDevices)
+                total = _xlsxDevices.Count;
+                for (int i = 0; i < _xlsxDevices.Count; i++)
                 {
+                    var d = _xlsxDevices[i];
                     string displayName = string.IsNullOrWhiteSpace(d.MessageName) ? d.DeviceId : d.MessageName;
-                    _grid.Rows.Add(
+                    if (!PassesFormatFilter(d.Extended)) continue;
+                    if (!MessageEditFormHelpers.InOptionalRange(d.Dlc, dlcMin, dlcMax)) continue;
+                    if (!MessageEditFormHelpers.InOptionalRange(d.Rows.Count, sigMin, sigMax)) continue;
+                    if (!MessageEditFormHelpers.TextMatchesQuery(displayName, query)
+                        && !MessageEditFormHelpers.TextMatchesQuery(d.MessageName, query)
+                        && !MessageEditFormHelpers.IdMatchesQuery(d.DeviceId, query))
+                        continue;
+
+                    int rowIdx = _grid.Rows.Add(
                         displayName,
                         d.DeviceId,
                         d.Extended ? "Extended" : "Standard",
                         d.Dlc.ToString(CultureInfo.InvariantCulture),
                         d.Rows.Count.ToString(CultureInfo.InvariantCulture));
+                    _grid.Rows[rowIdx].Tag = i;
+                    shown++;
                 }
             }
+
+            _lblFilterStatus.Text = shown == total
+                ? $"Показано: {shown}"
+                : $"Показано: {shown} из {total}";
         }
 
-        private int SelectedIndex()
+        private int SelectedIndex() => MessageEditFormHelpers.SelectedSourceIndex(_grid);
+
+        private void SelectRowBySourceIndex(int sourceIndex)
         {
-            if (_grid.CurrentRow == null) return -1;
-            return _grid.CurrentRow.Index;
+            foreach (DataGridViewRow row in _grid.Rows)
+            {
+                if (row.Tag is int t && t == sourceIndex)
+                {
+                    row.Selected = true;
+                    _grid.CurrentCell = row.Cells[0];
+                    return;
+                }
+            }
         }
 
         private void AddNew()
@@ -206,6 +333,7 @@ namespace logReader.UI
                 _dbcMessages.Add(dlg.Message);
                 if (!TrySaveAll()) { _dbcMessages = backup; }
                 RefreshGrid();
+                SelectRowBySourceIndex(_dbcMessages.Count - 1);
             }
             else
             {
@@ -224,6 +352,7 @@ namespace logReader.UI
                 _xlsxDevices.Add(dlg.Definition);
                 if (!TrySaveAll()) { _xlsxDevices = backup; }
                 RefreshGrid();
+                SelectRowBySourceIndex(_xlsxDevices.Count - 1);
             }
         }
 
@@ -253,7 +382,7 @@ namespace logReader.UI
                 _dbcMessages[idx] = dlg.Message;
                 if (!TrySaveAll()) { _dbcMessages = backup; }
                 RefreshGrid();
-                if (idx < _grid.Rows.Count) _grid.Rows[idx].Selected = true;
+                SelectRowBySourceIndex(idx);
             }
             else
             {
@@ -266,7 +395,7 @@ namespace logReader.UI
                 _xlsxDevices[idx] = dlg.Definition;
                 if (!TrySaveAll()) { _xlsxDevices = backup; }
                 RefreshGrid();
-                if (idx < _grid.Rows.Count) _grid.Rows[idx].Selected = true;
+                SelectRowBySourceIndex(idx);
             }
         }
 
