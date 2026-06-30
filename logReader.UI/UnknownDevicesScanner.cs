@@ -102,7 +102,7 @@ namespace logReader.UI
 
                     if (isAsc)
                     {
-                        if (AscLogParser.TryParseFrameLine(line, out _, out string parsedId, bytes, out _))
+                        if (AscLogParser.TryParseFrameId(line, out string parsedId))
                             id = parsedId;
                     }
                     else if (isTrc)

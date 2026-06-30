@@ -16,7 +16,7 @@ namespace logReader.UI
         private readonly Button _btnAdd = new();
         private readonly Button _btnEdit = new();
         private readonly Button _btnDelete = new();
-        private readonly Button _btnClose = new();
+        private readonly Button _btnSave = new();
         private readonly Label _lblInfo = new();
         private readonly TextBox _txtSearch = new();
         private readonly ComboBox _cmbFormat = MessageEditFormHelpers.MakeFormatFilterCombo();
@@ -28,6 +28,9 @@ namespace logReader.UI
 
         private List<DeviceDefinition> _xlsxDevices = new();
         private List<DbcMessage> _dbcMessages = new();
+
+        private bool _dirty;
+        private bool _suppressClosePrompt;
 
         public bool Modified { get; private set; }
 
@@ -56,6 +59,7 @@ namespace logReader.UI
 
             BuildLayout();
             LoadFromFile();
+            FormClosing += OnFormClosing;
         }
 
         private void BuildLayout()
@@ -127,10 +131,10 @@ namespace logReader.UI
                 Height = 54,
                 WrapContents = false
             };
-            _btnClose.Text = "Закрыть";
-            _btnClose.Width = 100;
-            _btnClose.DialogResult = DialogResult.OK;
-            bottom.Controls.Add(_btnClose);
+            _btnSave.Text = "Сохранить изменения";
+            _btnSave.AutoSize = true;
+            _btnSave.Click += (_, _) => SaveToDisk();
+            bottom.Controls.Add(_btnSave);
 
             Controls.Add(gridHost);
             Controls.Add(_lblFilterStatus);
@@ -138,8 +142,6 @@ namespace logReader.UI
             Controls.Add(topBtns);
             Controls.Add(_lblInfo);
             Controls.Add(bottom);
-
-            CancelButton = _btnClose;
         }
 
         private Panel BuildMessageFilterPanel()
@@ -329,9 +331,8 @@ namespace logReader.UI
                     return;
                 }
 
-                var backup = new List<DbcMessage>(_dbcMessages);
                 _dbcMessages.Add(dlg.Message);
-                if (!TrySaveAll()) { _dbcMessages = backup; }
+                MarkDirty();
                 RefreshGrid();
                 SelectRowBySourceIndex(_dbcMessages.Count - 1);
             }
@@ -348,9 +349,8 @@ namespace logReader.UI
                     return;
                 }
 
-                var backup = new List<DeviceDefinition>(_xlsxDevices);
                 _xlsxDevices.Add(dlg.Definition);
-                if (!TrySaveAll()) { _xlsxDevices = backup; }
+                MarkDirty();
                 RefreshGrid();
                 SelectRowBySourceIndex(_xlsxDevices.Count - 1);
             }
@@ -378,9 +378,8 @@ namespace logReader.UI
                     return;
                 }
 
-                var backup = new List<DbcMessage>(_dbcMessages);
                 _dbcMessages[idx] = dlg.Message;
-                if (!TrySaveAll()) { _dbcMessages = backup; }
+                MarkDirty();
                 RefreshGrid();
                 SelectRowBySourceIndex(idx);
             }
@@ -391,9 +390,8 @@ namespace logReader.UI
                 using var dlg = new XlsxMessageEditForm(dev, deviceIdReadOnly: true);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
-                var backup = new List<DeviceDefinition>(_xlsxDevices);
                 _xlsxDevices[idx] = dlg.Definition;
-                if (!TrySaveAll()) { _xlsxDevices = backup; }
+                MarkDirty();
                 RefreshGrid();
                 SelectRowBySourceIndex(idx);
             }
@@ -428,21 +426,61 @@ namespace logReader.UI
 
             if (UsesDbcModel)
             {
-                var backup = new List<DbcMessage>(_dbcMessages);
+                if (idx >= _dbcMessages.Count) return;
                 _dbcMessages.RemoveAt(idx);
-                if (!TrySaveAll()) { _dbcMessages = backup; }
             }
             else
             {
-                var backup = new List<DeviceDefinition>(_xlsxDevices);
+                if (idx >= _xlsxDevices.Count) return;
                 _xlsxDevices.RemoveAt(idx);
-                if (!TrySaveAll()) { _xlsxDevices = backup; }
             }
 
+            MarkDirty();
             RefreshGrid();
         }
 
-        // При ошибке вызывающий код откатывает список из снимка.
+        private void MarkDirty()
+        {
+            _dirty = true;
+            UpdateTitle();
+        }
+
+        private void UpdateTitle()
+        {
+            string baseTitle = _kind switch
+            {
+                FileKind.Dbf => "Редактор посылок (DBF)",
+                FileKind.Dbc => "Редактор посылок (DBC)",
+                _ => "Редактор посылок (XLSX)"
+            };
+            Text = _dirty ? baseTitle + " *" : baseTitle;
+        }
+
+        private void SaveToDisk()
+        {
+            if (TrySaveAll())
+                MessageBox.Show(this, "Изменения сохранены.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void OnFormClosing(object? sender, FormClosingEventArgs e)
+        {
+            MessageEditFormHelpers.ResolveFormCloseWithDirty(
+                this,
+                e,
+                _dirty,
+                _suppressClosePrompt,
+                _path,
+                () =>
+                {
+                    if (!TrySaveAll())
+                        return false;
+                    _suppressClosePrompt = true;
+                    DialogResult = DialogResult.OK;
+                    return true;
+                },
+                DialogResult.OK);
+        }
+
         private bool TrySaveAll()
         {
             try
@@ -460,6 +498,8 @@ namespace logReader.UI
                     DeviceExcelFile.WriteAllDevices(_path, _xlsxDevices);
 
                 Modified = true;
+                _dirty = false;
+                UpdateTitle();
                 return true;
             }
             catch (Exception ex)

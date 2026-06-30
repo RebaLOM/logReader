@@ -165,5 +165,47 @@ namespace logReader.UI
             cmb.SelectedIndex = 0;
             return cmb;
         }
+
+        public static DialogResult PromptSaveChanges(IWin32Window owner, string description)
+        {
+            string body = string.IsNullOrWhiteSpace(description)
+                ? "Сохранить изменения?"
+                : "Сохранить изменения?\n\n" + description.Trim();
+
+            return MessageBox.Show(
+                owner,
+                body,
+                "Подтверждение",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question);
+        }
+
+        // Да — trySave(); Нет — закрыть без сохранения; Отмена — e.Cancel = true.
+        public static void ResolveFormCloseWithDirty(
+            Form form,
+            FormClosingEventArgs e,
+            bool dirty,
+            bool suppressPrompt,
+            string description,
+            Func<bool> trySave,
+            DialogResult discardDialogResult = DialogResult.Cancel)
+        {
+            if (suppressPrompt || !dirty || e.Cancel)
+                return;
+
+            switch (PromptSaveChanges(form, description))
+            {
+                case DialogResult.Yes:
+                    if (!trySave())
+                        e.Cancel = true;
+                    break;
+                case DialogResult.No:
+                    form.DialogResult = discardDialogResult;
+                    break;
+                default:
+                    e.Cancel = true;
+                    break;
+            }
+        }
     }
 }

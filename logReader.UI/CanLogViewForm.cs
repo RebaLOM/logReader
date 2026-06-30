@@ -123,7 +123,7 @@ namespace logReader.UI
                 }
                 else if (isAsc)
                 {
-                    if (!AscLogParser.TryParseFrameLine(line, out _, out id, bytes, out _))
+                    if (!AscLogParser.TryParseFrameId(line, out id))
                         continue;
                 }
                 else if (isCanfox)

@@ -37,17 +37,16 @@ namespace logReader.UI
 
             bool hasStartTime = startTime.HasValue;
             DateTime headerTime = hasStartTime ? startTime!.Value : DateTime.Today;
-            string timestampsMode = hasStartTime ? "absolute" : "relative";
             if (!hasStartTime)
-                log("Предупреждение: не найдено стартовое время (Start time). Время будет относительным.");
+                log("Предупреждение: не найдено стартовое время (Start time). Заголовок ASC — с сегодняшней датой.");
 
             try
             {
                 using var writer = new StreamWriter(ascPath, false, new UTF8Encoding(false));
-                writer.WriteLine($"date {headerTime.ToString("ddd MMM dd HH:mm:ss.fff yyyy", CultureInfo.InvariantCulture)}");
-                writer.WriteLine($"base hex  timestamps {timestampsMode}");
+                VectorCanFdAscWriter.WriteHeader(writer, headerTime);
 
                 int truncatedFdFrames = 0;
+                int frameCount = 0;
                 Span<int> bytesBuffer = stackalloc int[8];
                 foreach (var line in File.ReadLines(trcPath, encoding))
                 {
@@ -58,56 +57,31 @@ namespace logReader.UI
                             out string idRaw,
                             out int dlc,
                             bytesBuffer,
-                            out int parsedByteCount))
+                            out _))
                     {
                         continue;
                     }
 
-                    if (!ulong.TryParse(idRaw, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong idValue))
-                        continue;
-                    bool isExtended = idValue > 0x7FFUL;
-                    string idOut = idRaw + (isExtended ? "x" : "");
-
-                    // Конвейер классический CAN (до 8 байт). Кадр с DLC>8 не можем
-                    // представить честно — усекаем до 8 и предупреждаем (не молча).
                     if (dlc > MaxClassicBytes) truncatedFdFrames++;
                     int outByteCount = Math.Min(dlc, MaxClassicBytes);
 
-                    decimal seconds = timeMs / 1000m;
-                    string timeSec = seconds.ToString("0.000000", CultureInfo.InvariantCulture);
-                    string ascLine = BuildClassicCanLine(timeSec, dir, idOut, outByteCount, bytesBuffer);
-                    writer.WriteLine(ascLine);
+                    double offsetSec = (double)(timeMs / 1000m);
+                    VectorCanFdAscWriter.WriteFrame(writer, offsetSec, dir, idRaw, bytesBuffer, outByteCount);
+                    frameCount++;
                 }
 
                 if (truncatedFdFrames > 0)
-                    log($"Предупреждение: {truncatedFdFrames} кадр(ов) с DLC>8 усечены до 8 байт (классический CAN).");
+                    log($"Предупреждение: {truncatedFdFrames} кадр(ов) с DLC>8 усечены до 8 байт.");
+
+                log($"Конвертация завершена. Записано кадров: {frameCount:N0}.");
             }
             catch (Exception ex)
             {
                 log($"Ошибка записи файла: {ex.Message}");
                 return;
             }
-
-            log("Конвертация завершена.");
         }
 
         private const int MaxClassicBytes = 8;
-        private const string Channel = "1";
-
-        // Формат Vector ASC classic CAN — тот же, что читает AscLogParser.
-        private static string BuildClassicCanLine(string timeSec, string dir, string idOut, int byteCount, ReadOnlySpan<int> bytes)
-        {
-            var sb = new StringBuilder();
-            sb.Append(timeSec).Append(' ')
-              .Append(Channel).Append(' ')
-              .Append(idOut).Append(' ')
-              .Append(dir).Append(" d ")
-              .Append(byteCount.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < byteCount; i++)
-                sb.Append(' ').Append(bytes[i].ToString("X2", CultureInfo.InvariantCulture));
-
-            return sb.ToString();
-        }
     }
 }

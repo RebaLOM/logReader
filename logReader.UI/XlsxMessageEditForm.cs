@@ -15,8 +15,7 @@ namespace logReader.UI
         private readonly Button _btnAdd = new();
         private readonly Button _btnEdit = new();
         private readonly Button _btnDelete = new();
-        private readonly Button _btnOk = new();
-        private readonly Button _btnCancel = new();
+        private readonly Button _btnSave = new();
         private readonly TextBox _txtSearch = new();
         private readonly ComboBox _cmbType = MessageEditFormHelpers.MakeSignalTypeFilterCombo(includeBin: true);
         private readonly ComboBox _cmbOrder = MessageEditFormHelpers.MakeByteOrderFilterCombo();
@@ -27,6 +26,10 @@ namespace logReader.UI
         public DeviceDefinition Definition { get; private set; }
         private readonly List<DeviceFieldRow> _rows;
         private readonly bool _deviceIdReadOnly;
+        private readonly string _baseTitle;
+        private bool _dirty;
+        private bool _suppressClosePrompt;
+        private bool _saved;
 
         public XlsxMessageEditForm(DeviceDefinition? initial, bool deviceIdReadOnly = false)
         {
@@ -36,7 +39,8 @@ namespace logReader.UI
                 : new DeviceDefinition { Extended = true, Dlc = 8 };
             _rows = new List<DeviceFieldRow>(Definition.Rows);
 
-            Text = initial == null ? "Новая посылка (XLSX)" : "Редактирование посылки (XLSX)";
+            _baseTitle = initial == null ? "Новая посылка (XLSX)" : "Редактирование посылки (XLSX)";
+            Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(720, 460);
@@ -45,11 +49,31 @@ namespace logReader.UI
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             BuildLayout();
+            WireDirtyTracking();
             LoadFromDefinition(Definition);
+            FormClosing += OnFormClosing;
 
-            AcceptButton = _btnOk;
-            CancelButton = _btnCancel;
+            AcceptButton = _btnSave;
         }
+
+        private void WireDirtyTracking()
+        {
+            _txtName.TextChanged += (_, _) => MarkDirty();
+            if (!_deviceIdReadOnly)
+                _txtId.TextChanged += (_, _) => MarkDirty();
+            _numDlc.ValueChanged += (_, _) => MarkDirty();
+            _rbStandard.CheckedChanged += (_, _) => { if (_rbStandard.Checked) MarkDirty(); };
+            _rbExtended.CheckedChanged += (_, _) => { if (_rbExtended.Checked) MarkDirty(); };
+        }
+
+        private void MarkDirty()
+        {
+            if (_dirty) return;
+            _dirty = true;
+            UpdateTitle();
+        }
+
+        private void UpdateTitle() => Text = _dirty ? _baseTitle + " *" : _baseTitle;
 
         private void BuildLayout()
         {
@@ -163,14 +187,10 @@ namespace logReader.UI
                 Height = 54,
                 WrapContents = false
             };
-            _btnOk.Text = "OK";
-            _btnOk.Width = 100;
-            _btnOk.Click += (_, _) => OnOk();
-            _btnCancel.Text = "Отмена";
-            _btnCancel.Width = 100;
-            _btnCancel.DialogResult = DialogResult.Cancel;
-            bottom.Controls.Add(_btnOk);
-            bottom.Controls.Add(_btnCancel);
+            _btnSave.Text = "Сохранить изменения";
+            _btnSave.AutoSize = true;
+            _btnSave.Click += (_, _) => SaveChanges();
+            bottom.Controls.Add(_btnSave);
 
             Controls.Add(gridHost);
             Controls.Add(_lblFilterStatus);
@@ -261,6 +281,8 @@ namespace logReader.UI
             _rbExtended.Checked = d.Extended;
             _rbStandard.Checked = !d.Extended;
             RefreshGrid();
+            _dirty = false;
+            UpdateTitle();
         }
 
         private void RefreshGrid()
@@ -350,6 +372,7 @@ namespace logReader.UI
             }
 
             _rows.Add(dlg.Row);
+            MarkDirty();
             RefreshGrid();
             SelectRowBySourceIndex(_rows.Count - 1);
         }
@@ -371,6 +394,7 @@ namespace logReader.UI
             }
 
             _rows[idx] = dlg.Row;
+            MarkDirty();
             RefreshGrid();
             SelectRowBySourceIndex(idx);
         }
@@ -389,17 +413,56 @@ namespace logReader.UI
             if (confirm != DialogResult.Yes) return;
 
             _rows.RemoveAt(idx);
+            MarkDirty();
             RefreshGrid();
         }
 
-        private void OnOk()
+        private void SaveChanges()
+        {
+            if (!TryCommitChanges())
+                return;
+
+            _dirty = false;
+            _saved = true;
+            UpdateTitle();
+        }
+
+        private void OnFormClosing(object? sender, FormClosingEventArgs e)
+        {
+            string description = string.IsNullOrWhiteSpace(_txtName.Text)
+                ? _baseTitle
+                : $"Посылка: {_txtName.Text.Trim()}";
+
+            MessageEditFormHelpers.ResolveFormCloseWithDirty(
+                this,
+                e,
+                _dirty,
+                _suppressClosePrompt,
+                description,
+                () =>
+                {
+                    if (!TryCommitChanges())
+                        return false;
+                    _suppressClosePrompt = true;
+                    _dirty = false;
+                    _saved = true;
+                    return true;
+                });
+
+            if (e.Cancel)
+                return;
+
+            DialogResult = _saved ? DialogResult.OK : DialogResult.Cancel;
+        }
+
+        private bool TryCommitChanges()
         {
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
                 MessageBox.Show(this, "Введите имя посылки (MessageName).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
-                return;
+                return false;
             }
 
             bool isExtended = _rbExtended.Checked;
@@ -407,7 +470,7 @@ namespace logReader.UI
             {
                 MessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtId.Focus();
-                return;
+                return false;
             }
 
             if (_rows.Count == 0)
@@ -418,7 +481,7 @@ namespace logReader.UI
                     "Подтверждение",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
-                if (cont != DialogResult.Yes) return;
+                if (cont != DialogResult.Yes) return false;
             }
 
             int dlc = (int)_numDlc.Value;
@@ -426,14 +489,13 @@ namespace logReader.UI
             {
                 if (string.Equals(r.Type, "NUM", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Motorola: start+length не описывает раскладку по байтам.
                     if (!BitMath.SignalFitsInDlc(r.StartBit, r.Length, r.IsLittleEndian, dlc * 8))
                     {
                         MessageBox.Show(
                             this,
                             $"Параметр '{r.Header}' выходит за пределы DLC={dlc} байт.",
                             "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
+                        return false;
                     }
                 }
             }
@@ -455,8 +517,7 @@ namespace logReader.UI
                 Rows = rows
             };
 
-            DialogResult = DialogResult.OK;
-            Close();
+            return true;
         }
 
         private static DeviceDefinition CloneDefinition(DeviceDefinition d)

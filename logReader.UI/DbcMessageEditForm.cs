@@ -15,8 +15,7 @@ namespace logReader.UI
         private readonly Button _btnAdd = new();
         private readonly Button _btnEdit = new();
         private readonly Button _btnDelete = new();
-        private readonly Button _btnOk = new();
-        private readonly Button _btnCancel = new();
+        private readonly Button _btnSave = new();
         private readonly TextBox _txtSearch = new();
         private readonly ComboBox _cmbType = MessageEditFormHelpers.MakeSignalTypeFilterCombo(includeBin: false);
         private readonly ComboBox _cmbOrder = MessageEditFormHelpers.MakeByteOrderFilterCombo();
@@ -26,13 +25,18 @@ namespace logReader.UI
 
         public DbcMessage Message { get; private set; }
         private readonly List<DbcSignal> _signals;
+        private bool _dirty;
+        private bool _suppressClosePrompt;
+        private bool _saved;
+        private readonly string _baseTitle;
 
         public DbcMessageEditForm(DbcMessage? initial)
         {
             Message = initial != null ? Clone(initial) : new DbcMessage();
             _signals = new List<DbcSignal>(Message.Signals);
 
-            Text = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
+            _baseTitle = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
+            Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(720, 460);
@@ -41,11 +45,30 @@ namespace logReader.UI
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             BuildLayout();
+            WireDirtyTracking();
             LoadFromMessage(Message);
+            FormClosing += OnFormClosing;
 
-            AcceptButton = _btnOk;
-            CancelButton = _btnCancel;
+            AcceptButton = _btnSave;
         }
+
+        private void WireDirtyTracking()
+        {
+            _txtName.TextChanged += (_, _) => MarkDirty();
+            _txtId.TextChanged += (_, _) => MarkDirty();
+            _numDlc.ValueChanged += (_, _) => MarkDirty();
+            _rbStandard.CheckedChanged += (_, _) => { if (_rbStandard.Checked) MarkDirty(); };
+            _rbExtended.CheckedChanged += (_, _) => { if (_rbExtended.Checked) MarkDirty(); };
+        }
+
+        private void MarkDirty()
+        {
+            if (_dirty) return;
+            _dirty = true;
+            UpdateTitle();
+        }
+
+        private void UpdateTitle() => Text = _dirty ? _baseTitle + " *" : _baseTitle;
 
         private void BuildLayout()
         {
@@ -157,14 +180,10 @@ namespace logReader.UI
                 Height = 54,
                 WrapContents = false
             };
-            _btnOk.Text = "OK";
-            _btnOk.Width = 100;
-            _btnOk.Click += (_, _) => OnOk();
-            _btnCancel.Text = "Отмена";
-            _btnCancel.Width = 100;
-            _btnCancel.DialogResult = DialogResult.Cancel;
-            bottom.Controls.Add(_btnOk);
-            bottom.Controls.Add(_btnCancel);
+            _btnSave.Text = "Сохранить изменения";
+            _btnSave.AutoSize = true;
+            _btnSave.Click += (_, _) => SaveChanges();
+            bottom.Controls.Add(_btnSave);
 
             Controls.Add(gridHost);
             Controls.Add(_lblFilterStatus);
@@ -249,6 +268,8 @@ namespace logReader.UI
             _rbExtended.Checked = m.IsExtended;
             _rbStandard.Checked = !m.IsExtended;
             RefreshGrid();
+            _dirty = false;
+            UpdateTitle();
         }
 
         private void RefreshGrid()
@@ -317,6 +338,7 @@ namespace logReader.UI
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
             _signals.Add(dlg.Signal);
+            MarkDirty();
             RefreshGrid();
             SelectRowBySourceIndex(_signals.Count - 1);
         }
@@ -338,6 +360,7 @@ namespace logReader.UI
             }
 
             _signals[idx] = dlg.Signal;
+            MarkDirty();
             RefreshGrid();
             SelectRowBySourceIndex(idx);
         }
@@ -356,23 +379,62 @@ namespace logReader.UI
             if (confirm != DialogResult.Yes) return;
 
             _signals.RemoveAt(idx);
+            MarkDirty();
             RefreshGrid();
         }
 
-        private void OnOk()
+        private void SaveChanges()
+        {
+            if (!TryCommitChanges())
+                return;
+
+            _dirty = false;
+            _saved = true;
+            UpdateTitle();
+        }
+
+        private void OnFormClosing(object? sender, FormClosingEventArgs e)
+        {
+            string description = string.IsNullOrWhiteSpace(_txtName.Text)
+                ? _baseTitle
+                : $"Посылка: {_txtName.Text.Trim()}";
+
+            MessageEditFormHelpers.ResolveFormCloseWithDirty(
+                this,
+                e,
+                _dirty,
+                _suppressClosePrompt,
+                description,
+                () =>
+                {
+                    if (!TryCommitChanges())
+                        return false;
+                    _suppressClosePrompt = true;
+                    _dirty = false;
+                    _saved = true;
+                    return true;
+                });
+
+            if (e.Cancel)
+                return;
+
+            DialogResult = _saved ? DialogResult.OK : DialogResult.Cancel;
+        }
+
+        private bool TryCommitChanges()
         {
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
                 MessageBox.Show(this, "Введите имя посылки.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
-                return;
+                return false;
             }
             if (name.Any(char.IsWhiteSpace))
             {
                 MessageBox.Show(this, "Имя посылки не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
-                return;
+                return false;
             }
             if (!DbcLineParser.IsValidSymbolName(name))
             {
@@ -380,7 +442,7 @@ namespace logReader.UI
                     "Недопустимое имя посылки. " + DbcLineParser.SymbolNameRulesHint,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
-                return;
+                return false;
             }
 
             bool isExtended = _rbExtended.Checked;
@@ -388,7 +450,7 @@ namespace logReader.UI
             {
                 MessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtId.Focus();
-                return;
+                return false;
             }
 
             if (_signals.Count == 0)
@@ -399,7 +461,7 @@ namespace logReader.UI
                     "Подтверждение",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
-                if (cont != DialogResult.Yes) return;
+                if (cont != DialogResult.Yes) return false;
             }
 
             int dlc = (int)_numDlc.Value;
@@ -411,7 +473,7 @@ namespace logReader.UI
                         this,
                         $"Сигнал '{s.Name}': недопустимое имя. {DbcLineParser.SymbolNameRulesHint}",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    return false;
                 }
                 if (!SignalFitsInDlc(s, dlc))
                 {
@@ -419,7 +481,7 @@ namespace logReader.UI
                         this,
                         $"Сигнал '{s.Name}' выходит за пределы DLC={dlc} байт.",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    return false;
                 }
             }
 
@@ -433,8 +495,7 @@ namespace logReader.UI
                 Signals = new List<DbcSignal>(_signals)
             };
 
-            DialogResult = DialogResult.OK;
-            Close();
+            return true;
         }
 
         private static bool SignalFitsInDlc(DbcSignal s, int dlc)

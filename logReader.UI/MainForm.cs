@@ -8,6 +8,7 @@ namespace logReader.UI
         private static readonly IReadOnlyList<FormatConversionPair> _conversionPairs = new List<FormatConversionPair>
         {
             new("trc_to_asc", "TRC -> ASC", ".trc", ".asc"),
+            new("csv_to_asc", "CSV -> ASC", ".csv", ".asc"),
         };
 
         private Dictionary<string, bool> _deviceEnabled = new();
@@ -722,6 +723,18 @@ namespace logReader.UI
                     {
                         var converter = new TrcToAscConverter();
                         converter.Convert(inputPath, outPath, Log);
+                        return;
+                    }
+
+                    if (pair.Id == "csv_to_asc")
+                    {
+                        if (!MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, LogFileEncoding.Detect(inputPath)))
+                        {
+                            Log("Ошибка: файл не является CSV-логом поддерживаемого формата.");
+                            return;
+                        }
+
+                        new MatrixCsvToAscConverter().Convert(inputPath, outPath, Log);
                         return;
                     }
 

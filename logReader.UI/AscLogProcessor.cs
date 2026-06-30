@@ -121,7 +121,24 @@ namespace logReader.UI
             }
             if (idIndex < 0) return false;
 
-            // DLC после маркера «d»; иначе — до восьми подряд идущих hex-байт.
+            bool isCanFd = tokens[1].Equals("CANFD", StringComparison.OrdinalIgnoreCase);
+            if (isCanFd)
+            {
+                if (!TryFindCanFdDataStart(tokens, idIndex, out int fdDataStart, out int dataByteCount))
+                    return false;
+
+                int toRead = Math.Min(dataByteCount, bytes.Length);
+                for (int i = 0; i < toRead; i++)
+                {
+                    if (fdDataStart + i >= tokens.Length) return false;
+                    if (!TryParseHexByte(tokens[fdDataStart + i], out int v)) return false;
+                    bytes[parsedByteCount++] = v;
+                }
+
+                return parsedByteCount > 0;
+            }
+
+            // Классический ASC: DLC после маркера «d»; иначе — до восьми подряд идущих hex-байт.
             int dlc = -1;
             for (int i = idIndex + 1; i < tokens.Length - 1; i++)
             {
@@ -157,6 +174,67 @@ namespace logReader.UI
             if (expected > 0 && parsedByteCount < expected) return false;
 
             return parsedByteCount > 0;
+        }
+
+        // Vector CAN FD ASC: после ID возможно символьное имя, затем BRS ESI DLC DataLength и байты.
+        private static bool TryFindCanFdDataStart(
+            string[] tokens,
+            int idIndex,
+            out int dataStart,
+            out int dataByteCount)
+        {
+            dataStart = -1;
+            dataByteCount = 0;
+
+            for (int i = idIndex + 1; i <= tokens.Length - 5; i++)
+            {
+                if (!int.TryParse(tokens[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    continue;
+                if (!int.TryParse(tokens[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    continue;
+                if (!int.TryParse(tokens[i + 2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc))
+                    continue;
+                if (!int.TryParse(tokens[i + 3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int dataLen))
+                    continue;
+                if (dlc is < 0 or > 15) continue;
+                if (dataLen is < 0 or > 64) continue;
+                if (dataLen > 0 && !TryParseHexByte(tokens[i + 4], out _))
+                    continue;
+
+                dataStart = i + 4;
+                dataByteCount = dataLen;
+                return true;
+            }
+
+            return false;
+        }
+
+        // Только ID кадра — для списка посылок лога и сканера устройств.
+        internal static bool TryParseFrameId(string line, out string id)
+        {
+            id = "";
+            if (string.IsNullOrWhiteSpace(line)) return false;
+            string trimmed = line.TrimStart();
+
+            if (trimmed.StartsWith("//")) return false;
+            if (trimmed.StartsWith("date", StringComparison.OrdinalIgnoreCase)) return false;
+            if (trimmed.StartsWith("base", StringComparison.OrdinalIgnoreCase)) return false;
+            if (trimmed.StartsWith("no internal events", StringComparison.OrdinalIgnoreCase)) return false;
+
+            if (trimmed.Length == 0 || (!char.IsDigit(trimmed[0]) && trimmed[0] != '-' && trimmed[0] != '+'))
+                return false;
+
+            var tokens = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length < 2) return false;
+            if (!TryParseOffsetSecondsToTicks(tokens[0], out _)) return false;
+
+            for (int i = 1; i < tokens.Length; i++)
+            {
+                if (TryNormalizeIdToken(tokens[i], out id))
+                    return true;
+            }
+
+            return false;
         }
     }
 
