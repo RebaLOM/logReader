@@ -652,8 +652,10 @@ namespace logReader
                 return LoadDevicesFromExcel(path, log);
             if (extension.Equals(".dbc", StringComparison.OrdinalIgnoreCase))
                 return DbcDevicesLoader.LoadDevicesFromDbc(path, log);
+            if (extension.Equals(".dbf", StringComparison.OrdinalIgnoreCase))
+                return DbcDevicesLoader.LoadDevicesFromDbf(path, log);
 
-            throw new NotSupportedException($"Поддерживаются только файлы .xlsx и .dbc: {path}");
+            throw new NotSupportedException($"Поддерживаются только файлы .xlsx, .dbc и .dbf: {path}");
         }
 
         public static CompositeRuntime LoadCompositesFromFile(string? path, Action<string>? log = null)

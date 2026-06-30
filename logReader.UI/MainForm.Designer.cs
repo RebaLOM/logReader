@@ -57,7 +57,7 @@ namespace logReader.UI
             labelDevices.Name = "labelDevices";
             labelDevices.Size = new Size(120, 15);
             labelDevices.TabIndex = 14;
-            labelDevices.Text = "Файл посылок (.xlsx | .dbc)";
+            labelDevices.Text = "Файл посылок (.xlsx | .dbc | .dbf)";
             // 
             // labelComposites
             // 

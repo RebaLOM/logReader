@@ -6,10 +6,11 @@ namespace logReader.UI
 {
     internal sealed class DevicesEditorForm : Form
     {
-        public enum FileKind { Xlsx, Dbc }
+        public enum FileKind { Xlsx, Dbc, Dbf }
 
         private readonly string _path;
         private readonly FileKind _kind;
+        private bool UsesDbcModel => _kind is FileKind.Dbc or FileKind.Dbf;
 
         private readonly DataGridView _grid = new();
         private readonly Button _btnAdd = new();
@@ -27,13 +28,18 @@ namespace logReader.UI
         {
             _path = path;
             string ext = Path.GetExtension(path);
-            _kind = ext.Equals(".dbc", StringComparison.OrdinalIgnoreCase)
-                ? FileKind.Dbc
-                : FileKind.Xlsx;
+            _kind = ext.Equals(".dbf", StringComparison.OrdinalIgnoreCase)
+                ? FileKind.Dbf
+                : ext.Equals(".dbc", StringComparison.OrdinalIgnoreCase)
+                    ? FileKind.Dbc
+                    : FileKind.Xlsx;
 
-            Text = _kind == FileKind.Dbc
-                ? "Редактор посылок (DBC)"
-                : "Редактор посылок (XLSX)";
+            Text = _kind switch
+            {
+                FileKind.Dbf => "Редактор посылок (DBF)",
+                FileKind.Dbc => "Редактор посылок (DBC)",
+                _ => "Редактор посылок (XLSX)"
+            };
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(760, 480);
@@ -124,9 +130,11 @@ namespace logReader.UI
         {
             try
             {
-                if (_kind == FileKind.Dbc)
+                if (UsesDbcModel)
                 {
-                    _dbcMessages = DbcFile.Read(_path);
+                    _dbcMessages = _kind == FileKind.Dbf
+                        ? DbfFile.Read(_path)
+                        : DbcFile.Read(_path);
                 }
                 else
                 {
@@ -144,7 +152,7 @@ namespace logReader.UI
         {
             _grid.Rows.Clear();
 
-            if (_kind == FileKind.Dbc)
+            if (UsesDbcModel)
             {
                 foreach (var m in _dbcMessages)
                 {
@@ -179,7 +187,7 @@ namespace logReader.UI
 
         private void AddNew()
         {
-            if (_kind == FileKind.Dbc)
+            if (UsesDbcModel)
             {
                 using var dlg = new DbcMessageEditForm(null);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
@@ -224,7 +232,7 @@ namespace logReader.UI
             int idx = SelectedIndex();
             if (idx < 0) return;
 
-            if (_kind == FileKind.Dbc)
+            if (UsesDbcModel)
             {
                 if (idx >= _dbcMessages.Count) return;
                 using var dlg = new DbcMessageEditForm(_dbcMessages[idx]);
@@ -268,7 +276,7 @@ namespace logReader.UI
             if (idx < 0) return;
 
             string name;
-            if (_kind == FileKind.Dbc)
+            if (UsesDbcModel)
             {
                 if (idx >= _dbcMessages.Count) return;
                 var m = _dbcMessages[idx];
@@ -289,7 +297,7 @@ namespace logReader.UI
                 MessageBoxIcon.Question);
             if (confirm != DialogResult.Yes) return;
 
-            if (_kind == FileKind.Dbc)
+            if (UsesDbcModel)
             {
                 var backup = new List<DbcMessage>(_dbcMessages);
                 _dbcMessages.RemoveAt(idx);
@@ -312,8 +320,13 @@ namespace logReader.UI
             {
                 EnsureFileNotLocked();
 
-                if (_kind == FileKind.Dbc)
-                    DbcFile.Write(_path, _dbcMessages);
+                if (UsesDbcModel)
+                {
+                    if (_kind == FileKind.Dbf)
+                        DbfFile.Write(_path, _dbcMessages);
+                    else
+                        DbcFile.Write(_path, _dbcMessages);
+                }
                 else
                     DeviceExcelFile.WriteAllDevices(_path, _xlsxDevices);
 

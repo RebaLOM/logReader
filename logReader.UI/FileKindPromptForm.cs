@@ -4,7 +4,7 @@ namespace logReader.UI
 {
     internal sealed class FileKindPromptForm : Form
     {
-        public enum FileKind { None, Xlsx, Dbc }
+        public enum FileKind { None, Xlsx, Dbc, Dbf }
 
         public FileKind SelectedKind { get; private set; } = FileKind.None;
 
@@ -16,7 +16,7 @@ namespace logReader.UI
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(380, 190);
+            ClientSize = new Size(520, 190);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -25,13 +25,14 @@ namespace logReader.UI
                 Dock = DockStyle.Fill,
                 Padding = new Padding(16),
                 RowCount = 3,
-                ColumnCount = 2
+                ColumnCount = 3
             };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
 
             var header = new Label
             {
@@ -41,13 +42,13 @@ namespace logReader.UI
                 Margin = new Padding(0, 0, 0, 12)
             };
             root.Controls.Add(header, 0, 0);
-            root.SetColumnSpan(header, 2);
+            root.SetColumnSpan(header, 3);
 
             var btnXlsx = new Button
             {
                 Text = "Excel (.xlsx)",
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 8, 0),
+                Margin = new Padding(0, 0, 6, 0),
                 Height = 44
             };
             btnXlsx.Click += (_, _) =>
@@ -62,7 +63,7 @@ namespace logReader.UI
             {
                 Text = "DBC (.dbc)",
                 Dock = DockStyle.Fill,
-                Margin = new Padding(8, 0, 0, 0),
+                Margin = new Padding(3, 0, 3, 0),
                 Height = 44
             };
             btnDbc.Click += (_, _) =>
@@ -72,6 +73,21 @@ namespace logReader.UI
                 Close();
             };
             root.Controls.Add(btnDbc, 1, 1);
+
+            var btnDbf = new Button
+            {
+                Text = "DBF (.dbf)",
+                Dock = DockStyle.Fill,
+                Margin = new Padding(6, 0, 0, 0),
+                Height = 44
+            };
+            btnDbf.Click += (_, _) =>
+            {
+                SelectedKind = FileKind.Dbf;
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            root.Controls.Add(btnDbf, 2, 1);
 
             var bottom = new FlowLayoutPanel
             {
@@ -89,7 +105,7 @@ namespace logReader.UI
             };
             bottom.Controls.Add(btnCancel);
             root.Controls.Add(bottom, 0, 2);
-            root.SetColumnSpan(bottom, 2);
+            root.SetColumnSpan(bottom, 3);
 
             Controls.Add(root);
             CancelButton = btnCancel;

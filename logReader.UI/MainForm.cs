@@ -100,7 +100,8 @@ namespace logReader.UI
 
             string ext = Path.GetExtension(path);
             return ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
-                || ext.Equals(".dbc", StringComparison.OrdinalIgnoreCase);
+                || ext.Equals(".dbc", StringComparison.OrdinalIgnoreCase)
+                || ext.Equals(".dbf", StringComparison.OrdinalIgnoreCase);
         }
 
         private bool IsDevicesExcelFileSelectedAndExists()
@@ -265,7 +266,7 @@ namespace logReader.UI
         private void buttonDevices_Click(object sender, EventArgs e)
         {
             using OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "Файлы посылок (*.xlsx;*.dbc)|*.xlsx;*.dbc|Excel files (*.xlsx)|*.xlsx|DBC files (*.dbc)|*.dbc";
+            ofd.Filter = "Файлы посылок (*.xlsx;*.dbc;*.dbf)|*.xlsx;*.dbc;*.dbf|Excel files (*.xlsx)|*.xlsx|DBC files (*.dbc)|*.dbc|DBF files (*.dbf)|*.dbf";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 if (textBoxDevices.Text != ofd.FileName)
@@ -333,6 +334,11 @@ namespace logReader.UI
                 sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
                 sfd.DefaultExt = "xlsx";
             }
+            else if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.Dbf)
+            {
+                sfd.Filter = "DBF files (*.dbf)|*.dbf";
+                sfd.DefaultExt = "dbf";
+            }
             else
             {
                 sfd.Filter = "DBC files (*.dbc)|*.dbc";
@@ -345,6 +351,8 @@ namespace logReader.UI
             {
                 if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.Xlsx)
                     logReader.DeviceExcelFile.CreateDevicesExcelTemplate(sfd.FileName);
+                else if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.Dbf)
+                    logReader.DbfFile.CreateEmpty(sfd.FileName);
                 else
                     logReader.DbcFile.CreateEmpty(sfd.FileName);
 
@@ -734,7 +742,7 @@ namespace logReader.UI
         {
             if (!File.Exists(textBoxDevices.Text))
             {
-                Log("Ошибка: сначала укажите файл посылок (.xlsx или .dbc).");
+                Log("Ошибка: сначала укажите файл посылок (.xlsx, .dbc или .dbf).");
                 return;
             }
             try
@@ -817,7 +825,7 @@ namespace logReader.UI
             }
             if (!IsDevicesFileSelectedAndExists())
             {
-                Log("Ошибка: файл посылок (.xlsx или .dbc) не найден.");
+                Log("Ошибка: файл посылок (.xlsx, .dbc или .dbf) не найден.");
                 return;
             }
 

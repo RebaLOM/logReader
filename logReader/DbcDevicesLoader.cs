@@ -6,89 +6,80 @@ namespace logReader
     {
         public static List<Device> LoadDevicesFromDbc(string dbcPath, Action<string>? log = null)
         {
-            var logger = log ?? Console.WriteLine;
-
             if (!File.Exists(dbcPath))
                 throw new FileNotFoundException($"Файл не найден: {dbcPath}");
 
+            return LoadDevicesFromMessages(DbcFile.Read(dbcPath), log);
+        }
+
+        public static List<Device> LoadDevicesFromDbf(string dbfPath, Action<string>? log = null)
+        {
+            if (!File.Exists(dbfPath))
+                throw new FileNotFoundException($"Файл не найден: {dbfPath}");
+
+            return LoadDevicesFromMessages(DbfFile.Read(dbfPath), log);
+        }
+
+        public static List<Device> LoadDevicesFromMessages(IReadOnlyList<DbcMessage> messages, Action<string>? log = null)
+        {
+            var logger = log ?? Console.WriteLine;
             var deviceGroups = new Dictionary<string, List<FieldInstruction>>(StringComparer.OrdinalIgnoreCase);
             var order = new List<string>();
-            string? currentDeviceId = null;
             var seenMessageIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (string rawLine in File.ReadLines(dbcPath))
+            foreach (var message in messages)
             {
-                string line = rawLine.Trim();
-                if (string.IsNullOrWhiteSpace(line)) continue;
+                string deviceId = message.Id.ToString("X", CultureInfo.InvariantCulture);
 
-                if (DbcLineParser.TryParseMessage(line, out var header))
+                if (!seenMessageIds.Add(deviceId))
+                    logger($"Предупреждение: дубликат 0x{deviceId} — сигналы будут объединены.");
+
+                if (!deviceGroups.ContainsKey(deviceId))
                 {
-                    currentDeviceId = header.Id.ToString("X", CultureInfo.InvariantCulture);
-
-                    if (!seenMessageIds.Add(currentDeviceId))
-                    {
-                        logger($"Предупреждение: дубликат BO_ 0x{currentDeviceId} — сигналы будут объединены.");
-                    }
-
-                    if (!deviceGroups.ContainsKey(currentDeviceId))
-                    {
-                        deviceGroups[currentDeviceId] = new List<FieldInstruction>();
-                        order.Add(currentDeviceId);
-                    }
-
-                    continue;
+                    deviceGroups[deviceId] = new List<FieldInstruction>();
+                    order.Add(deviceId);
                 }
 
-                if (currentDeviceId == null || !line.StartsWith("SG_", StringComparison.Ordinal))
-                    continue;
-
-                if (!DbcLineParser.TryParseSignal(line, out var sig))
+                foreach (var sig in message.Signals)
                 {
-                    logger($"Предупреждение: не удалось разобрать сигнал DBC: {line}");
-                    continue;
-                }
-
-                if (sig.Length <= 0 || sig.Length > 64)
-                {
-                    logger($"Предупреждение: '{sig.Name}': Length={sig.Length} вне 1..64 — пропущен.");
-                    continue;
-                }
-
-                if (sig.IsLittleEndian)
-                {
-                    if (sig.StartBit < 0 || sig.StartBit + sig.Length > 64)
+                    if (sig.Length <= 0 || sig.Length > 64)
                     {
-                        logger($"Предупреждение: Intel сигнал '{sig.Name}' вне 64 бит — пропущен.");
+                        logger($"Предупреждение: '{sig.Name}': Length={sig.Length} вне 1..64 — пропущен.");
                         continue;
                     }
-                }
-                else
-                {
-                    // Motorola: StartBit — MSB; границы 0..63, не start+length.
-                    if (sig.StartBit < 0 || sig.StartBit > 63)
+
+                    if (sig.IsLittleEndian)
+                    {
+                        if (sig.StartBit < 0 || sig.StartBit + sig.Length > 64)
+                        {
+                            logger($"Предупреждение: Intel сигнал '{sig.Name}' вне 64 бит — пропущен.");
+                            continue;
+                        }
+                    }
+                    else if (sig.StartBit < 0 || sig.StartBit > 63)
                     {
                         logger($"Предупреждение: Motorola сигнал '{sig.Name}': StartBit={sig.StartBit} вне 0..63 — пропущен.");
                         continue;
                     }
-                }
 
-                var list = deviceGroups[currentDeviceId];
-                list.Add(new FieldInstruction
-                {
-                    FieldIndex = list.Count,
-                    Header = BeautifySignalName(sig.Name),
-                    Type = "NUM",
-                    StartBit = sig.StartBit,
-                    LengthBit = sig.Length,
-                    Scale = sig.Factor,
-                    Offset = sig.Offset,
-                    UseBitExtraction = true,
-                    IsLittleEndian = sig.IsLittleEndian,
-                    SignedRaw = sig.IsSigned,
-                    Unit = sig.Unit ?? "",
-                    Min = sig.Min,
-                    Max = sig.Max,
-                });
+                    var list = deviceGroups[deviceId];
+                    list.Add(new FieldInstruction
+                    {
+                        FieldIndex = list.Count,
+                        Header = BeautifySignalName(sig.Name),
+                        Type = "NUM",
+                        StartBit = sig.StartBit,
+                        LengthBit = sig.Length,
+                        Scale = sig.Factor,
+                        Offset = sig.Offset,
+                        UseBitExtraction = true,
+                        IsLittleEndian = sig.IsLittleEndian,
+                        SignedRaw = sig.IsSigned,
+                        Unit = sig.Unit ?? "",
+                        Min = sig.Min,
+                        Max = sig.Max,
+                    });
+                }
             }
 
             return order

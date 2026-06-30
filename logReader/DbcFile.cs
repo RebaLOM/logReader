@@ -47,7 +47,7 @@ namespace logReader
 
         public static void Write(string path, IReadOnlyList<DbcMessage> messages)
         {
-            ValidateForWrite(messages);
+            ValidateMessages(messages);
 
             SafeFileWriter.Write(path, tmp =>
             {
@@ -124,7 +124,7 @@ namespace logReader
             Write(path, Array.Empty<DbcMessage>());
         }
 
-        private static void ValidateForWrite(IReadOnlyList<DbcMessage> messages)
+        internal static void ValidateMessages(IReadOnlyList<DbcMessage> messages)
         {
             if (messages == null) throw new ArgumentNullException(nameof(messages));
 

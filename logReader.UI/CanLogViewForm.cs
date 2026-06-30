@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Text;
 
 namespace logReader.UI
 {
@@ -93,6 +94,13 @@ namespace logReader.UI
             var encoding = LogFileEncoding.Detect(inputPath);
             bool isCanfox = !isTrc && !isAsc && CanfoxLogParser.LooksLikeCanfoxLog(inputPath, encoding);
 
+            if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase)
+                && MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, encoding))
+            {
+                ProcessMatrixCsvFile(inputPath, encoding, counts);
+                return;
+            }
+
             foreach (var line in File.ReadLines(inputPath, encoding))
             {
                 if (string.IsNullOrWhiteSpace(line))
@@ -138,6 +146,55 @@ namespace logReader.UI
                     continue;
 
                 counts[id] = counts.TryGetValue(id, out int n) ? n + 1 : 1;
+            }
+        }
+
+        private static void ProcessMatrixCsvFile(
+            string inputPath,
+            Encoding encoding,
+            Dictionary<string, int> counts)
+        {
+            bool headerRead = false;
+            List<MatrixCsvColumn> columns = new();
+            Span<int> msgBytes = stackalloc int[8];
+
+            foreach (string line in File.ReadLines(inputPath, encoding))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                if (!headerRead)
+                {
+                    if (!MatrixCsvLogParser.TryReadHeader(line, out columns, out _))
+                        return;
+
+                    foreach (MatrixCsvColumn col in columns)
+                    {
+                        if (!counts.ContainsKey(col.Id))
+                            counts[col.Id] = 0;
+                    }
+
+                    headerRead = true;
+                    continue;
+                }
+
+                string[] parts = line.Split(';');
+                if (parts.Length < 2 || !MatrixCsvLogParser.TryParseTimeCell(parts[0], out _))
+                    continue;
+
+                foreach (MatrixCsvColumn col in columns)
+                {
+                    if (col.ColumnIndex >= parts.Length)
+                        continue;
+
+                    string cell = parts[col.ColumnIndex];
+                    if (MatrixCsvLogParser.IsCellEmpty(cell))
+                        continue;
+                    if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes))
+                        continue;
+
+                    counts[col.Id] = counts.TryGetValue(col.Id, out int n) ? n + 1 : 1;
+                }
             }
         }
 
