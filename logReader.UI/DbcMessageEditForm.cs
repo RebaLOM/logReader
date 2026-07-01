@@ -22,6 +22,7 @@ namespace logReader.UI
         private readonly TextBox _txtLenMin = MessageEditFormHelpers.MakeFilterTextBox();
         private readonly TextBox _txtLenMax = MessageEditFormHelpers.MakeFilterTextBox();
         private readonly Label _lblFilterStatus = new();
+        private readonly CanPayloadGridControl _payloadGrid = new();
 
         public DbcMessage Message { get; private set; }
         private readonly List<DbcSignal> _signals;
@@ -56,7 +57,11 @@ namespace logReader.UI
         {
             _txtName.TextChanged += (_, _) => MarkDirty();
             _txtId.TextChanged += (_, _) => MarkDirty();
-            _numDlc.ValueChanged += (_, _) => MarkDirty();
+            _numDlc.ValueChanged += (_, _) =>
+            {
+                MarkDirty();
+                RefreshPayloadGrid();
+            };
             _rbStandard.CheckedChanged += (_, _) => { if (_rbStandard.Checked) MarkDirty(); };
             _rbExtended.CheckedChanged += (_, _) => { if (_rbExtended.Checked) MarkDirty(); };
         }
@@ -170,7 +175,23 @@ namespace logReader.UI
             MessageEditFormHelpers.ApplySignalListColumnWeights(_grid);
 
             var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
-            gridHost.Controls.Add(_grid);
+            _grid.Dock = DockStyle.Fill;
+            var gridSplit = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2
+            };
+            gridSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            gridSplit.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            gridSplit.Controls.Add(_grid, 0, 0);
+
+            _payloadGrid.Mode = CanPayloadGridMode.View;
+            _payloadGrid.ShowLegend = true;
+            _payloadGrid.Margin = new Padding(0, 8, 0, 0);
+            _payloadGrid.Dock = DockStyle.Top;
+            gridSplit.Controls.Add(_payloadGrid, 0, 1);
+            gridHost.Controls.Add(gridSplit);
 
             var bottom = new FlowLayoutPanel
             {
@@ -312,6 +333,14 @@ namespace logReader.UI
             _lblFilterStatus.Text = shown == _signals.Count
                 ? $"Показано: {shown}"
                 : $"Показано: {shown} из {_signals.Count}";
+
+            RefreshPayloadGrid();
+        }
+
+        private void RefreshPayloadGrid()
+        {
+            _payloadGrid.Dlc = (int)_numDlc.Value;
+            _payloadGrid.Overlays = CanPayloadGridFactory.FromDbcSignals(_signals);
         }
 
         private int SelectedIndex() => MessageEditFormHelpers.SelectedSourceIndex(_grid);
@@ -334,7 +363,8 @@ namespace logReader.UI
             using var dlg = new DbcSignalEditForm(
                 null,
                 (int)_numDlc.Value,
-                _signals.Select(s => s.Name));
+                _signals.Select(s => s.Name),
+                _signals);
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
             _signals.Add(dlg.Signal);
@@ -348,7 +378,12 @@ namespace logReader.UI
             int idx = SelectedIndex();
             if (idx < 0 || idx >= _signals.Count) return;
 
-            using var dlg = new DbcSignalEditForm(_signals[idx], (int)_numDlc.Value);
+            using var dlg = new DbcSignalEditForm(
+                _signals[idx],
+                (int)_numDlc.Value,
+                _signals.Where((_, i) => i != idx).Select(s => s.Name),
+                _signals,
+                _signals[idx].Name);
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
             if (_signals

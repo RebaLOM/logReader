@@ -58,5 +58,76 @@ namespace logReader
             }
             return true;
         }
+
+        public static int CellToGlobalBit(int byteIndex, int bitInByte) => byteIndex * 8 + bitInByte;
+
+        public static bool TryGlobalBitToCell(int globalBit, out int byteIndex, out int bitInByte)
+        {
+            byteIndex = 0;
+            bitInByte = 0;
+            if (globalBit < 0) return false;
+            byteIndex = globalBit / 8;
+            bitInByte = globalBit % 8;
+            return true;
+        }
+
+        public static IEnumerable<int> EnumerateSignalBits(int startBit, int length, bool littleEndian)
+        {
+            if (length <= 0) yield break;
+
+            if (littleEndian)
+            {
+                for (int i = 0; i < length; i++)
+                    yield return startBit + i;
+                yield break;
+            }
+
+            int bit = startBit;
+            for (int i = 0; i < length; i++)
+            {
+                yield return bit;
+                if ((bit % 8) == 0) bit += 15;
+                else bit -= 1;
+            }
+        }
+
+        public static bool TryBuildSelectionFromGlobalBits(
+            int anchorBit,
+            int targetBit,
+            bool littleEndian,
+            int payloadBits,
+            out int startBit,
+            out int length)
+        {
+            startBit = 0;
+            length = 0;
+            if (anchorBit < 0 || anchorBit >= payloadBits || targetBit < 0 || targetBit >= payloadBits)
+                return false;
+
+            if (littleEndian)
+            {
+                int lo = Math.Min(anchorBit, targetBit);
+                int hi = Math.Max(anchorBit, targetBit);
+                startBit = lo;
+                length = hi - lo + 1;
+                return length > 0;
+            }
+
+            var path = new List<int>();
+            int bit = anchorBit;
+            path.Add(bit);
+            while (bit != targetBit)
+            {
+                if ((bit % 8) == 0) bit += 15;
+                else bit -= 1;
+                if (bit < 0 || bit >= payloadBits) return false;
+                path.Add(bit);
+                if (path.Count > payloadBits) return false;
+            }
+
+            startBit = anchorBit;
+            length = path.Count;
+            return true;
+        }
     }
 }

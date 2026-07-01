@@ -21,21 +21,29 @@ namespace logReader.UI
         private readonly RadioButton _rbMotorola = new();
         private readonly Button _btnOk = new();
         private readonly Button _btnCancel = new();
+        private readonly CanPayloadGridControl _payloadGrid = new();
 
         private readonly int _messageDlc;
         private readonly IReadOnlyList<string> _existingSignalNames;
+        private readonly IReadOnlyList<DbcSignal> _siblingSignals;
+        private readonly string? _currentSignalName;
+        private bool _syncingFromGrid;
 
         public DbcSignal Signal { get; private set; }
 
         public DbcSignalEditForm(
             DbcSignal? initial,
             int messageDlc,
-            IEnumerable<string>? existingSignalNames = null)
+            IEnumerable<string>? existingSignalNames = null,
+            IEnumerable<DbcSignal>? siblingSignals = null,
+            string? currentSignalName = null)
         {
             _messageDlc = Math.Clamp(messageDlc, 1, 8);
             _existingSignalNames = existingSignalNames != null
                 ? existingSignalNames.ToList()
                 : Array.Empty<string>();
+            _siblingSignals = siblingSignals?.ToList() ?? new List<DbcSignal>();
+            _currentSignalName = currentSignalName ?? initial?.Name;
             Signal = initial != null ? Clone(initial) : new DbcSignal();
 
             Text = "Signal Details";
@@ -44,106 +52,157 @@ namespace logReader.UI
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(520, 275);
+            ClientSize = new Size(540, 560);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             BuildLayout();
             LoadFromSignal(Signal);
-
-            _numLength.ValueChanged += (_, _) => RecalcHexBounds();
-            _cmbType.SelectedIndexChanged += (_, _) => RecalcHexBounds();
+            WireGridSync();
 
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
         }
 
+        private void WireGridSync()
+        {
+            _numLength.ValueChanged += (_, _) => { RecalcHexBounds(); SyncGridFromFields(); };
+            _cmbType.SelectedIndexChanged += (_, _) => RecalcHexBounds();
+            _numByteIndex.ValueChanged += (_, _) => SyncGridFromFields();
+            _numStartBitInByte.ValueChanged += (_, _) => SyncGridFromFields();
+            _rbIntel.CheckedChanged += (_, _) => { if (_rbIntel.Checked) SyncGridFromFields(); };
+            _rbMotorola.CheckedChanged += (_, _) => { if (_rbMotorola.Checked) SyncGridFromFields(); };
+            _payloadGrid.SelectionChanged += (_, _) => SyncFieldsFromGrid();
+        }
+
+        private void SyncGridFromFields()
+        {
+            if (_syncingFromGrid) return;
+            _payloadGrid.IsLittleEndian = _rbIntel.Checked;
+            _payloadGrid.SetSelectionFromFields(
+                (int)_numByteIndex.Value,
+                (int)_numStartBitInByte.Value,
+                (int)_numLength.Value,
+                _rbIntel.Checked,
+                fireEvent: false);
+        }
+
+        private void SyncFieldsFromGrid()
+        {
+            _syncingFromGrid = true;
+            _payloadGrid.ApplySelectionToFields(out int byteIndex, out int bitInByte, out int length);
+            _numByteIndex.Value = Math.Clamp(byteIndex, (int)_numByteIndex.Minimum, (int)_numByteIndex.Maximum);
+            _numStartBitInByte.Value = Math.Clamp(bitInByte, 0, 7);
+            _numLength.Value = Math.Clamp(length, (int)_numLength.Minimum, (int)_numLength.Maximum);
+            RecalcHexBounds();
+            _syncingFromGrid = false;
+        }
+
         private void BuildLayout()
         {
-            Controls.Add(MakeLabel("Name:", 12, 14));
-            _txtName.Location = new Point(70, 11);
-            _txtName.Size = new Size(390, 23);
-            Controls.Add(_txtName);
+            var fieldsPanel = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(540, 250)
+            };
 
-            Controls.Add(MakeLabel("Type:", 12, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Name:", 12, 14));
+            _txtName.Location = new Point(70, 11);
+            _txtName.Size = new Size(450, 23);
+            fieldsPanel.Controls.Add(_txtName);
+
+            fieldsPanel.Controls.Add(MakeLabel("Type:", 12, 47));
             _cmbType.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbType.Items.AddRange(new object[] { "int (знаковый)", "uint (беззнаковый)" });
             _cmbType.Location = new Point(70, 44);
             _cmbType.Size = new Size(160, 23);
-            Controls.Add(_cmbType);
+            fieldsPanel.Controls.Add(_cmbType);
 
-            Controls.Add(MakeLabel("Byte Index:", 245, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Byte Index:", 245, 47));
             _numByteIndex.Minimum = 0;
             _numByteIndex.Maximum = _messageDlc - 1;
             _numByteIndex.Location = new Point(325, 44);
             _numByteIndex.Size = new Size(55, 23);
-            Controls.Add(_numByteIndex);
+            fieldsPanel.Controls.Add(_numByteIndex);
 
-            Controls.Add(MakeLabel("Start Bit:", 395, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Start Bit:", 395, 47));
             _numStartBitInByte.Minimum = 0;
             _numStartBitInByte.Maximum = 7;
-            _numStartBitInByte.Location = new Point(455, 44);
+            _numStartBitInByte.Location = new Point(470, 44);
             _numStartBitInByte.Size = new Size(50, 23);
-            Controls.Add(_numStartBitInByte);
+            fieldsPanel.Controls.Add(_numStartBitInByte);
 
-            Controls.Add(MakeLabel("Length:", 12, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Length:", 12, 80));
             _numLength.Minimum = 1;
             _numLength.Maximum = 64;
             _numLength.Value = 8;
             _numLength.Location = new Point(70, 77);
             _numLength.Size = new Size(60, 23);
-            Controls.Add(_numLength);
-            Controls.Add(MakeLabel("Bits", 135, 80));
+            fieldsPanel.Controls.Add(_numLength);
+            fieldsPanel.Controls.Add(MakeLabel("Bits", 135, 80));
 
-            Controls.Add(MakeLabel("Min Val:", 165, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Min Val:", 165, 80));
             _txtMinHex.ReadOnly = true;
             _txtMinHex.Location = new Point(242, 77);
             _txtMinHex.Size = new Size(70, 23);
-            Controls.Add(_txtMinHex);
+            fieldsPanel.Controls.Add(_txtMinHex);
 
-            Controls.Add(MakeLabel("Max Val:", 325, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Max Val:", 325, 80));
             _txtMaxHex.ReadOnly = true;
             _txtMaxHex.Location = new Point(402, 77);
             _txtMaxHex.Size = new Size(60, 23);
-            Controls.Add(_txtMaxHex);
+            fieldsPanel.Controls.Add(_txtMaxHex);
 
-            Controls.Add(MakeLabel("Offset:", 12, 113));
+            fieldsPanel.Controls.Add(MakeLabel("Offset:", 12, 113));
             _txtOffset.Location = new Point(70, 110);
             _txtOffset.Size = new Size(80, 23);
-            Controls.Add(_txtOffset);
+            fieldsPanel.Controls.Add(_txtOffset);
 
-            Controls.Add(MakeLabel("Factor:", 165, 113));
+            fieldsPanel.Controls.Add(MakeLabel("Factor:", 165, 113));
             _txtFactor.Location = new Point(220, 110);
             _txtFactor.Size = new Size(90, 23);
-            Controls.Add(_txtFactor);
+            fieldsPanel.Controls.Add(_txtFactor);
 
-            Controls.Add(MakeLabel("Unit:", 325, 113));
+            fieldsPanel.Controls.Add(MakeLabel("Unit:", 325, 113));
             _txtUnit.Location = new Point(370, 110);
-            _txtUnit.Size = new Size(90, 23);
-            Controls.Add(_txtUnit);
+            _txtUnit.Size = new Size(150, 23);
+            fieldsPanel.Controls.Add(_txtUnit);
 
-            Controls.Add(MakeLabel("Byte Order:", 12, 150));
+            fieldsPanel.Controls.Add(MakeLabel("Byte Order:", 12, 150));
             _rbIntel.Text = "Intel — little-endian";
             _rbIntel.Location = new Point(12, 170);
             _rbIntel.AutoSize = true;
-            Controls.Add(_rbIntel);
+            fieldsPanel.Controls.Add(_rbIntel);
 
             _rbMotorola.Text = "Motorola — big-endian";
             _rbMotorola.Location = new Point(12, 194);
             _rbMotorola.AutoSize = true;
-            Controls.Add(_rbMotorola);
+            fieldsPanel.Controls.Add(_rbMotorola);
+
+            _payloadGrid.Mode = CanPayloadGridMode.Edit;
+            _payloadGrid.ShowLegend = true;
+            _payloadGrid.Dlc = _messageDlc;
+            _payloadGrid.Location = new Point(12, 258);
+            _payloadGrid.Anchor = AnchorStyles.Top | AnchorStyles.Left;
 
             _btnOk.Text = "OK";
-            _btnOk.Location = new Point(340, 230);
+            _btnOk.Location = new Point(360, 515);
             _btnOk.Size = new Size(80, 30);
             _btnOk.Click += (_, _) => OnOk();
-            Controls.Add(_btnOk);
-
             _btnCancel.Text = "Отмена";
-            _btnCancel.Location = new Point(425, 230);
+            _btnCancel.Location = new Point(445, 515);
             _btnCancel.Size = new Size(80, 30);
             _btnCancel.DialogResult = DialogResult.Cancel;
+
+            Controls.Add(fieldsPanel);
+            Controls.Add(_payloadGrid);
+            Controls.Add(_btnOk);
             Controls.Add(_btnCancel);
+        }
+
+        private void RefreshPayloadOverlays()
+        {
+            _payloadGrid.Overlays = CanPayloadGridFactory.FromDbcSignals(_siblingSignals, _currentSignalName);
         }
 
         private void RecalcHexBounds()
@@ -185,6 +244,9 @@ namespace logReader.UI
             ComputeRawRange(s.Length, s.IsSigned, out rawMin, out rawMax);
             _txtMinHex.Text = FormatRawBound(rawMin, s.Length, s.IsSigned);
             _txtMaxHex.Text = FormatRawBound(rawMax, s.Length, s.IsSigned);
+
+            RefreshPayloadOverlays();
+            SyncGridFromFields();
         }
 
         private void OnOk()

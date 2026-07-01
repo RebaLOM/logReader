@@ -32,16 +32,27 @@ namespace logReader.UI
         private readonly Panel _panelBin = new();
         private readonly Button _btnOk = new();
         private readonly Button _btnCancel = new();
+        private readonly CanPayloadGridControl _payloadGrid = new();
 
         private readonly int _fieldIndex;
         private readonly int _dlc;
+        private readonly IReadOnlyList<DeviceFieldRow> _siblingRows;
+        private readonly string? _currentHeader;
+        private bool _syncingFromGrid;
 
         public DeviceFieldRow Row { get; private set; }
 
-        public DeviceFieldRowEditForm(DeviceFieldRow? initial, int dlc, int fieldIndex)
+        public DeviceFieldRowEditForm(
+            DeviceFieldRow? initial,
+            int dlc,
+            int fieldIndex,
+            IEnumerable<DeviceFieldRow>? siblingRows = null,
+            string? currentHeader = null)
         {
             _dlc = Math.Clamp(dlc, 1, 8);
             _fieldIndex = fieldIndex;
+            _siblingRows = siblingRows?.ToList() ?? new List<DeviceFieldRow>();
+            _currentHeader = currentHeader ?? initial?.Header;
 
             Text = initial == null ? "Signal Details" : "Signal Details (изменение)";
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -49,7 +60,7 @@ namespace logReader.UI
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(540, 370);
+            ClientSize = new Size(540, 580);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -57,10 +68,10 @@ namespace logReader.UI
 
             BuildLayout();
             LoadFromRow(Row);
+            WireGridSync();
 
-            _rbKindNum.CheckedChanged += (_, _) => SwitchPanels();
-            _rbKindBin.CheckedChanged += (_, _) => SwitchPanels();
-            _numLength.ValueChanged += (_, _) => RecalcHexBounds();
+            _rbKindNum.CheckedChanged += (_, _) => { SwitchPanels(); RefreshGridMode(); };
+            _rbKindBin.CheckedChanged += (_, _) => { SwitchPanels(); RefreshGridMode(); };
             _cmbRawType.SelectedIndexChanged += (_, _) => RecalcHexBounds();
 
             AcceptButton = _btnOk;
@@ -108,9 +119,15 @@ namespace logReader.UI
             BuildPanelNum();
             BuildPanelBin();
 
-            var host = new Panel { Dock = DockStyle.Fill };
+            var host = new Panel { Dock = DockStyle.Top, Height = 220 };
             host.Controls.Add(_panelBin);
             host.Controls.Add(_panelNum);
+
+            _payloadGrid.Mode = CanPayloadGridMode.Edit;
+            _payloadGrid.ShowLegend = true;
+            _payloadGrid.Dlc = _dlc;
+            _payloadGrid.Dock = DockStyle.Top;
+            _payloadGrid.Margin = new Padding(8, 4, 8, 4);
 
             var bottom = new FlowLayoutPanel
             {
@@ -128,9 +145,84 @@ namespace logReader.UI
             bottom.Controls.Add(_btnOk);
             bottom.Controls.Add(_btnCancel);
 
+            Controls.Add(bottom);
+            Controls.Add(_payloadGrid);
             Controls.Add(host);
             Controls.Add(topKind);
-            Controls.Add(bottom);
+        }
+
+        private void WireGridSync()
+        {
+            _numLength.ValueChanged += (_, _) => { RecalcHexBounds(); SyncGridFromFields(); };
+            _numByteIndex.ValueChanged += (_, _) => SyncGridFromFields();
+            _numStartBitInByte.ValueChanged += (_, _) => SyncGridFromFields();
+            _rbIntel.CheckedChanged += (_, _) => { if (_rbIntel.Checked) SyncGridFromFields(); };
+            _rbMotorola.CheckedChanged += (_, _) => { if (_rbMotorola.Checked) SyncGridFromFields(); };
+            _numBinByte.ValueChanged += (_, _) => SyncGridFromFields();
+            _numBinBitStart.ValueChanged += (_, _) => SyncGridFromFields();
+            _numBinLength.ValueChanged += (_, _) => SyncGridFromFields();
+            _payloadGrid.SelectionChanged += (_, _) => SyncFieldsFromGrid();
+        }
+
+        private void RefreshGridMode()
+        {
+            bool bin = _rbKindBin.Checked;
+            _payloadGrid.BinByteMode = bin;
+            if (bin)
+            {
+                _numBinByte.Maximum = _dlc - 1;
+                _payloadGrid.BinByteIndex = (int)_numBinByte.Value;
+            }
+            RefreshPayloadOverlays();
+            SyncGridFromFields();
+        }
+
+        private void RefreshPayloadOverlays()
+        {
+            _payloadGrid.Overlays = CanPayloadGridFactory.FromDeviceRows(_siblingRows, _currentHeader);
+        }
+
+        private void SyncGridFromFields()
+        {
+            if (_syncingFromGrid) return;
+            if (_rbKindBin.Checked)
+            {
+                _payloadGrid.BinByteMode = true;
+                _payloadGrid.BinByteIndex = (int)_numBinByte.Value;
+                _payloadGrid.IsLittleEndian = true;
+                int global = BitMath.CellToGlobalBit((int)_numBinByte.Value, (int)_numBinBitStart.Value);
+                _payloadGrid.SetSelection(global, (int)_numBinLength.Value, fireEvent: false);
+                return;
+            }
+
+            _payloadGrid.BinByteMode = false;
+            _payloadGrid.IsLittleEndian = _rbIntel.Checked;
+            _payloadGrid.SetSelectionFromFields(
+                (int)_numByteIndex.Value,
+                (int)_numStartBitInByte.Value,
+                (int)_numLength.Value,
+                _rbIntel.Checked,
+                fireEvent: false);
+        }
+
+        private void SyncFieldsFromGrid()
+        {
+            _syncingFromGrid = true;
+            _payloadGrid.ApplySelectionToFields(out int byteIndex, out int bitInByte, out int length);
+            if (_rbKindBin.Checked)
+            {
+                _numBinByte.Value = Math.Clamp(byteIndex, 0, _dlc - 1);
+                _numBinBitStart.Value = Math.Clamp(bitInByte, 0, 7);
+                _numBinLength.Value = Math.Clamp(length, 1, 8);
+            }
+            else
+            {
+                _numByteIndex.Value = Math.Clamp(byteIndex, (int)_numByteIndex.Minimum, (int)_numByteIndex.Maximum);
+                _numStartBitInByte.Value = Math.Clamp(bitInByte, 0, 7);
+                _numLength.Value = Math.Clamp(length, (int)_numLength.Minimum, (int)_numLength.Maximum);
+                RecalcHexBounds();
+            }
+            _syncingFromGrid = false;
         }
 
         private void BuildPanelNum()
@@ -231,7 +323,7 @@ namespace logReader.UI
             }
 
             _numBinByte.Minimum = 0;
-            _numBinByte.Maximum = 7;
+            _numBinByte.Maximum = _dlc - 1;
             _numBinBitStart.Minimum = 0;
             _numBinBitStart.Maximum = 7;
             _numBinLength.Minimum = 1;
@@ -277,6 +369,7 @@ namespace logReader.UI
                 _numBinByte.Value = Math.Clamp(row.StartBit, 0, 7);
                 _numBinBitStart.Value = Math.Clamp(row.BitStart ?? 0, 0, 7);
                 _numBinLength.Value = Math.Clamp(row.Length <= 0 ? 1 : row.Length, 1, 8);
+                RefreshGridMode();
                 return;
             }
 
@@ -298,6 +391,7 @@ namespace logReader.UI
             _rbMotorola.Checked = !row.IsLittleEndian;
 
             RecalcHexBounds();
+            RefreshGridMode();
         }
 
         private void RecalcHexBounds()
