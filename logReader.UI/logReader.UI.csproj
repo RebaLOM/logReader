@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Resources\logger.ico" />
+		<EmbeddedResource Include="Resources\Help.rtf" />
 	</ItemGroup>
 
 	<ItemGroup>

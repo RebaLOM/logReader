@@ -26,7 +26,7 @@ namespace logReader.UI
 
             if (!MatrixCsvLogParser.LooksLikeMatrixCsv(csvPath, encoding))
             {
-                log("Ошибка: файл не является CSV-логом поддерживаемого формата.");
+                log($"Ошибка: для конвертации нужен {LogFormatUiNames.Csv}, не {LogFormatUiNames.LegacyCsv}.");
                 return;
             }
 

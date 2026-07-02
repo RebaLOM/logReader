@@ -33,10 +33,13 @@ namespace logReader.UI
                     _log("Формат: CANfox (PCAN-View / CAN.txt)");
             }
             else if (isAsc) _log("Формат: ASC");
-            else if (Path.GetExtension(logPath).Equals(".csv", StringComparison.OrdinalIgnoreCase)
-                     && MatrixCsvLogParser.LooksLikeMatrixCsv(logPath, LogFileEncoding.Detect(logPath)))
-                _log("Формат: matrix CSV (широкий, 20 мс)");
-            else _log("Формат: CAN лог (step-CSV)");
+            else if (Path.GetExtension(logPath).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                var kind = LogFormatDetector.Detect(logPath);
+                string? msg = LogFormatUiNames.GetDetectedFormatMessage(kind);
+                if (!string.IsNullOrEmpty(msg))
+                    _log(msg);
+            }
 
             if (isPCan)
             {
@@ -99,13 +102,19 @@ namespace logReader.UI
             int created = 0;
             int expected = 0;
 
+            var matrixCsvFiles = files
+                .Where(IsMatrixCsvLog)
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             var trcFiles = files
                 .Where(p => Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             var otherFiles = files
-                .Where(p => !Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
+                .Where(p => !Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase)
+                            && !IsMatrixCsvLog(p))
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -137,8 +146,39 @@ namespace logReader.UI
                 }
             }
 
-            // Не-.trc всегда обрабатываем по одному файлу, независимо от режима пакета.
+            // Не-.trc и не-CSV (новый формат) всегда обрабатываем по одному файлу.
             ProcessPerFile(otherFiles);
+
+            if (batchMode == BatchOutputMode.MergeToSingleFile && matrixCsvFiles.Count > 0)
+            {
+                string mergedOut = Path.Combine(outputDir, "result_matrix_csv_merged" + GetOutputExtension(outputFormat));
+                if (string.Equals(Path.GetFullPath(mergedOut), devicesFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _log("Пропуск: выходной файл совпадает с файлом посылок.");
+                    return new BatchOutcome(created, expected);
+                }
+
+                if (IsFileLocked(mergedOut))
+                {
+                    _log($"Пропуск (файл занят): {Path.GetFileName(mergedOut)}");
+                    return new BatchOutcome(created, expected);
+                }
+
+                _log($"--- {LogFormatUiNames.Csv}: объединение в один файл ---");
+                expected++;
+                bool ok = new MatrixCsvLogProcessor().ProcessMerged(
+                    matrixCsvFiles, allDevices, mergedOut, outputFormat, _log,
+                    hasFilter ? deviceEnabled : null,
+                    hasFilter ? paramEnabled : null,
+                    composites);
+
+                if (ok && File.Exists(mergedOut))
+                    created++;
+            }
+            else
+            {
+                ProcessPerFile(matrixCsvFiles);
+            }
 
             if (batchMode == BatchOutputMode.PerInputFile || trcFiles.Count == 0)
             {
@@ -146,7 +186,7 @@ namespace logReader.UI
                 return new BatchOutcome(created, expected);
             }
 
-            if (batchMode == BatchOutputMode.MergeTrcToSingleFile)
+            if (batchMode == BatchOutputMode.MergeToSingleFile)
             {
                 string mergedOut = Path.Combine(outputDir, "result_trc_merged" + GetOutputExtension(outputFormat));
                 if (string.Equals(Path.GetFullPath(mergedOut), devicesFullPath, StringComparison.OrdinalIgnoreCase))
@@ -230,6 +270,21 @@ namespace logReader.UI
             }
 
             return new BatchOutcome(created, expected);
+        }
+
+        private static bool IsMatrixCsvLog(string path)
+        {
+            if (!Path.GetExtension(path).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            try
+            {
+                return MatrixCsvLogParser.LooksLikeMatrixCsv(path, LogFileEncoding.Detect(path));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
         }
 
         private static bool IsFileLocked(string path)

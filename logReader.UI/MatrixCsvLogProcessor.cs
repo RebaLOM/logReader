@@ -17,35 +17,39 @@ namespace logReader.UI
             Dictionary<string, bool[]>? paramEnabled = null,
             CompositeRuntime? composites = null)
         {
+            ProcessMerged(
+                new[] { csvPath }, devices, outputPath, outputFormat, log,
+                deviceEnabled, paramEnabled, composites);
+        }
+
+        public bool ProcessMerged(
+            IReadOnlyList<string> csvPaths,
+            List<Device> devices,
+            string outputPath,
+            OutputFormat outputFormat,
+            Action<string> log,
+            Dictionary<string, bool>? deviceEnabled = null,
+            Dictionary<string, bool[]>? paramEnabled = null,
+            CompositeRuntime? composites = null)
+        {
             bool hasComposites = composites != null && !composites.IsEmpty;
             if (devices.Count == 0 && !hasComposites)
             {
                 log("Ошибка: устройства не загружены.");
-                return;
+                return false;
             }
 
-            if (!File.Exists(csvPath))
+            if (csvPaths.Count == 0)
             {
-                log($"Ошибка: файл лога не найден: {csvPath}");
-                return;
+                log("Ошибка: не указаны файлы CSV.");
+                return false;
             }
-
-            logReader.Program.ResetDevicesState(devices);
-            composites?.Reset();
 
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
             {
                 log($"Ошибка: директория для сохранения не существует: {outputDir}");
-                return;
-            }
-
-            Encoding encoding = LogFileEncoding.Detect(csvPath);
-
-            if (!TryReadHeaderLine(csvPath, encoding, out List<MatrixCsvColumn> columns, out List<string> headerIds, out string? headerError))
-            {
-                log(headerError ?? "Ошибка: не удалось прочитать заголовок matrix CSV.");
-                return;
+                return false;
             }
 
             var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
@@ -54,12 +58,51 @@ namespace logReader.UI
 
             var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var seenSourceIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (string id in headerIds)
+            int usedFiles = 0;
+
+            foreach (string csvPath in csvPaths)
             {
-                if (deviceByID.ContainsKey(id))
-                    seenIDs.Add(id);
-                if (hasComposites && composites!.IsSourceId(id))
-                    seenSourceIDs.Add(id);
+                if (!File.Exists(csvPath))
+                {
+                    log($"Пропуск: файл не найден: {csvPath}");
+                    continue;
+                }
+
+                Encoding encoding;
+                try { encoding = LogFileEncoding.Detect(csvPath); }
+                catch (Exception ex)
+                {
+                    log($"Пропуск: ошибка определения кодировки ({Path.GetFileName(csvPath)}): {ex.Message}");
+                    continue;
+                }
+
+                if (!MatrixCsvLogParser.LooksLikeMatrixCsv(csvPath, encoding))
+                {
+                    log($"Пропуск: не {LogFormatUiNames.Csv} — {Path.GetFileName(csvPath)}");
+                    continue;
+                }
+
+                if (!TryReadHeaderLine(csvPath, encoding, out _, out List<string> headerIds, out string? headerError))
+                {
+                    log($"Пропуск ({Path.GetFileName(csvPath)}): {headerError ?? "не удалось прочитать заголовок."}");
+                    continue;
+                }
+
+                foreach (string id in headerIds)
+                {
+                    if (deviceByID.ContainsKey(id))
+                        seenIDs.Add(id);
+                    if (hasComposites && composites!.IsSourceId(id))
+                        seenSourceIDs.Add(id);
+                }
+
+                usedFiles++;
+            }
+
+            if (usedFiles == 0)
+            {
+                log($"Ошибка: не найдено пригодных файлов {LogFormatUiNames.Csv}.");
+                return false;
             }
 
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
@@ -82,7 +125,7 @@ namespace logReader.UI
             if (outputDevices.Count == 0)
             {
                 log("Нет совпадающих устройств — проверьте файл посылок.");
-                return;
+                return false;
             }
 
             void RefreshComposites()
@@ -111,68 +154,103 @@ namespace logReader.UI
                 excelRow = logReader.Program.BuildExcelHeaders(ws, outputDevices, deviceEnabled, paramEnabled);
             }
 
-            var timeTracker = new MatrixCsvTimeTracker();
             int step = 0;
-            bool headerSkipped = false;
             int[] msgBytes = new int[8];
+            TimeSpan timeOffset = TimeSpan.Zero;
+            int processedFiles = 0;
 
             try
             {
-                foreach (string line in File.ReadLines(csvPath, encoding))
+                foreach (string csvPath in csvPaths)
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    if (!File.Exists(csvPath)) continue;
 
-                    if (!headerSkipped)
-                    {
-                        headerSkipped = true;
-                        continue;
-                    }
+                    Encoding encoding;
+                    try { encoding = LogFileEncoding.Detect(csvPath); }
+                    catch { continue; }
 
-                    string[] parts = line.Split(';');
-                    if (parts.Length < 2) continue;
-                    if (!timeTracker.TryAdvance(parts[0], out TimeSpan absoluteTime))
+                    if (!MatrixCsvLogParser.LooksLikeMatrixCsv(csvPath, encoding)) continue;
+                    if (!TryReadHeaderLine(csvPath, encoding, out List<MatrixCsvColumn> columns, out _, out _))
                         continue;
 
-                    step++;
-                    string timeText = MatrixCsvLogParser.FormatTimeWithMs(absoluteTime);
+                    log($"--- {Path.GetFileName(csvPath)} ---");
+                    processedFiles++;
 
-                    foreach (var column in columns)
+                    logReader.Program.ResetDevicesState(devices);
+                    composites?.Reset();
+
+                    var timeTracker = new MatrixCsvTimeTracker();
+                    bool headerSkipped = false;
+                    TimeSpan maxTimeInFile = TimeSpan.Zero;
+                    int rowsInFile = 0;
+
+                    foreach (string line in File.ReadLines(csvPath, encoding))
                     {
-                        if (column.ColumnIndex >= parts.Length) continue;
-                        string cell = parts[column.ColumnIndex];
-                        if (MatrixCsvLogParser.IsCellEmpty(cell)) continue;
-                        if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes)) continue;
+                        if (string.IsNullOrWhiteSpace(line)) continue;
 
-                        string id = column.Id;
-                        if (deviceByID.TryGetValue(id, out Device? dev))
+                        if (!headerSkipped)
                         {
-                            Array.Copy(msgBytes, dev.RawBytes, 8);
-                            dev.Decode();
+                            headerSkipped = true;
+                            continue;
                         }
 
-                        composites?.OnMessage(id, msgBytes, 8);
+                        string[] parts = line.Split(';');
+                        if (parts.Length < 2) continue;
+                        if (!timeTracker.TryAdvance(parts[0], out TimeSpan absoluteTime))
+                            continue;
+
+                        absoluteTime = absoluteTime.Add(timeOffset);
+                        if (absoluteTime > maxTimeInFile)
+                            maxTimeInFile = absoluteTime;
+
+                        step++;
+                        rowsInFile++;
+                        string timeText = MatrixCsvLogParser.FormatTimeWithMs(absoluteTime);
+
+                        foreach (var column in columns)
+                        {
+                            if (column.ColumnIndex >= parts.Length) continue;
+                            string cell = parts[column.ColumnIndex];
+                            if (MatrixCsvLogParser.IsCellEmpty(cell)) continue;
+                            if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes)) continue;
+
+                            string id = column.Id;
+                            if (deviceByID.TryGetValue(id, out Device? dev))
+                            {
+                                Array.Copy(msgBytes, dev.RawBytes, 8);
+                                dev.Decode();
+                            }
+
+                            composites?.OnMessage(id, msgBytes, 8);
+                        }
+
+                        RefreshComposites();
+
+                        if (outputFormat == OutputFormat.Csv)
+                            WriteCsvDataRow(csvWriter!, step, timeText, outputDevices, deviceEnabled, paramEnabled);
+                        else
+                            excelRow = logReader.Program.BuildExcelRow(
+                                ws!, excelRow, step, timeText,
+                                outputDevices, deviceEnabled, paramEnabled);
                     }
 
-                    RefreshComposites();
-
-                    if (outputFormat == OutputFormat.Csv)
-                        WriteCsvDataRow(csvWriter!, step, timeText, outputDevices, deviceEnabled, paramEnabled);
-                    else
-                        excelRow = logReader.Program.BuildExcelRow(
-                            ws!, excelRow, step, timeText,
-                            outputDevices, deviceEnabled, paramEnabled);
+                    if (rowsInFile > 0)
+                    {
+                        timeOffset = maxTimeInFile.Add(
+                            TimeSpan.FromMilliseconds(MatrixCsvLogParser.RowPeriodMs));
+                    }
                 }
             }
             catch (Exception ex)
             {
                 log($"Ошибка чтения файла: {ex.Message}");
-                return;
+                return false;
             }
 
             if (step == 0)
             {
-                log("Ошибка: в файле нет строк данных.");
-                return;
+                log("Ошибка: в файлах нет строк данных.");
+                return false;
             }
 
             try
@@ -194,11 +272,15 @@ namespace logReader.UI
                     });
                 }
 
-                log("Обработка завершена.");
+                log(csvPaths.Count == 1
+                    ? "Обработка завершена."
+                    : $"Обработка завершена: объединено файлов {LogFormatUiNames.Csv}: {processedFiles}, строк: {step}.");
+                return true;
             }
             catch (Exception ex)
             {
                 log($"Ошибка сохранения файла: {ex.Message}");
+                return false;
             }
             finally
             {
@@ -229,7 +311,7 @@ namespace logReader.UI
                 if (MatrixCsvLogParser.TryReadHeader(line, out columns, out ids))
                     return true;
 
-                error = "Ошибка: первая строка не похожа на заголовок matrix CSV (;ID1;ID2;...).";
+                error = $"Ошибка: первая строка не похожа на заголовок {LogFormatUiNames.Csv} (;ID1;ID2;...).";
                 return false;
             }
 

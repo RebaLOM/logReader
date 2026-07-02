@@ -22,6 +22,7 @@ namespace logReader.UI
         {
             public OutputFormat OutputFormat { get; set; } = OutputFormat.Xlsx;
             public BatchOutputMode BatchMode { get; set; } = BatchOutputMode.PerInputFile;
+            public LogFormatKind FolderFormatFilter { get; set; } = LogFormatKind.All;
         }
 
         private readonly SaveOptions _saveOptions = new();
@@ -76,12 +77,14 @@ namespace logReader.UI
 
         private void buttonSaveOptions_Click(object sender, EventArgs e)
         {
-            using var dlg = new SaveOptionsForm(_saveOptions.OutputFormat, _saveOptions.BatchMode);
+            string? folderPath = Directory.Exists(textBoxCanLog.Text.Trim()) ? textBoxCanLog.Text.Trim() : null;
+            using var dlg = new SaveOptionsForm(_saveOptions.OutputFormat, _saveOptions.BatchMode, folderPath, _saveOptions.FolderFormatFilter);
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
             _saveOptions.OutputFormat = dlg.SelectedOutputFormat;
             _saveOptions.BatchMode = dlg.SelectedBatchMode;
+            _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
 
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
                 return;
@@ -641,114 +644,13 @@ namespace logReader.UI
             _helpForm.Show(this);
         }
 
-        private async void buttonFormatConvert_Click(object sender, EventArgs e)
+        private void buttonFormatConvert_Click(object sender, EventArgs e)
         {
             textBoxLog.Clear();
 
             string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
-            using var dialog = new FormatConversionDialog(_conversionPairs, initialPath);
-            if (dialog.ShowDialog(this) != DialogResult.OK)
-                return;
-
-            string inputPath = dialog.SelectedInputPath;
-            string outPath = dialog.SelectedOutputPath;
-            FormatConversionPair pair = dialog.SelectedPair;
-
-            if (string.IsNullOrWhiteSpace(inputPath))
-            {
-                Log("Ошибка: файл лога не найден.");
-                return;
-            }
-            if (Directory.Exists(inputPath))
-            {
-                Log("Ошибка: для конвертации нужно выбрать файл, а не папку.");
-                return;
-            }
-            if (!File.Exists(inputPath))
-            {
-                Log("Ошибка: файл лога не найден.");
-                return;
-            }
-
-            string inputExt = Path.GetExtension(inputPath);
-            if (!inputExt.Equals(pair.SourceExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                Log($"Ошибка: выбранный файл не соответствует формату источника ({pair.SourceExtension}).");
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(outPath))
-            {
-                Log("Ошибка: укажите путь выходного файла.");
-                return;
-            }
-
-            if (!Path.GetExtension(outPath).Equals(pair.TargetExtension, StringComparison.OrdinalIgnoreCase))
-                outPath = Path.ChangeExtension(outPath, pair.TargetExtension);
-
-            string? outDir = Path.GetDirectoryName(outPath);
-            if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
-            {
-                Log($"Ошибка: директория для сохранения не существует: {outDir}");
-                return;
-            }
-
-            string outFull = Path.GetFullPath(outPath);
-            string inFull = Path.GetFullPath(inputPath);
-            if (outFull.Equals(inFull, StringComparison.OrdinalIgnoreCase))
-            {
-                Log("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.");
-                return;
-            }
-
-            if (File.Exists(outPath))
-            {
-                try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
-                catch
-                {
-                    Log("Ошибка: выходной файл уже открыт в другой программе. Закройте его и попробуйте снова.");
-                    return;
-                }
-            }
-
-            buttonTrcToAsc.Enabled = false;
-            buttonTrcToAsc.Text = "Конвертация...";
-            Cursor = Cursors.WaitCursor;
-
-            try
-            {
-                await Task.Run(() =>
-                {
-                    if (pair.Id == "trc_to_asc")
-                    {
-                        var converter = new TrcToAscConverter();
-                        converter.Convert(inputPath, outPath, Log);
-                        return;
-                    }
-
-                    if (pair.Id == "csv_to_asc")
-                    {
-                        if (!MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, LogFileEncoding.Detect(inputPath)))
-                        {
-                            Log("Ошибка: файл не является CSV-логом поддерживаемого формата.");
-                            return;
-                        }
-
-                        new MatrixCsvToAscConverter().Convert(inputPath, outPath, Log);
-                        return;
-                    }
-
-                    Log($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.");
-                });
-            }
-            catch (Exception ex)
-            {
-                Log("Критическая ошибка: " + ex.Message);
-            }
-
-            buttonTrcToAsc.Enabled = true;
-            buttonTrcToAsc.Text = "Смена формата";
-            Cursor = Cursors.Default;
+            using var dialog = new FormatConversionDialog(_conversionPairs, initialPath, Log);
+            dialog.ShowDialog(this);
         }
 
         private async void buttonDevicesParams_Click(object sender, EventArgs e)
@@ -864,6 +766,31 @@ namespace logReader.UI
                     return;
                 }
 
+                int totalFound = files.Count;
+                LogFormatKind filter = _saveOptions.FolderFormatFilter == LogFormatKind.None
+                    ? LogFormatKind.All
+                    : _saveOptions.FolderFormatFilter;
+                files = files
+                    .Where(p =>
+                    {
+                        try
+                        {
+                            LogFormatKind kind = LogFormatDetector.Detect(p);
+                            return kind != LogFormatKind.None && (filter & kind) != 0;
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            return false;
+                        }
+                    })
+                    .ToList();
+
+                if (files.Count == 0)
+                {
+                    Log($"Ошибка: в папке найдено {totalFound} файл(ов), но нет файлов выбранных форматов.");
+                    return;
+                }
+
                 buttonProcess.Enabled = false;
                 buttonProcess.Text = "Обработка...";
                 Cursor = Cursors.WaitCursor;
@@ -882,7 +809,7 @@ namespace logReader.UI
                     bool anyParamOff = _paramEnabled.Any(kv => kv.Value.Any(v => !v));
                     var hasFilter = anyDeviceOff || anyParamOff;
 
-                    Log($"Папка с логами: найдено {files.Count} файл(ов).");
+                    Log($"Папка с логами: найдено {totalFound} файл(ов), выбрано {files.Count}.");
                     Log($"Каталог результатов: {outputDir}");
 
                 var service = new LogProcessingService(Log);

@@ -61,7 +61,7 @@ namespace logReader.UI
                     isCanfoxExpected = isCanfox;
                 else if (isCanfoxExpected.Value != isCanfox)
                 {
-                    log($"Пропуск: несовместимый тип .trc (CANfox/pCAN) — {Path.GetFileName(trcPath)}");
+                    log($"Пропуск: несовместимый тип .trc — {Path.GetFileName(trcPath)}");
                     continue;
                 }
 
