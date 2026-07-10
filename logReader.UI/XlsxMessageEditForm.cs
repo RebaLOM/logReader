@@ -24,6 +24,11 @@ namespace logReader.UI
         private readonly Label _lblFilterStatus = new();
         private readonly CanPayloadGridControl _payloadGrid = new();
 
+        private IReadOnlyDictionary<string, Color> _signalColors =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+        private string? _highlightedSignalName;
+        private bool _syncingPayloadSelection;
+
         public DeviceDefinition Definition { get; private set; }
         private readonly List<DeviceFieldRow> _rows;
         private readonly bool _deviceIdReadOnly;
@@ -44,8 +49,8 @@ namespace logReader.UI
             Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
-            MinimumSize = new Size(720, 460);
-            ClientSize = new Size(720, 460);
+            MinimumSize = new Size(1000, 500);
+            ClientSize = new Size(1000, 500);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -177,28 +182,14 @@ namespace logReader.UI
             _grid.Columns.Add("Offset", "Offset");
             _grid.Columns.Add("Unit", "Unit");
             _grid.Columns.Add("Order", "Order");
+            MessageEditFormHelpers.AddSignalColorColumn(_grid);
             foreach (DataGridViewColumn col in _grid.Columns)
                 col.SortMode = DataGridViewColumnSortMode.NotSortable;
             MessageEditFormHelpers.ApplySignalListColumnWeights(_grid);
+            MessageEditFormHelpers.WireSignalColorColumnPainting(_grid, GetColorForGridRow);
 
-            var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
-            _grid.Dock = DockStyle.Fill;
-            var gridSplit = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 2
-            };
-            gridSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            gridSplit.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            gridSplit.Controls.Add(_grid, 0, 0);
-
-            _payloadGrid.Mode = CanPayloadGridMode.View;
-            _payloadGrid.ShowLegend = true;
-            _payloadGrid.Margin = new Padding(0, 8, 0, 0);
-            _payloadGrid.Dock = DockStyle.Top;
-            gridSplit.Controls.Add(_payloadGrid, 0, 1);
-            gridHost.Controls.Add(gridSplit);
+            var gridHost = MessageEditFormHelpers.BuildSignalListWithPayloadGrid(_grid, _payloadGrid);
+            WirePayloadSelectionSync();
 
             var bottom = new FlowLayoutPanel
             {
@@ -308,86 +299,156 @@ namespace logReader.UI
 
         private void RefreshGrid()
         {
-            _grid.Rows.Clear();
-            string query = _txtSearch.Text.Trim();
-
-            if (!TryGetSignalLengthFilters(out int? lenMin, out int? lenMax))
+            _syncingPayloadSelection = true;
+            try
             {
-                _lblFilterStatus.Text = "Фильтр: неверное число в «Длина»";
-                return;
-            }
+                _grid.Rows.Clear();
+                string query = _txtSearch.Text.Trim();
 
-            int shown = 0;
-            for (int i = 0; i < _rows.Count; i++)
-            {
-                var r = _rows[i];
-                if (!MessageEditFormHelpers.TextMatchesQuery(r.Header, query)) continue;
-                if (!PassesSignalTypeFilter(r)) continue;
-                if (!PassesByteOrderFilter(r)) continue;
-                if (!MessageEditFormHelpers.InOptionalRange(r.Length, lenMin, lenMax)) continue;
-
-                string type = (r.Type ?? "").Trim().ToUpperInvariant();
-                int rowIdx;
-                if (type == "BIN")
+                if (!TryGetSignalLengthFilters(out int? lenMin, out int? lenMax))
                 {
-                    rowIdx = _grid.Rows.Add(
-                        r.Header,
-                        r.StartBit.ToString(CultureInfo.InvariantCulture),
-                        (r.BitStart ?? 0).ToString(CultureInfo.InvariantCulture),
-                        r.Length.ToString(CultureInfo.InvariantCulture),
-                        "BIN",
-                        "",
-                        "",
-                        "",
-                        "");
-                }
-                else
-                {
-                    int byteIdx = r.Length > 0 ? r.StartBit / 8 : 0;
-                    int bitInByte = r.StartBit % 8;
-                    rowIdx = _grid.Rows.Add(
-                        r.Header,
-                        byteIdx.ToString(CultureInfo.InvariantCulture),
-                        bitInByte.ToString(CultureInfo.InvariantCulture),
-                        r.Length.ToString(CultureInfo.InvariantCulture),
-                        r.SignedRaw ? "int" : "unsigned",
-                        r.Scale.ToString(CultureInfo.InvariantCulture),
-                        r.Offset.ToString(CultureInfo.InvariantCulture),
-                        r.Unit ?? "",
-                        r.IsLittleEndian ? "Intel" : "Motorola");
+                    _lblFilterStatus.Text = "Фильтр: неверное число в «Длина»";
+                    _highlightedSignalName = null;
+                    RefreshPayloadGrid();
+                    return;
                 }
 
-                _grid.Rows[rowIdx].Tag = i;
-                shown++;
+                int shown = 0;
+                for (int i = 0; i < _rows.Count; i++)
+                {
+                    var r = _rows[i];
+                    if (!MessageEditFormHelpers.TextMatchesQuery(r.Header, query)) continue;
+                    if (!PassesSignalTypeFilter(r)) continue;
+                    if (!PassesByteOrderFilter(r)) continue;
+                    if (!MessageEditFormHelpers.InOptionalRange(r.Length, lenMin, lenMax)) continue;
+
+                    string type = (r.Type ?? "").Trim().ToUpperInvariant();
+                    int rowIdx;
+                    if (type == "BIN")
+                    {
+                        rowIdx = _grid.Rows.Add(
+                            "",
+                            r.Header,
+                            r.StartBit.ToString(CultureInfo.InvariantCulture),
+                            (r.BitStart ?? 0).ToString(CultureInfo.InvariantCulture),
+                            r.Length.ToString(CultureInfo.InvariantCulture),
+                            "BIN",
+                            "",
+                            "",
+                            "",
+                            "");
+                    }
+                    else
+                    {
+                        int byteIdx = r.Length > 0 ? r.StartBit / 8 : 0;
+                        int bitInByte = r.StartBit % 8;
+                        rowIdx = _grid.Rows.Add(
+                            "",
+                            r.Header,
+                            byteIdx.ToString(CultureInfo.InvariantCulture),
+                            bitInByte.ToString(CultureInfo.InvariantCulture),
+                            r.Length.ToString(CultureInfo.InvariantCulture),
+                            r.SignedRaw ? "int" : "unsigned",
+                            r.Scale.ToString(CultureInfo.InvariantCulture),
+                            r.Offset.ToString(CultureInfo.InvariantCulture),
+                            r.Unit ?? "",
+                            r.IsLittleEndian ? "Intel" : "Motorola");
+                    }
+
+                    _grid.Rows[rowIdx].Tag = i;
+                    shown++;
+                }
+
+                _lblFilterStatus.Text = shown == _rows.Count
+                    ? $"Показано: {shown}"
+                    : $"Показано: {shown} из {_rows.Count}";
+
+                if (_highlightedSignalName != null
+                    && !_rows.Any(r => r.Header.Equals(_highlightedSignalName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _highlightedSignalName = null;
+                }
+
+                RefreshPayloadGrid();
             }
-
-            _lblFilterStatus.Text = shown == _rows.Count
-                ? $"Показано: {shown}"
-                : $"Показано: {shown} из {_rows.Count}";
-
-            RefreshPayloadGrid();
+            finally
+            {
+                _syncingPayloadSelection = false;
+            }
         }
 
-        private void RefreshPayloadGrid()
+        private void RefreshPayloadGrid(string? highlightName = null)
         {
+            if (highlightName != null)
+                _highlightedSignalName = highlightName;
+
+            _signalColors = CanPayloadGridPalette.AssignColors(_rows.Select(r => r.Header ?? ""));
             _payloadGrid.Dlc = (int)_numDlc.Value;
-            _payloadGrid.Overlays = CanPayloadGridFactory.FromDeviceRows(_rows);
+            _payloadGrid.Overlays = CanPayloadGridFactory.FromDeviceRows(
+                _rows,
+                _highlightedSignalName,
+                _signalColors);
+            _grid.Invalidate();
+        }
+
+        private Color? GetColorForGridRow(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= _grid.Rows.Count)
+                return null;
+            if (_grid.Rows[rowIndex].Cells["Name"].Value is not string name)
+                return null;
+            return _signalColors.TryGetValue(name, out Color c) ? c : null;
+        }
+
+        private void WirePayloadSelectionSync()
+        {
+            _grid.SelectionChanged += (_, _) =>
+            {
+                if (_syncingPayloadSelection) return;
+
+                int idx = SelectedIndex();
+                if (idx < 0 || idx >= _rows.Count)
+                {
+                    _highlightedSignalName = null;
+                    RefreshPayloadGrid();
+                    return;
+                }
+
+                _highlightedSignalName = _rows[idx].Header;
+                RefreshPayloadGrid(_highlightedSignalName);
+            };
+
+            _payloadGrid.OverlaySelected += (_, e) =>
+            {
+                if (_syncingPayloadSelection) return;
+
+                _syncingPayloadSelection = true;
+                try
+                {
+                    if (string.IsNullOrEmpty(e.OverlayName))
+                    {
+                        _highlightedSignalName = null;
+                        _grid.ClearSelection();
+                    }
+                    else
+                    {
+                        _highlightedSignalName = e.OverlayName;
+                        MessageEditFormHelpers.SelectRowByName(_grid, e.OverlayName);
+                    }
+
+                    RefreshPayloadGrid(_highlightedSignalName);
+                }
+                finally
+                {
+                    _syncingPayloadSelection = false;
+                }
+            };
         }
 
         private int SelectedIndex() => MessageEditFormHelpers.SelectedSourceIndex(_grid);
 
         private void SelectRowBySourceIndex(int sourceIndex)
-        {
-            foreach (DataGridViewRow row in _grid.Rows)
-            {
-                if (row.Tag is int t && t == sourceIndex)
-                {
-                    row.Selected = true;
-                    _grid.CurrentCell = row.Cells[0];
-                    return;
-                }
-            }
-        }
+            => MessageEditFormHelpers.SelectRowBySourceIndex(_grid, sourceIndex);
 
         private void AddSignal()
         {
@@ -447,6 +508,7 @@ namespace logReader.UI
             if (confirm != DialogResult.Yes) return;
 
             _rows.RemoveAt(idx);
+            _highlightedSignalName = null;
             MarkDirty();
             RefreshGrid();
         }

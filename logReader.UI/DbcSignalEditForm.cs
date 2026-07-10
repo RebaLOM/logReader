@@ -70,9 +70,15 @@ namespace logReader.UI
             _cmbType.SelectedIndexChanged += (_, _) => RecalcHexBounds();
             _numByteIndex.ValueChanged += (_, _) => SyncGridFromFields();
             _numStartBitInByte.ValueChanged += (_, _) => SyncGridFromFields();
-            _rbIntel.CheckedChanged += (_, _) => { if (_rbIntel.Checked) SyncGridFromFields(); };
-            _rbMotorola.CheckedChanged += (_, _) => { if (_rbMotorola.Checked) SyncGridFromFields(); };
+            _rbIntel.CheckedChanged += (_, _) => { if (_rbIntel.Checked) OnByteOrderChanged(); };
+            _rbMotorola.CheckedChanged += (_, _) => { if (_rbMotorola.Checked) OnByteOrderChanged(); };
             _payloadGrid.SelectionChanged += (_, _) => SyncFieldsFromGrid();
+        }
+
+        private void OnByteOrderChanged()
+        {
+            if (_syncingFromGrid) return;
+            _payloadGrid.IsLittleEndian = _rbIntel.Checked;
         }
 
         private void SyncGridFromFields()
@@ -180,7 +186,7 @@ namespace logReader.UI
             fieldsPanel.Controls.Add(_rbMotorola);
 
             _payloadGrid.Mode = CanPayloadGridMode.Edit;
-            _payloadGrid.ShowLegend = true;
+            _payloadGrid.ShowLegend = false;
             _payloadGrid.Dlc = _messageDlc;
             _payloadGrid.Location = new Point(12, 258);
             _payloadGrid.Anchor = AnchorStyles.Top | AnchorStyles.Left;

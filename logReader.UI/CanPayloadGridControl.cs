@@ -17,6 +17,11 @@ namespace logReader.UI
         Edit
     }
 
+    internal sealed class OverlaySelectedEventArgs : EventArgs
+    {
+        public string? OverlayName { get; init; }
+    }
+
     internal sealed class CanPayloadGridControl : UserControl
     {
         private const int CellSize = 24;
@@ -35,6 +40,7 @@ namespace logReader.UI
         private bool _littleEndian = true;
         private int _selectionStartBit;
         private int _selectionLength = 1;
+        private HashSet<int> _selectionBits = new();
         private bool _suppressSelectionEvent;
 
         private List<SignalOverlay> _overlays = new();
@@ -141,6 +147,7 @@ namespace logReader.UI
             set
             {
                 _overlays = value?.ToList() ?? new List<SignalOverlay>();
+                UpdatePreferredSize();
                 Invalidate();
             }
         }
@@ -162,18 +169,30 @@ namespace logReader.UI
         }
 
         public event EventHandler? SelectionChanged;
+        public event EventHandler<OverlaySelectedEventArgs>? OverlaySelected;
 
         public void SetSelection(int startBit, int length, bool fireEvent = true)
         {
             length = Math.Max(1, length);
-            if (_selectionStartBit == startBit && _selectionLength == length) return;
+            if (_selectionStartBit == startBit && _selectionLength == length
+                && _selectionBits.Count > 0)
+            {
+                return;
+            }
 
             _selectionStartBit = startBit;
             _selectionLength = length;
+            RebuildSelectionBits();
             Invalidate();
 
             if (fireEvent && !_suppressSelectionEvent)
                 SelectionChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void RebuildSelectionBits()
+        {
+            _selectionBits = new HashSet<int>(
+                BitMath.EnumerateSignalBits(_selectionStartBit, _selectionLength, _littleEndian));
         }
 
         public void SetSelectionFromFields(int byteIndex, int bitInByte, int length, bool littleEndian, bool fireEvent = true)
@@ -214,8 +233,19 @@ namespace logReader.UI
             var overlapCount = new int[payloadBits];
             BuildOwnership(owners, overlapCount, payloadBits);
 
-            var selectionBits = new HashSet<int>(
-                BitMath.EnumerateSignalBits(_selectionStartBit, _selectionLength, _littleEndian));
+            bool viewHighlightActive = _mode == CanPayloadGridMode.View && _overlays.Any(o => o.IsCurrent);
+            var currentOverlayBits = new HashSet<int>();
+            if (viewHighlightActive)
+            {
+                foreach (var ov in _overlays.Where(o => o.IsCurrent))
+                {
+                    foreach (int bit in BitMath.EnumerateSignalBits(ov.StartBit, ov.Length, ov.IsLittleEndian))
+                    {
+                        if (bit >= 0 && bit < payloadBits)
+                            currentOverlayBits.Add(bit);
+                    }
+                }
+            }
 
             for (int row = 0; row < _dlc; row++)
             {
@@ -234,7 +264,9 @@ namespace logReader.UI
                     if (global >= payloadBits) continue;
 
                     var rect = CellRect(row, col);
-                    bool dimmed = _binByteMode == false && _mode == CanPayloadGridMode.Edit && owners[global] != null && !owners[global]!.IsCurrent;
+                    bool dimmed = !_binByteMode && owners[global] != null && (
+                        (_mode == CanPayloadGridMode.Edit && !owners[global]!.IsCurrent)
+                        || (viewHighlightActive && !owners[global]!.IsCurrent));
 
                     Color fill = EmptyCell;
                     var owner = owners[global];
@@ -249,7 +281,13 @@ namespace logReader.UI
                     using var pen = new Pen(Color.FromArgb(180, 180, 190));
                     g.DrawRectangle(pen, rect);
 
-                    if (_mode == CanPayloadGridMode.Edit && selectionBits.Contains(global))
+                    if (_mode == CanPayloadGridMode.Edit && _selectionBits.Contains(global))
+                    {
+                        using var selPen = new Pen(Color.FromArgb(30, 60, 120), 2);
+                        g.DrawRectangle(selPen, Rectangle.Inflate(rect, -1, -1));
+                    }
+
+                    if (viewHighlightActive && currentOverlayBits.Contains(global))
                     {
                         using var selPen = new Pen(Color.FromArgb(30, 60, 120), 2);
                         g.DrawRectangle(selPen, Rectangle.Inflate(rect, -1, -1));
@@ -322,12 +360,37 @@ namespace logReader.UI
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            if (_mode != CanPayloadGridMode.Edit || e.Button != MouseButtons.Left) return;
+            if (e.Button != MouseButtons.Left) return;
+
+            if (_mode == CanPayloadGridMode.View)
+            {
+                HandleViewModeClick(e.Location);
+                return;
+            }
+
+            if (_mode != CanPayloadGridMode.Edit) return;
             if (!TryHitTest(e.Location, out int bit)) return;
             _dragAnchorBit = bit;
             _dragHoverBit = bit;
             Capture = true;
             Invalidate();
+        }
+
+        private void HandleViewModeClick(Point location)
+        {
+            if (!TryHitTest(location, out int bit))
+            {
+                OverlaySelected?.Invoke(this, new OverlaySelectedEventArgs { OverlayName = null });
+                return;
+            }
+
+            int payloadBits = _dlc * 8;
+            var owners = new SignalOverlay?[payloadBits];
+            var overlapCount = new int[payloadBits];
+            BuildOwnership(owners, overlapCount, payloadBits);
+
+            string? name = bit >= 0 && bit < payloadBits ? owners[bit]?.Name : null;
+            OverlaySelected?.Invoke(this, new OverlaySelectedEventArgs { OverlayName = name });
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -448,6 +511,36 @@ namespace logReader.UI
             if (string.IsNullOrEmpty(name)) return Colors[0];
             int hash = StableHash(name);
             return Colors[Math.Abs(hash) % Colors.Length];
+        }
+
+        public static IReadOnlyDictionary<string, Color> AssignColors(IEnumerable<string> names)
+        {
+            var map = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+            var used = new HashSet<int>();
+            foreach (string name in names)
+            {
+                if (string.IsNullOrEmpty(name) || map.ContainsKey(name))
+                    continue;
+
+                int preferred = Math.Abs(StableHash(name)) % Colors.Length;
+                int idx = FindFreeIndex(preferred, used);
+                used.Add(idx);
+                map[name] = Colors[idx];
+            }
+            return map;
+        }
+
+        private static int FindFreeIndex(int preferred, HashSet<int> used)
+        {
+            if (!used.Contains(preferred))
+                return preferred;
+            for (int offset = 1; offset < Colors.Length; offset++)
+            {
+                int idx = (preferred + offset) % Colors.Length;
+                if (!used.Contains(idx))
+                    return idx;
+            }
+            return preferred;
         }
 
         private static int StableHash(string s)

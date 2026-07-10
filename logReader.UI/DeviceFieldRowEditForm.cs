@@ -124,7 +124,7 @@ namespace logReader.UI
             host.Controls.Add(_panelNum);
 
             _payloadGrid.Mode = CanPayloadGridMode.Edit;
-            _payloadGrid.ShowLegend = true;
+            _payloadGrid.ShowLegend = false;
             _payloadGrid.Dlc = _dlc;
             _payloadGrid.Dock = DockStyle.Top;
             _payloadGrid.Margin = new Padding(8, 4, 8, 4);
@@ -156,12 +156,18 @@ namespace logReader.UI
             _numLength.ValueChanged += (_, _) => { RecalcHexBounds(); SyncGridFromFields(); };
             _numByteIndex.ValueChanged += (_, _) => SyncGridFromFields();
             _numStartBitInByte.ValueChanged += (_, _) => SyncGridFromFields();
-            _rbIntel.CheckedChanged += (_, _) => { if (_rbIntel.Checked) SyncGridFromFields(); };
-            _rbMotorola.CheckedChanged += (_, _) => { if (_rbMotorola.Checked) SyncGridFromFields(); };
+            _rbIntel.CheckedChanged += (_, _) => { if (_rbIntel.Checked) OnByteOrderChanged(); };
+            _rbMotorola.CheckedChanged += (_, _) => { if (_rbMotorola.Checked) OnByteOrderChanged(); };
             _numBinByte.ValueChanged += (_, _) => SyncGridFromFields();
             _numBinBitStart.ValueChanged += (_, _) => SyncGridFromFields();
             _numBinLength.ValueChanged += (_, _) => SyncGridFromFields();
             _payloadGrid.SelectionChanged += (_, _) => SyncFieldsFromGrid();
+        }
+
+        private void OnByteOrderChanged()
+        {
+            if (_syncingFromGrid || _rbKindBin.Checked) return;
+            _payloadGrid.IsLittleEndian = _rbIntel.Checked;
         }
 
         private void RefreshGridMode()

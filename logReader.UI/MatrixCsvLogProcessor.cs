@@ -156,7 +156,6 @@ namespace logReader.UI
 
             int step = 0;
             int[] msgBytes = new int[8];
-            TimeSpan timeOffset = TimeSpan.Zero;
             int processedFiles = 0;
 
             try
@@ -181,7 +180,6 @@ namespace logReader.UI
 
                     var timeTracker = new MatrixCsvTimeTracker();
                     bool headerSkipped = false;
-                    TimeSpan maxTimeInFile = TimeSpan.Zero;
                     int rowsInFile = 0;
 
                     foreach (string line in File.ReadLines(csvPath, encoding))
@@ -198,10 +196,6 @@ namespace logReader.UI
                         if (parts.Length < 2) continue;
                         if (!timeTracker.TryAdvance(parts[0], out TimeSpan absoluteTime))
                             continue;
-
-                        absoluteTime = absoluteTime.Add(timeOffset);
-                        if (absoluteTime > maxTimeInFile)
-                            maxTimeInFile = absoluteTime;
 
                         step++;
                         rowsInFile++;
@@ -232,12 +226,6 @@ namespace logReader.UI
                             excelRow = logReader.Program.BuildExcelRow(
                                 ws!, excelRow, step, timeText,
                                 outputDevices, deviceEnabled, paramEnabled);
-                    }
-
-                    if (rowsInFile > 0)
-                    {
-                        timeOffset = maxTimeInFile.Add(
-                            TimeSpan.FromMilliseconds(MatrixCsvLogParser.RowPeriodMs));
                     }
                 }
             }

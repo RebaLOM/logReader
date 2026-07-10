@@ -63,7 +63,15 @@ namespace logReader.UI
 
         public static void ApplySignalListColumnWeights(DataGridView grid)
         {
-            SetFill(grid, "Name", 36, 140);
+            if (grid.Columns["Color"] is DataGridViewColumn colorCol)
+            {
+                colorCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                colorCol.Width = 32;
+                colorCol.MinimumWidth = 32;
+                colorCol.Resizable = DataGridViewTriState.False;
+            }
+
+            SetFill(grid, "Name", 34, 130);
             SetFill(grid, "ByteIdx", 7, 52);
             SetFill(grid, "StartBit", 7, 52);
             SetFill(grid, "Length", 7, 52);
@@ -72,6 +80,116 @@ namespace logReader.UI
             SetFill(grid, "Offset", 11, 56);
             SetFill(grid, "Unit", 10, 48);
             SetFill(grid, "Order", 12, 72);
+        }
+
+        public static void AddSignalColorColumn(DataGridView grid)
+        {
+            var colorCol = new DataGridViewTextBoxColumn
+            {
+                Name = "Color",
+                HeaderText = "Color",
+                ReadOnly = true,
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                Width = 32,
+                MinimumWidth = 32,
+                Resizable = DataGridViewTriState.False
+            };
+            grid.Columns.Insert(0, colorCol);
+        }
+
+        public static void WireSignalColorColumnPainting(
+            DataGridView grid,
+            Func<int, Color?> getColorForRow)
+        {
+            grid.CellPainting += (_, e) =>
+            {
+                if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+                if (grid.Columns[e.ColumnIndex].Name != "Color") return;
+
+                e.Handled = true;
+                e.Paint(e.CellBounds, DataGridViewPaintParts.Border | DataGridViewPaintParts.Background);
+
+                Color? color = getColorForRow(e.RowIndex);
+                if (color is Color c && e.Graphics != null)
+                {
+                    var swatch = new Rectangle(
+                        e.CellBounds.X + (e.CellBounds.Width - 16) / 2,
+                        e.CellBounds.Y + (e.CellBounds.Height - 16) / 2,
+                        16,
+                        16);
+                    using var brush = new SolidBrush(c);
+                    e.Graphics.FillRectangle(brush, swatch);
+                    e.Graphics.DrawRectangle(Pens.Gray, swatch);
+                }
+            };
+        }
+
+        public static Panel BuildSignalListWithPayloadGrid(
+            DataGridView signalGrid,
+            CanPayloadGridControl payloadGrid)
+        {
+            var host = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
+
+            var split = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1
+            };
+            split.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            payloadGrid.Mode = CanPayloadGridMode.View;
+            payloadGrid.ShowLegend = false;
+            payloadGrid.Margin = new Padding(0, 0, 12, 0);
+            payloadGrid.Dock = DockStyle.Fill;
+            split.Controls.Add(payloadGrid, 0, 0);
+
+            signalGrid.Dock = DockStyle.Fill;
+            split.Controls.Add(signalGrid, 1, 0);
+
+            host.Controls.Add(split);
+            return host;
+        }
+
+        public static int FindSourceIndexByName(DataGridView grid, string name)
+        {
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.Tag is not int idx) continue;
+                if (row.Cells["Name"].Value is string rowName
+                    && rowName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    return idx;
+            }
+            return -1;
+        }
+
+        public static void SelectRowBySourceIndex(DataGridView grid, int sourceIndex)
+        {
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.Tag is int t && t == sourceIndex)
+                {
+                    row.Selected = true;
+                    if (row.Cells.Count > 0)
+                        grid.CurrentCell = row.Cells[grid.Columns["Name"]?.Index ?? 0];
+                    return;
+                }
+            }
+        }
+
+        public static void SelectRowByName(DataGridView grid, string name)
+        {
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.Cells["Name"].Value is string rowName
+                    && rowName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    row.Selected = true;
+                    grid.CurrentCell = row.Cells[grid.Columns["Name"]?.Index ?? 0];
+                    return;
+                }
+            }
         }
 
         private static void SetFill(DataGridView grid, string name, int weight, int minWidth)

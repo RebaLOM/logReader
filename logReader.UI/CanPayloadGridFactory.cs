@@ -6,7 +6,8 @@ namespace logReader.UI
     {
         public static List<SignalOverlay> FromDbcSignals(
             IEnumerable<DbcSignal> signals,
-            string? currentName = null)
+            string? currentName = null,
+            IReadOnlyDictionary<string, Color>? colorMap = null)
         {
             var list = new List<SignalOverlay>();
             foreach (var s in signals)
@@ -18,7 +19,7 @@ namespace logReader.UI
                     s.StartBit,
                     s.Length,
                     s.IsLittleEndian,
-                    CanPayloadGridPalette.ColorForName(s.Name),
+                    ResolveColor(s.Name, colorMap),
                     isCurrent));
             }
             return list;
@@ -26,7 +27,8 @@ namespace logReader.UI
 
         public static List<SignalOverlay> FromDeviceRows(
             IEnumerable<DeviceFieldRow> rows,
-            string? currentHeader = null)
+            string? currentHeader = null,
+            IReadOnlyDictionary<string, Color>? colorMap = null)
         {
             var list = new List<SignalOverlay>();
             foreach (var r in rows)
@@ -44,7 +46,7 @@ namespace logReader.UI
                         global,
                         r.Length,
                         IsLittleEndian: true,
-                        CanPayloadGridPalette.ColorForName(name),
+                        ResolveColor(name, colorMap),
                         isCurrent));
                 }
                 else
@@ -54,11 +56,19 @@ namespace logReader.UI
                         r.StartBit,
                         r.Length,
                         r.IsLittleEndian,
-                        CanPayloadGridPalette.ColorForName(name),
+                        ResolveColor(name, colorMap),
                         isCurrent));
                 }
             }
             return list;
+        }
+
+        private static Color ResolveColor(string name, IReadOnlyDictionary<string, Color>? colorMap)
+        {
+            if (colorMap != null
+                && colorMap.TryGetValue(name, out Color mapped))
+                return mapped;
+            return CanPayloadGridPalette.ColorForName(name);
         }
     }
 }
