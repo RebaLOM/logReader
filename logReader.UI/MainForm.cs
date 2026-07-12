@@ -20,16 +20,21 @@ namespace logReader.UI
 
         private sealed class SaveOptions
         {
-            public OutputFormat OutputFormat { get; set; } = OutputFormat.Xlsx;
+            public OutputFormat OutputFormat { get; set; } = OutputFormat.Csv;
             public BatchOutputMode BatchMode { get; set; } = BatchOutputMode.PerInputFile;
             public LogFormatKind FolderFormatFilter { get; set; } = LogFormatKind.All;
         }
 
         private readonly SaveOptions _saveOptions = new();
 
+        /// <summary>Высота нижней панели журнала (px); сохраняется при перетаскивании разделителя.</summary>
+        private int _logPanelHeight = 100;
+        private bool _layingOutContentSplit;
+
         public MainForm()
         {
             InitializeComponent();
+            WireContentSplitLayout();
             UpdateDevicesCreateAddButtonState();
             UpdateCompositesCreateAddButtonState();
             UpdateFilterLabel();
@@ -915,6 +920,61 @@ namespace logReader.UI
             buttonProcess.Enabled = true;
             buttonProcess.Text = "Обработать";
             Cursor = Cursors.Default;
+        }
+
+        private void WireContentSplitLayout()
+        {
+            _logPanelHeight = Math.Max(
+                contentSplit.Panel2MinSize,
+                contentSplit.Height - contentSplit.SplitterDistance - contentSplit.SplitterWidth);
+
+            contentSplit.SplitterMoved += (_, _) =>
+            {
+                if (!_layingOutContentSplit)
+                    _logPanelHeight = contentSplit.Panel2.Height;
+            };
+            contentSplit.Resize += (_, _) => ApplyLogPanelBottomAnchor();
+            Resize += (_, _) => ApplyLogPanelBottomAnchor();
+            Shown += (_, _) => ApplyLogPanelBottomAnchor();
+        }
+
+        /// <summary>Держит журнал у нижнего края окна с сохранённой высотой.</summary>
+        private void ApplyLogPanelBottomAnchor()
+        {
+            if (_layingOutContentSplit || contentSplit.Height <= 0)
+                return;
+
+            int splitter = contentSplit.SplitterWidth;
+            int minLog = contentSplit.Panel2MinSize;
+            int minTop = contentSplit.Panel1MinSize;
+            int available = contentSplit.Height - splitter;
+
+            if (available <= minLog + minTop)
+                return;
+
+            int logHeight = Math.Clamp(_logPanelHeight, minLog, available - minTop);
+            int topHeight = available - logHeight;
+
+            if (topHeight < minTop)
+            {
+                topHeight = minTop;
+                logHeight = Math.Max(minLog, available - topHeight);
+            }
+
+            if (contentSplit.SplitterDistance == topHeight)
+                return;
+
+            _layingOutContentSplit = true;
+            try
+            {
+                contentSplit.SplitterDistance = topHeight;
+            }
+            finally
+            {
+                _layingOutContentSplit = false;
+            }
+
+            _logPanelHeight = logHeight;
         }
     }
 }

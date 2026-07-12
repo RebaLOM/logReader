@@ -16,6 +16,7 @@ namespace logReader.UI
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            contentSplit = new SplitContainer();
             labelCANlog = new Label();
             labelDevices = new Label();
             labelComposites = new Label();
@@ -39,7 +40,56 @@ namespace logReader.UI
             buttonDevicesParams = new Button();
             buttonDevicesCreateOrAdd = new Button();
             buttonSaveOptions = new Button();
+            ((System.ComponentModel.ISupportInitialize)contentSplit).BeginInit();
+            contentSplit.Panel1.SuspendLayout();
+            contentSplit.Panel2.SuspendLayout();
+            contentSplit.SuspendLayout();
             SuspendLayout();
+            // 
+            // contentSplit
+            // 
+            contentSplit.Dock = DockStyle.Fill;
+            contentSplit.FixedPanel = FixedPanel.None;
+            contentSplit.Location = new Point(0, 0);
+            contentSplit.Name = "contentSplit";
+            contentSplit.Orientation = Orientation.Horizontal;
+            // 
+            // contentSplit.Panel1 — рабочая область (сверху)
+            // 
+            contentSplit.Panel1.AutoScroll = true;
+            contentSplit.Panel1.Controls.Add(buttonSaveOptions);
+            contentSplit.Panel1.Controls.Add(labelFilterStatus);
+            contentSplit.Panel1.Controls.Add(buttonDevicesCreateOrAdd);
+            contentSplit.Panel1.Controls.Add(buttonDevicesParams);
+            contentSplit.Panel1.Controls.Add(buttonTrcToAsc);
+            contentSplit.Panel1.Controls.Add(buttonHelp);
+            contentSplit.Panel1.Controls.Add(buttonProcess);
+            contentSplit.Panel1.Controls.Add(buttonOpenOutput);
+            contentSplit.Panel1.Controls.Add(buttonOutput);
+            contentSplit.Panel1.Controls.Add(buttonCompositesCreateOrAdd);
+            contentSplit.Panel1.Controls.Add(buttonComposites);
+            contentSplit.Panel1.Controls.Add(buttonDevices);
+            contentSplit.Panel1.Controls.Add(buttonViewLog);
+            contentSplit.Panel1.Controls.Add(buttonCANlog);
+            contentSplit.Panel1.Controls.Add(textBoxOutput);
+            contentSplit.Panel1.Controls.Add(textBoxComposites);
+            contentSplit.Panel1.Controls.Add(textBoxDevices);
+            contentSplit.Panel1.Controls.Add(textBoxCanLog);
+            contentSplit.Panel1.Controls.Add(labelResult);
+            contentSplit.Panel1.Controls.Add(labelComposites);
+            contentSplit.Panel1.Controls.Add(labelDevices);
+            contentSplit.Panel1.Controls.Add(labelCANlog);
+            contentSplit.Panel1MinSize = 420;
+            // 
+            // contentSplit.Panel2 — журнал (снизу)
+            // 
+            contentSplit.Panel2.Controls.Add(textBoxLog);
+            contentSplit.Panel2MinSize = 80;
+            contentSplit.Size = new Size(800, 533);
+            contentSplit.SplitterDistance = 427;
+            contentSplit.SplitterWidth = 6;
+            contentSplit.TabIndex = 23;
+            contentSplit.TabStop = false;
             // 
             // labelCANlog
             // 
@@ -198,8 +248,8 @@ namespace logReader.UI
             // 
             // textBoxLog
             // 
-            textBoxLog.Dock = DockStyle.Bottom;
-            textBoxLog.Location = new Point(0, 350);
+            textBoxLog.Dock = DockStyle.Fill;
+            textBoxLog.Location = new Point(0, 0);
             textBoxLog.Multiline = true;
             textBoxLog.Name = "textBoxLog";
             textBoxLog.ReadOnly = true;
@@ -273,39 +323,23 @@ namespace logReader.UI
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 533);
-            Controls.Add(buttonSaveOptions);
-            Controls.Add(labelFilterStatus);
-            Controls.Add(buttonDevicesCreateOrAdd);
-            Controls.Add(buttonDevicesParams);
-            Controls.Add(buttonTrcToAsc);
-            Controls.Add(buttonHelp);
-            Controls.Add(buttonProcess);
-            Controls.Add(textBoxLog);
-            Controls.Add(buttonOpenOutput);
-            Controls.Add(buttonOutput);
-            Controls.Add(buttonCompositesCreateOrAdd);
-            Controls.Add(buttonComposites);
-            Controls.Add(buttonDevices);
-            Controls.Add(buttonViewLog);
-            Controls.Add(buttonCANlog);
-            Controls.Add(textBoxOutput);
-            Controls.Add(textBoxComposites);
-            Controls.Add(textBoxDevices);
-            Controls.Add(textBoxCanLog);
-            Controls.Add(labelResult);
-            Controls.Add(labelComposites);
-            Controls.Add(labelDevices);
-            Controls.Add(labelCANlog);
+            Controls.Add(contentSplit);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MinimumSize = new Size(600, 503);
+            MinimumSize = new Size(600, 520);
             Name = "MainForm";
             Text = "LOGER";
+            contentSplit.Panel1.ResumeLayout(false);
+            contentSplit.Panel1.PerformLayout();
+            contentSplit.Panel2.ResumeLayout(false);
+            contentSplit.Panel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)contentSplit).EndInit();
+            contentSplit.ResumeLayout(false);
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
 
+        private SplitContainer contentSplit;
         private Label labelCANlog;
         private Label labelDevices;
         private Label labelComposites;
