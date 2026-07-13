@@ -21,8 +21,28 @@ namespace logReader.UI
             bool hasFilter,
             Dictionary<string, bool> deviceEnabled,
             Dictionary<string, bool[]> paramEnabled,
-            CompositeRuntime? composites)
+            CompositeRuntime? composites,
+            DstConnectOptions? dstOptions = null)
         {
+            bool isTrc = Path.GetExtension(logPath).Equals(".trc", StringComparison.OrdinalIgnoreCase);
+
+            if (outputFormat == OutputFormat.CsvDstConnect)
+            {
+                if (!isTrc)
+                {
+                    _log("Ошибка: CSV ДСТ Коннект применим только к файлам .trc.");
+                    return;
+                }
+
+                _log("Формат: CSV ДСТ Коннект (pCAN .trc)");
+                new DstConnectTrcProcessor().Process(
+                    logPath, allDevices, outputPath, dstOptions ?? new DstConnectOptions(), _log,
+                    hasFilter ? deviceEnabled : null,
+                    hasFilter ? paramEnabled : null,
+                    composites);
+                return;
+            }
+
             bool isPCan = IsPCanLog(logPath);
             bool isAsc = IsAscLog(logPath);
             if (isPCan)
@@ -97,7 +117,8 @@ namespace logReader.UI
             bool hasFilter,
             Dictionary<string, bool> deviceEnabled,
             Dictionary<string, bool[]> paramEnabled,
-            CompositeRuntime? composites)
+            CompositeRuntime? composites,
+            DstConnectOptions? dstOptions = null)
         {
             int created = 0;
             int expected = 0;
@@ -139,7 +160,7 @@ namespace logReader.UI
                     expected++;
                     ProcessSingleFile(
                         logPath, outPath, outputFormat, allDevices, hasFilter,
-                        deviceEnabled, paramEnabled, composites);
+                        deviceEnabled, paramEnabled, composites, dstOptions);
 
                     if (File.Exists(outPath))
                         created++;
@@ -182,6 +203,13 @@ namespace logReader.UI
 
             if (batchMode == BatchOutputMode.PerInputFile || trcFiles.Count == 0)
             {
+                ProcessPerFile(trcFiles);
+                return new BatchOutcome(created, expected);
+            }
+
+            if (outputFormat == OutputFormat.CsvDstConnect)
+            {
+                _log("CSV ДСТ: объединение и разбивка по датам не поддерживаются — обработка по одному файлу.");
                 ProcessPerFile(trcFiles);
                 return new BatchOutcome(created, expected);
             }
@@ -306,13 +334,25 @@ namespace logReader.UI
         }
 
         internal static string GetOutputExtension(OutputFormat outputFormat)
-            => outputFormat == OutputFormat.Csv ? ".csv" : ".xlsx";
+            => outputFormat switch
+            {
+                OutputFormat.Xlsx => ".xlsx",
+                OutputFormat.CsvDstConnect => ".csv",
+                _ => ".csv"
+            };
 
         private static string BuildBatchOutputPath(string logFilePath, string outputFolder, OutputFormat outputFormat)
         {
             string stem = Path.GetFileNameWithoutExtension(logFilePath);
             string ext = Path.GetExtension(logFilePath).TrimStart('.');
             if (string.IsNullOrEmpty(ext)) ext = "log";
+
+            if (outputFormat == OutputFormat.CsvDstConnect
+                && ext.Equals("trc", StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.Combine(outputFolder, $"{stem}_trc_dst.csv");
+            }
+
             return Path.Combine(outputFolder, $"{stem}_{ext}_result{GetOutputExtension(outputFormat)}");
         }
 

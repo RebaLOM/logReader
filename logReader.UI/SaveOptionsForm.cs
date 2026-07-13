@@ -6,25 +6,31 @@ namespace logReader.UI
         private readonly ComboBox _comboBatchMode;
         private readonly CheckedListBox _formatsList;
         private readonly Label _formatsHint;
+        private readonly Panel _dstPanel;
+        private readonly NumericUpDown _numBlockPeriod;
+        private readonly NumericUpDown _numBlockStart;
         private bool _suppressFormatsEvents;
 
         internal OutputFormat SelectedOutputFormat { get; private set; }
         internal BatchOutputMode SelectedBatchMode { get; private set; }
         internal LogFormatKind SelectedFolderFormats { get; private set; } = LogFormatKind.All;
+        internal DstConnectOptions SelectedDstConnectOptions { get; private set; } = new();
 
         internal SaveOptionsForm(
             OutputFormat currentFormat,
             BatchOutputMode currentBatchMode,
+            DstConnectOptions currentDstOptions,
             string? logFolderPath,
             LogFormatKind currentFolderFormats)
         {
+            SelectedDstConnectOptions = CloneDstOptions(currentDstOptions);
             Text = "Параметры сохранения";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(680, 370);
+            ClientSize = new Size(680, 442);
             MinimumSize = Size;
             MaximumSize = Size;
 
@@ -43,18 +49,68 @@ namespace logReader.UI
             };
             _comboOutputFormat.Items.Add("XLSX");
             _comboOutputFormat.Items.Add("CSV");
+            _comboOutputFormat.Items.Add("CSV ДСТ Коннект");
+            _comboOutputFormat.SelectedIndexChanged += (_, _) => UpdateDstPanelVisibility();
+
+            _dstPanel = new Panel
+            {
+                Location = new Point(16, 78),
+                Size = new Size(645, 68),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var labelBlockPeriod = new Label { Text = "Период блока, мс:", AutoSize = true, Location = new Point(8, 10) };
+            _numBlockPeriod = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 3600000,
+                Value = Math.Clamp(currentDstOptions.BlockPeriodMs, 1, 3600000),
+                Location = new Point(180, 8),
+                Width = 80
+            };
+            var labelBlockPeriodHint = new Label
+            {
+                Text = "цикл шины; одна строка CSV на каждый блок",
+                AutoSize = true,
+                Location = new Point(270, 10),
+                ForeColor = Color.DimGray
+            };
+
+            var labelBlockStart = new Label { Text = "Номер якорной посылки:", AutoSize = true, Location = new Point(8, 38) };
+            _numBlockStart = new NumericUpDown
+            {
+                Minimum = 0,
+                Maximum = 10000000,
+                Value = Math.Max(0, currentDstOptions.BlockStartIndex),
+                Location = new Point(180, 36),
+                Width = 80
+            };
+            var labelBlockHint = new Label
+            {
+                Text = "Message Number из .trc; 0 — авто; иначе с этой посылки",
+                AutoSize = true,
+                Location = new Point(270, 38),
+                ForeColor = Color.DimGray
+            };
+
+            _dstPanel.Controls.Add(labelBlockPeriod);
+            _dstPanel.Controls.Add(_numBlockPeriod);
+            _dstPanel.Controls.Add(labelBlockPeriodHint);
+            _dstPanel.Controls.Add(labelBlockStart);
+            _dstPanel.Controls.Add(_numBlockStart);
+            _dstPanel.Controls.Add(labelBlockHint);
 
             var labelBatch = new Label
             {
                 Text = "Режим сохранения при обработке папки:",
                 AutoSize = true,
-                Location = new Point(16, 84)
+                Location = new Point(16, 156)
             };
 
             _comboBatchMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(16, 109),
+                Location = new Point(16, 181),
                 Size = new Size(645, 23)
             };
             _comboBatchMode.Items.Add("Отдельный файл на каждый входной лог");
@@ -65,12 +121,12 @@ namespace logReader.UI
             {
                 Text = "Форматы в папке:",
                 AutoSize = true,
-                Location = new Point(16, 148)
+                Location = new Point(16, 220)
             };
 
             _formatsList = new CheckedListBox
             {
-                Location = new Point(16, 172),
+                Location = new Point(16, 244),
                 Size = new Size(645, 120),
                 CheckOnClick = true
             };
@@ -79,7 +135,7 @@ namespace logReader.UI
             _formatsHint = new Label
             {
                 AutoSize = false,
-                Location = new Point(16, 296),
+                Location = new Point(16, 368),
                 Size = new Size(645, 18),
                 ForeColor = Color.DimGray,
                 Text = ""
@@ -89,7 +145,7 @@ namespace logReader.UI
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Location = new Point(505, 330),
+                Location = new Point(505, 402),
                 Size = new Size(75, 26)
             };
             buttonOk.Click += buttonOk_Click;
@@ -99,12 +155,13 @@ namespace logReader.UI
             {
                 Text = "Отмена",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(586, 330),
+                Location = new Point(586, 402),
                 Size = new Size(75, 26)
             };
 
             Controls.Add(labelFormat);
             Controls.Add(_comboOutputFormat);
+            Controls.Add(_dstPanel);
             Controls.Add(labelBatch);
             Controls.Add(_comboBatchMode);
             Controls.Add(labelFormats);
@@ -116,7 +173,12 @@ namespace logReader.UI
             AcceptButton = buttonOk;
             CancelButton = buttonCancel;
 
-            _comboOutputFormat.SelectedIndex = currentFormat == OutputFormat.Csv ? 1 : 0;
+            _comboOutputFormat.SelectedIndex = currentFormat switch
+            {
+                OutputFormat.Csv => 1,
+                OutputFormat.CsvDstConnect => 2,
+                _ => 0
+            };
             _comboBatchMode.SelectedIndex = currentBatchMode switch
             {
                 BatchOutputMode.MergeToSingleFile => 1,
@@ -126,8 +188,22 @@ namespace logReader.UI
 
             SelectedFolderFormats = currentFolderFormats == LogFormatKind.None ? LogFormatKind.All : currentFolderFormats;
             BuildFormatsList(logFolderPath);
+            UpdateDstPanelVisibility();
             UpdateOkEnabledState(buttonOk);
         }
+
+        private void UpdateDstPanelVisibility()
+        {
+            _dstPanel.Visible = _comboOutputFormat.SelectedIndex == 2;
+        }
+
+        private static DstConnectOptions CloneDstOptions(DstConnectOptions src)
+            => new()
+            {
+                BlockPeriodMs = src.BlockPeriodMs,
+                BlockStartIndex = src.BlockStartIndex,
+                JitterToleranceMs = src.JitterToleranceMs
+            };
 
         private sealed record FormatItem(LogFormatKind Kind, string Label, bool IsAll = false)
         {
@@ -178,7 +254,6 @@ namespace logReader.UI
 
         private void ApplyInitialChecks(LogFolderInventory inv, LogFormatKind selection)
         {
-            // Если selection содержит форматы, которых нет в папке — просто игнорируем их.
             bool anyChecked = false;
             for (int i = 0; i < _formatsList.Items.Count; i++)
             {
@@ -194,7 +269,6 @@ namespace logReader.UI
                 }
             }
 
-            // Если ничего не выбрано (или selection=All) — включаем всё, что присутствует.
             if (!anyChecked || selection == LogFormatKind.All)
             {
                 for (int i = 0; i < _formatsList.Items.Count; i++)
@@ -252,7 +326,6 @@ namespace logReader.UI
         {
             if (_suppressFormatsEvents) return;
 
-            // Обрабатываем клики по "Все".
             var clicked = (FormatItem)_formatsList.Items[e.Index]!;
             if (clicked.IsAll)
             {
@@ -268,7 +341,6 @@ namespace logReader.UI
                 return;
             }
 
-            // После изменения любого элемента синхронизируем "Все" и состояние OK.
             BeginInvoke(() =>
             {
                 if (_suppressFormatsEvents) return;
@@ -301,7 +373,12 @@ namespace logReader.UI
 
         private void buttonOk_Click(object? sender, EventArgs e)
         {
-            SelectedOutputFormat = _comboOutputFormat.SelectedIndex == 1 ? OutputFormat.Csv : OutputFormat.Xlsx;
+            SelectedOutputFormat = _comboOutputFormat.SelectedIndex switch
+            {
+                1 => OutputFormat.Csv,
+                2 => OutputFormat.CsvDstConnect,
+                _ => OutputFormat.Xlsx
+            };
             SelectedBatchMode = _comboBatchMode.SelectedIndex switch
             {
                 1 => BatchOutputMode.MergeToSingleFile,
@@ -309,8 +386,13 @@ namespace logReader.UI
                 _ => BatchOutputMode.PerInputFile
             };
 
+            SelectedDstConnectOptions = new DstConnectOptions
+            {
+                BlockPeriodMs = (int)_numBlockPeriod.Value,
+                BlockStartIndex = (int)_numBlockStart.Value
+            };
+
             SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
         }
     }
 }
-

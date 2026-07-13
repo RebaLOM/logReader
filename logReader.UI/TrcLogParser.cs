@@ -22,7 +22,19 @@ namespace logReader.UI
             out int dlc,
             Span<int> bytes,
             out int parsedByteCount)
+            => TryParseTrcFrameLine(line, out _, out timeMs, out direction, out id, out dlc, bytes, out parsedByteCount);
+
+        internal static bool TryParseTrcFrameLine(
+            string line,
+            out int messageIndex,
+            out decimal timeMs,
+            out string direction,
+            out string id,
+            out int dlc,
+            Span<int> bytes,
+            out int parsedByteCount)
         {
+            messageIndex = 0;
             timeMs = 0m;
             direction = "";
             id = "";
@@ -40,7 +52,7 @@ namespace logReader.UI
             if (tokens.Length < 5)
                 return false;
 
-            if (!TryParseFrameIndex(tokens[0]))
+            if (!TryParseFrameIndex(tokens[0], out messageIndex))
                 return false;
 
             if (!TryParseMilliseconds(tokens[1], out timeMs))
@@ -106,8 +118,9 @@ namespace logReader.UI
             return fallback;
         }
 
-        private static bool TryParseFrameIndex(string rawToken)
+        private static bool TryParseFrameIndex(string rawToken, out int index)
         {
+            index = 0;
             if (string.IsNullOrWhiteSpace(rawToken))
                 return false;
 
@@ -115,7 +128,7 @@ namespace logReader.UI
             if (token.EndsWith(")", StringComparison.Ordinal))
                 token = token.Substring(0, token.Length - 1);
 
-            return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+            return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out index);
         }
 
         private static bool TryParseMilliseconds(string rawToken, out decimal value)

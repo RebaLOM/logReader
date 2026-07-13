@@ -23,6 +23,7 @@ namespace logReader.UI
             public OutputFormat OutputFormat { get; set; } = OutputFormat.Csv;
             public BatchOutputMode BatchMode { get; set; } = BatchOutputMode.PerInputFile;
             public LogFormatKind FolderFormatFilter { get; set; } = LogFormatKind.All;
+            public DstConnectOptions DstConnect { get; set; } = new();
         }
 
         private readonly SaveOptions _saveOptions = new();
@@ -44,7 +45,12 @@ namespace logReader.UI
         private OutputFormat GetSelectedOutputFormat() => _saveOptions.OutputFormat;
 
         private static string GetOutputExtension(OutputFormat outputFormat)
-            => outputFormat == OutputFormat.Csv ? ".csv" : ".xlsx";
+            => outputFormat switch
+            {
+                OutputFormat.Xlsx => ".xlsx",
+                OutputFormat.CsvDstConnect => ".csv",
+                _ => ".csv"
+            };
 
         private static string EnsureOutputPathMatchesFormat(string path, OutputFormat outputFormat)
         {
@@ -83,13 +89,19 @@ namespace logReader.UI
         private void buttonSaveOptions_Click(object sender, EventArgs e)
         {
             string? folderPath = Directory.Exists(textBoxCanLog.Text.Trim()) ? textBoxCanLog.Text.Trim() : null;
-            using var dlg = new SaveOptionsForm(_saveOptions.OutputFormat, _saveOptions.BatchMode, folderPath, _saveOptions.FolderFormatFilter);
+            using var dlg = new SaveOptionsForm(
+                _saveOptions.OutputFormat,
+                _saveOptions.BatchMode,
+                _saveOptions.DstConnect,
+                folderPath,
+                _saveOptions.FolderFormatFilter);
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
             _saveOptions.OutputFormat = dlg.SelectedOutputFormat;
             _saveOptions.BatchMode = dlg.SelectedBatchMode;
             _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
+            _saveOptions.DstConnect = dlg.SelectedDstConnectOptions;
 
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
                 return;
@@ -820,7 +832,8 @@ namespace logReader.UI
                 var service = new LogProcessingService(Log);
                 var outcome = await Task.Run(() => service.ProcessFolderBatch(
                     files, outputDir, devFull, outputFormat, _saveOptions.BatchMode,
-                    allDevices, hasFilter, _deviceEnabled, _paramEnabled, composites));
+                    allDevices, hasFilter, _deviceEnabled, _paramEnabled, composites,
+                    _saveOptions.DstConnect));
 
                 int totalOut = outcome.Expected > 0 ? outcome.Expected : outcome.Created;
                 Log($"Готово: создано файлов: {outcome.Created} из {totalOut}.");
@@ -899,7 +912,7 @@ namespace logReader.UI
                 var service = new LogProcessingService(Log);
                 await Task.Run(() => service.ProcessSingleFile(
                     canInput, outputPath, outputFormat, allDevices, hasFilter,
-                    _deviceEnabled, _paramEnabled, composites));
+                    _deviceEnabled, _paramEnabled, composites, _saveOptions.DstConnect));
 
                 if (File.Exists(outputPath))
                 {
