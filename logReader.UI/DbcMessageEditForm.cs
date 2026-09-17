@@ -275,7 +275,7 @@ namespace logReader.UI
         private void LoadFromMessage(DbcMessage m)
         {
             _txtName.Text = m.Name;
-            _txtId.Text = m.Id.ToString("X", CultureInfo.InvariantCulture);
+            _txtId.Text = CanId.Format(m.Id, m.IsExtended);
             _numDlc.Value = Math.Clamp(m.Dlc, 1, 8);
             _rbExtended.Checked = m.IsExtended;
             _rbStandard.Checked = !m.IsExtended;

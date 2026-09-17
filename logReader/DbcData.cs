@@ -24,6 +24,6 @@ namespace logReader
         public string Transmitter { get; set; } = "Vector__XXX";
         public List<DbcSignal> Signals { get; set; } = new();
 
-        public string IdHex => Id.ToString("X");
+        public string IdHex => CanId.Format(Id, IsExtended);
     }
 }

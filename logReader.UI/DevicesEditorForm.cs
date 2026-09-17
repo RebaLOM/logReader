@@ -253,7 +253,7 @@ namespace logReader.UI
                     if (!PassesFormatFilter(m.IsExtended)) continue;
                     if (!MessageEditFormHelpers.InOptionalRange(m.Dlc, dlcMin, dlcMax)) continue;
                     if (!MessageEditFormHelpers.InOptionalRange(m.Signals.Count, sigMin, sigMax)) continue;
-                    string idHex = m.Id.ToString("X", CultureInfo.InvariantCulture);
+                    string idHex = CanId.Format(m.Id, m.IsExtended);
                     if (!MessageEditFormHelpers.TextMatchesQuery(m.Name, query)
                         && !MessageEditFormHelpers.IdMatchesQuery(idHex, query))
                         continue;

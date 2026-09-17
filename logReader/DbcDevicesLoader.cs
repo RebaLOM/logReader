@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace logReader
 {
     internal static class DbcDevicesLoader
@@ -29,7 +27,7 @@ namespace logReader
 
             foreach (var message in messages)
             {
-                string deviceId = message.Id.ToString("X", CultureInfo.InvariantCulture);
+                string deviceId = CanId.Format(message.Id, message.IsExtended);
 
                 if (!seenMessageIds.Add(deviceId))
                     logger($"Предупреждение: дубликат 0x{deviceId} — сигналы будут объединены.");

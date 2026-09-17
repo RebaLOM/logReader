@@ -95,8 +95,11 @@ namespace logReader
             for (int rowNum = 2; rowNum <= lastRow; rowNum++)
             {
                 var row = ws.Row(rowNum);
-                string deviceId = row.Cell(1).GetString().Trim();
-                if (string.IsNullOrWhiteSpace(deviceId)) continue;
+                string rawDeviceId = row.Cell(1).GetString().Trim();
+                if (string.IsNullOrWhiteSpace(rawDeviceId)) continue;
+                // Excel/редактор могли сохранить без ведущего 0 (CFF0008 вместо 0CFF0008).
+                if (!CanId.TryNormalize(rawDeviceId, out string deviceId))
+                    deviceId = rawDeviceId.ToUpperInvariant();
 
                 string messageName = row.Cell(2).GetString().Trim();
                 bool extended = ParseBool01(row.Cell(3), defaultValue: true);
@@ -231,7 +234,9 @@ namespace logReader
 
         private static void WriteRow(IXLWorksheet ws, int row, DeviceDefinition dev, int fieldIndex, DeviceFieldRow r)
         {
-            ws.Cell(row, 1).Value = dev.DeviceId;
+            ws.Cell(row, 1).Value = CanId.TryNormalize(dev.DeviceId, out string normalizedId)
+                ? normalizedId
+                : (dev.DeviceId ?? "");
             ws.Cell(row, 2).Value = dev.MessageName ?? "";
             ws.Cell(row, 3).Value = dev.Extended ? 1 : 0;
             ws.Cell(row, 4).Value = dev.Dlc;
