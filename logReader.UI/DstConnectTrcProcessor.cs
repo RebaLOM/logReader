@@ -13,7 +13,8 @@ namespace logReader.UI
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null)
+            CompositeRuntime? composites = null,
+            bool includeDeviceIdHeaderRow = false)
         {
             if (!File.Exists(trcPath))
             {
@@ -163,7 +164,8 @@ namespace logReader.UI
                 return;
             }
 
-            DstConnectCsvWriter.Write(outputPath, startTime, outputColumns, tracker.Rows, log);
+            DstConnectCsvWriter.Write(
+                outputPath, startTime, outputColumns, tracker.Rows, log, includeDeviceIdHeaderRow);
         }
 
         private static int ResolveProcessingStartIndex(

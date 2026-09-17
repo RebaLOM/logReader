@@ -9,28 +9,32 @@ namespace logReader.UI
         private readonly Panel _dstPanel;
         private readonly NumericUpDown _numBlockPeriod;
         private readonly NumericUpDown _numBlockStart;
+        private readonly CheckBox _chkIncludeDeviceIdRow;
         private bool _suppressFormatsEvents;
 
         internal OutputFormat SelectedOutputFormat { get; private set; }
         internal BatchOutputMode SelectedBatchMode { get; private set; }
         internal LogFormatKind SelectedFolderFormats { get; private set; } = LogFormatKind.All;
         internal DstConnectOptions SelectedDstConnectOptions { get; private set; } = new();
+        internal bool IncludeDeviceIdHeaderRow { get; private set; }
 
         internal SaveOptionsForm(
             OutputFormat currentFormat,
             BatchOutputMode currentBatchMode,
             DstConnectOptions currentDstOptions,
             string? logFolderPath,
-            LogFormatKind currentFolderFormats)
+            LogFormatKind currentFolderFormats,
+            bool includeDeviceIdHeaderRow = false)
         {
             SelectedDstConnectOptions = CloneDstOptions(currentDstOptions);
+            IncludeDeviceIdHeaderRow = includeDeviceIdHeaderRow;
             Text = "Параметры сохранения";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(680, 442);
+            ClientSize = new Size(680, 472);
             MinimumSize = Size;
             MaximumSize = Size;
 
@@ -100,17 +104,32 @@ namespace logReader.UI
             _dstPanel.Controls.Add(_numBlockStart);
             _dstPanel.Controls.Add(labelBlockHint);
 
+            _chkIncludeDeviceIdRow = new CheckBox
+            {
+                Text = "Первая строка с ID посылок над именами параметров",
+                AutoSize = true,
+                Location = new Point(16, 154),
+                Checked = includeDeviceIdHeaderRow
+            };
+            var labelIdRowHint = new Label
+            {
+                Text = "по умолчанию выключено — в шапке только «Шаг»/«Время» и имена переменных",
+                AutoSize = true,
+                Location = new Point(40, 176),
+                ForeColor = Color.DimGray
+            };
+
             var labelBatch = new Label
             {
                 Text = "Режим сохранения при обработке папки:",
                 AutoSize = true,
-                Location = new Point(16, 156)
+                Location = new Point(16, 206)
             };
 
             _comboBatchMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(16, 181),
+                Location = new Point(16, 231),
                 Size = new Size(645, 23)
             };
             _comboBatchMode.Items.Add("Отдельный файл на каждый входной лог");
@@ -121,13 +140,13 @@ namespace logReader.UI
             {
                 Text = "Форматы в папке:",
                 AutoSize = true,
-                Location = new Point(16, 220)
+                Location = new Point(16, 270)
             };
 
             _formatsList = new CheckedListBox
             {
-                Location = new Point(16, 244),
-                Size = new Size(645, 120),
+                Location = new Point(16, 294),
+                Size = new Size(645, 100),
                 CheckOnClick = true
             };
             _formatsList.ItemCheck += formatsList_ItemCheck;
@@ -135,7 +154,7 @@ namespace logReader.UI
             _formatsHint = new Label
             {
                 AutoSize = false,
-                Location = new Point(16, 368),
+                Location = new Point(16, 398),
                 Size = new Size(645, 18),
                 ForeColor = Color.DimGray,
                 Text = ""
@@ -145,7 +164,7 @@ namespace logReader.UI
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Location = new Point(505, 402),
+                Location = new Point(505, 432),
                 Size = new Size(75, 26)
             };
             buttonOk.Click += buttonOk_Click;
@@ -155,13 +174,15 @@ namespace logReader.UI
             {
                 Text = "Отмена",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(586, 402),
+                Location = new Point(586, 432),
                 Size = new Size(75, 26)
             };
 
             Controls.Add(labelFormat);
             Controls.Add(_comboOutputFormat);
             Controls.Add(_dstPanel);
+            Controls.Add(_chkIncludeDeviceIdRow);
+            Controls.Add(labelIdRowHint);
             Controls.Add(labelBatch);
             Controls.Add(_comboBatchMode);
             Controls.Add(labelFormats);
@@ -392,6 +413,7 @@ namespace logReader.UI
                 BlockStartIndex = (int)_numBlockStart.Value
             };
 
+            IncludeDeviceIdHeaderRow = _chkIncludeDeviceIdRow.Checked;
             SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
         }
     }

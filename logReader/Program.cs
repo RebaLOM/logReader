@@ -481,13 +481,14 @@ namespace logReader
 
         public static int BuildExcelHeaders(
             IXLWorksheet ws, List<Device> devices)
-            => BuildExcelHeaders(ws, devices, null, null);
+            => BuildExcelHeaders(ws, devices, null, null, includeDeviceIdRow: false);
 
         public static int BuildExcelHeaders(
             IXLWorksheet ws, List<Device> devices,
             Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled)
-            => ExcelLayoutBuilder.BuildStepLogHeaders(ws, devices, deviceEnabled, paramEnabled);
+            Dictionary<string, bool[]>? paramEnabled,
+            bool includeDeviceIdRow = false)
+            => ExcelLayoutBuilder.BuildStepLogHeaders(ws, devices, deviceEnabled, paramEnabled, includeDeviceIdRow);
 
         public static int BuildExcelRow(
             IXLWorksheet ws, int excelRow, int step, string time, List<Device> devices)

@@ -74,6 +74,9 @@ namespace logReader.UI
                         log($"Пропуск: ошибка чтения заголовка ({Path.GetFileName(trcPath)}): {ex.Message}");
                         continue;
                     }
+
+                    if (startTime == null)
+                        log($"Предупреждение: в .trc нет Start time — {Path.GetFileName(trcPath)} (время как мс от начала записи).");
                 }
 
                 // Устройства кешируются в UI — сброс перед каждым файлом пакета.
@@ -96,10 +99,7 @@ namespace logReader.UI
                         if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
                             continue;
 
-                        double timeMs = (double)timeMsRaw;
-                        timeVal = startTime.HasValue
-                            ? startTime.Value.AddMilliseconds(timeMs).TimeOfDay.TotalDays
-                            : timeMs;
+                        timeVal = (double)timeMsRaw;
                     }
 
                     composites?.OnMessage(id, bytes, parsedByteCount);
@@ -211,7 +211,7 @@ namespace logReader.UI
                     double timeMs = (double)timeMsRaw;
                     DateTime frameTime = startTime.Value.AddMilliseconds(timeMs);
                     DateOnly date = DateOnly.FromDateTime(frameTime);
-                    double timeVal = frameTime.TimeOfDay.TotalDays;
+                    double timeVal = timeMs;
 
                     composites?.OnMessage(id, bytes, parsedByteCount);
 

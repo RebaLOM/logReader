@@ -49,7 +49,7 @@ namespace logReader.UI
             {
                 string cell = parts[i].Trim();
                 if (string.IsNullOrEmpty(cell)) continue;
-                if (!CanToken.TryNormalizeId(cell, out string id, minHexLength: 6))
+                if (!CanToken.TryNormalizeId(cell, out string id, minHexLength: 1))
                     return false;
                 columns.Add(new MatrixCsvColumn(i, id));
                 ids.Add(id);
@@ -59,25 +59,7 @@ namespace logReader.UI
         }
 
         public static bool TryParseTimeCell(string? raw, out TimeSpan time)
-        {
-            time = default;
-            if (string.IsNullOrWhiteSpace(raw)) return false;
-
-            string[] parts = raw.Trim().Split(':');
-            if (parts.Length != 3) return false;
-            if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int hours))
-                return false;
-            if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int minutes))
-                return false;
-            if (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds))
-                return false;
-
-            if (hours < 0 || minutes is < 0 or > 59 || seconds is < 0 or > 59)
-                return false;
-
-            time = new TimeSpan(hours, minutes, seconds);
-            return true;
-        }
+            => TimeOfDayParse.TryParse(raw, out time);
 
         // Hex без пробелов; хвостовые нулевые байты могут быть обрезаны — выравнивание вправо в 8 байт.
         public static bool TryParsePayloadHex(string? raw, Span<int> bytes)
@@ -124,11 +106,12 @@ namespace logReader.UI
                 time.Milliseconds);
     }
 
-    // В колонке времени — только секунды; внутри секунды наращиваем +20 мс по порядку строк.
+    // В колонке времени — HH:mm:ss или HH:mm:ss.fff; при одинаковом токене наращиваем +20 мс.
     internal sealed class MatrixCsvTimeTracker
     {
         private string _lastTimeCell = "";
         private int _rowOffset;
+        private TimeSpan _lastBaseTime;
 
         public bool TryAdvance(string timeCell, out TimeSpan absolute)
         {
@@ -142,6 +125,7 @@ namespace logReader.UI
             if (!string.Equals(key, _lastTimeCell, StringComparison.Ordinal))
             {
                 _lastTimeCell = key;
+                _lastBaseTime = baseTime;
                 _rowOffset = 0;
             }
             else
@@ -149,7 +133,10 @@ namespace logReader.UI
                 _rowOffset++;
             }
 
-            absolute = baseTime.Add(TimeSpan.FromMilliseconds(_rowOffset * MatrixCsvLogParser.RowPeriodMs));
+            // Если в файле уже есть миллисекунды — берём их; +20 мс только при полном дубле токена.
+            absolute = _rowOffset == 0
+                ? baseTime
+                : _lastBaseTime.Add(TimeSpan.FromMilliseconds(_rowOffset * MatrixCsvLogParser.RowPeriodMs));
             return true;
         }
     }

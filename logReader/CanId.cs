@@ -46,8 +46,9 @@ namespace logReader
             if (value > MaxExtendedId)
                 return false;
 
-            // Полные 8 символов в исходнике — extended с ведущими нулями; иначе по значению.
-            bool looksExtended = value > MaxStandardId || token.Length >= 8;
+            // Ключ сопоставления — по числовому значению ID (11/29 бит — флаг кадра, не строка).
+            // Иначе "00000100" из лога и "100" из standard-конфига не совпадали.
+            bool looksExtended = value > MaxStandardId;
             id = Format(value, looksExtended);
             return true;
         }

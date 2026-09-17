@@ -65,7 +65,8 @@ namespace logReader.UI
             DateTime? startTime,
             IReadOnlyList<Column> columns,
             IReadOnlyList<DstConnectSnapshotRow> rows,
-            Action<string> log)
+            Action<string> log,
+            bool includeDeviceIdHeaderRow = false)
         {
             string? tempPath = null;
             try
@@ -74,25 +75,35 @@ namespace logReader.UI
                 var ru = CultureInfo.GetCultureInfo("ru-RU");
                 using (var writer = new StreamWriter(tempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
                 {
-                    var row1 = new List<string> { "Time", "Step" };
-                    var row2 = new List<string> { "", "" };
+                    var idRow = new List<string> { "Time", "Step" };
+                    var headerRow = new List<string>();
+                    if (includeDeviceIdHeaderRow)
+                        headerRow.AddRange(new[] { "", "" });
+                    else
+                        headerRow.AddRange(new[] { "Time", "Step" });
+
                     string? lastDeviceId = null;
                     foreach (var col in columns)
                     {
-                        if (!col.DeviceId.Equals(lastDeviceId, StringComparison.OrdinalIgnoreCase))
+                        if (includeDeviceIdHeaderRow)
                         {
-                            row1.Add(col.DeviceId);
-                            lastDeviceId = col.DeviceId;
+                            if (!col.DeviceId.Equals(lastDeviceId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                idRow.Add(col.DeviceId);
+                                lastDeviceId = col.DeviceId;
+                            }
+                            else
+                            {
+                                idRow.Add("");
+                            }
                         }
-                        else
-                        {
-                            row1.Add("");
-                        }
-                        row2.Add(col.Header);
+
+                        headerRow.Add(col.Header);
                     }
 
-                    CsvOutput.WriteRow(writer, row1);
-                    CsvOutput.WriteRow(writer, row2);
+                    if (includeDeviceIdHeaderRow)
+                        CsvOutput.WriteRow(writer, idRow);
+                    CsvOutput.WriteRow(writer, headerRow);
 
                     foreach (var row in rows.OrderBy(r => r.StepMs))
                     {

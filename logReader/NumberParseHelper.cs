@@ -11,7 +11,9 @@ namespace logReader
             value = 0;
             if (string.IsNullOrWhiteSpace(text)) return false;
 
-            string s = text.Trim();
+            string s = text.Trim()
+                .Replace('\u00A0', ' ')
+                .Replace(" ", "");
             if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) return true;
             if (double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) return true;
 
@@ -27,7 +29,11 @@ namespace logReader
 
         public static double ParseDoubleInvariant(string value)
         {
-            string normalized = value.Trim().Replace(',', '.');
+            // DBF иногда пишет тысячи с пробелом: "1 000", "−12 345.6".
+            string normalized = value.Trim()
+                .Replace('\u00A0', ' ')
+                .Replace(" ", "")
+                .Replace(',', '.');
             return double.Parse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture);
         }
     }

@@ -22,7 +22,8 @@ namespace logReader.UI
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null)
+            CompositeRuntime? composites = null,
+            bool includeDeviceIdHeaderRow = false)
         {
             bool hasComposites = composites != null && !composites.IsEmpty;
             if (devices.Count == 0 && !hasComposites) { log("Ошибка: устройства не загружены."); return; }
@@ -110,11 +111,12 @@ namespace logReader.UI
             IXLWorksheet? ws = null;
             int excelRow = 0;
             if (outputFormat == OutputFormat.Csv)
-                WriteCsvHeaders(csvWriter!, outputDevices, deviceEnabled, paramEnabled);
+                WriteCsvHeaders(csvWriter!, outputDevices, deviceEnabled, paramEnabled, includeDeviceIdHeaderRow);
             else
             {
                 ws = workbook!.Worksheets.Add("Log");
-                excelRow = logReader.Program.BuildExcelHeaders(ws, outputDevices, deviceEnabled, paramEnabled);
+                excelRow = logReader.Program.BuildExcelHeaders(
+                    ws, outputDevices, deviceEnabled, paramEnabled, includeDeviceIdHeaderRow);
             }
 
             int currentStep = 0;
@@ -225,10 +227,15 @@ namespace logReader.UI
             StreamWriter writer,
             List<Device> activeDevices,
             Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled)
+            Dictionary<string, bool[]>? paramEnabled,
+            bool includeDeviceIdHeaderRow)
         {
-            var row1 = new List<string> { "Шаг", "Время" };
-            var row2 = new List<string> { "", "" };
+            var idRow = new List<string> { "Шаг", "Время" };
+            var headerRow = new List<string>();
+            if (includeDeviceIdHeaderRow)
+                headerRow.AddRange(new[] { "", "" });
+            else
+                headerRow.AddRange(new[] { "Шаг", "Время" });
 
             foreach (var device in activeDevices)
             {
@@ -245,15 +252,19 @@ namespace logReader.UI
                 }
                 if (activeParams.Count == 0) continue;
 
-                row1.Add(device.ID);
-                for (int i = 1; i < activeParams.Count; i++)
-                    row1.Add("");
+                if (includeDeviceIdHeaderRow)
+                {
+                    idRow.Add(device.ID);
+                    for (int i = 1; i < activeParams.Count; i++)
+                        idRow.Add("");
+                }
 
-                row2.AddRange(activeParams);
+                headerRow.AddRange(activeParams);
             }
 
-            CsvOutput.WriteRow(writer, row1);
-            CsvOutput.WriteRow(writer, row2);
+            if (includeDeviceIdHeaderRow)
+                CsvOutput.WriteRow(writer, idRow);
+            CsvOutput.WriteRow(writer, headerRow);
         }
 
         private static void WriteCsvDataRow(

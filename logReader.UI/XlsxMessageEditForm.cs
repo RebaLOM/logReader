@@ -596,7 +596,7 @@ namespace logReader.UI
                 }
             }
 
-            string deviceId = CanId.Format(id, isExtended);
+            string deviceId = CanId.Format(id);
             var rows = new List<DeviceFieldRow>();
             for (int i = 0; i < _rows.Count; i++)
             {

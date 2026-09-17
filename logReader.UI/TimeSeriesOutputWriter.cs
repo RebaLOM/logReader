@@ -17,12 +17,13 @@ namespace logReader.UI
             string outputPath,
             string sheetName,
             bool isCanfox,
-            Action<string> log)
+            Action<string> log,
+            bool includeDeviceIdHeaderRow = false)
         {
             if (format == OutputFormat.Csv)
-                WriteCsv(devices, deviceData, deviceEnabled, paramEnabled, outputPath, isCanfox, log);
+                WriteCsv(devices, deviceData, deviceEnabled, paramEnabled, outputPath, isCanfox, log, includeDeviceIdHeaderRow);
             else
-                WriteExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, sheetName, isCanfox, log);
+                WriteExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, sheetName, isCanfox, log, includeDeviceIdHeaderRow);
         }
 
         private static void WriteExcel(
@@ -33,15 +34,16 @@ namespace logReader.UI
             string outputPath,
             string sheetName,
             bool isCanfox,
-            Action<string> log)
+            Action<string> log,
+            bool includeDeviceIdHeaderRow)
         {
             try
             {
                 using var workbook = new XLWorkbook();
                 var ws = workbook.Worksheets.Add(sheetName);
 
-                ExcelLayoutBuilder.BuildTimeSeriesHeaders(
-                    ws, devices, d => deviceData.ContainsKey(d.ID), deviceEnabled, paramEnabled);
+                int firstDataRow = ExcelLayoutBuilder.BuildTimeSeriesHeaders(
+                    ws, devices, d => deviceData.ContainsKey(d.ID), deviceEnabled, paramEnabled, includeDeviceIdHeaderRow);
 
                 int col = 1;
                 foreach (var device in devices)
@@ -53,10 +55,9 @@ namespace logReader.UI
 
                     for (int r = 0; r < rows.Count; r++)
                     {
-                        int excelRow = r + 3;
+                        int excelRow = firstDataRow + r;
                         int c = col;
 
-                        // CANfox хранит время как долю суток — показываем как HH:mm:ss.fff, не как число Excel.
                         var timeCell = ws.Cell(excelRow, c++);
                         timeCell.Value = rows[r].TimeVal;
                         if (isCanfox)
@@ -102,7 +103,8 @@ namespace logReader.UI
             Dictionary<string, bool[]>? paramEnabled,
             string outputPath,
             bool isCanfox,
-            Action<string> log)
+            Action<string> log,
+            bool includeDeviceIdHeaderRow)
         {
             string? tempPath = null;
             try
@@ -110,8 +112,8 @@ namespace logReader.UI
                 tempPath = SafeFileWriter.CreateTempPath(outputPath);
                 using (var writer = new StreamWriter(tempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
                 {
-                    var row1 = new List<string>();
-                    var row2 = new List<string>();
+                    var idRow = new List<string>();
+                    var headerRow = new List<string>();
                     var visibleDevices = new List<(Device Device, List<int> ParamIndexes)>();
                     int maxRows = 0;
 
@@ -131,17 +133,21 @@ namespace logReader.UI
                         visibleDevices.Add((device, activeParamIndexes));
                         maxRows = Math.Max(maxRows, deviceData[device.ID].Count);
 
-                        row1.Add(device.ID);
-                        for (int i = 0; i < activeParamIndexes.Count; i++)
-                            row1.Add("");
+                        if (includeDeviceIdHeaderRow)
+                        {
+                            idRow.Add(device.ID);
+                            for (int i = 0; i < activeParamIndexes.Count; i++)
+                                idRow.Add("");
+                        }
 
-                        row2.Add("Время");
+                        headerRow.Add("Время");
                         foreach (int idx in activeParamIndexes)
-                            row2.Add(device.headers[idx]);
+                            headerRow.Add(device.headers[idx]);
                     }
 
-                    CsvOutput.WriteRow(writer, row1);
-                    CsvOutput.WriteRow(writer, row2);
+                    if (includeDeviceIdHeaderRow)
+                        CsvOutput.WriteRow(writer, idRow);
+                    CsvOutput.WriteRow(writer, headerRow);
 
                     for (int r = 0; r < maxRows; r++)
                     {
@@ -203,4 +209,3 @@ namespace logReader.UI
         }
     }
 }
-

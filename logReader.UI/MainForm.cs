@@ -24,6 +24,7 @@ namespace logReader.UI
             public BatchOutputMode BatchMode { get; set; } = BatchOutputMode.PerInputFile;
             public LogFormatKind FolderFormatFilter { get; set; } = LogFormatKind.All;
             public DstConnectOptions DstConnect { get; set; } = new();
+            public bool IncludeDeviceIdHeaderRow { get; set; }
         }
 
         private readonly SaveOptions _saveOptions = new();
@@ -94,7 +95,8 @@ namespace logReader.UI
                 _saveOptions.BatchMode,
                 _saveOptions.DstConnect,
                 folderPath,
-                _saveOptions.FolderFormatFilter);
+                _saveOptions.FolderFormatFilter,
+                _saveOptions.IncludeDeviceIdHeaderRow);
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
@@ -102,6 +104,7 @@ namespace logReader.UI
             _saveOptions.BatchMode = dlg.SelectedBatchMode;
             _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
             _saveOptions.DstConnect = dlg.SelectedDstConnectOptions;
+            _saveOptions.IncludeDeviceIdHeaderRow = dlg.IncludeDeviceIdHeaderRow;
 
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
                 return;
@@ -833,7 +836,8 @@ namespace logReader.UI
                 var outcome = await Task.Run(() => service.ProcessFolderBatch(
                     files, outputDir, devFull, outputFormat, _saveOptions.BatchMode,
                     allDevices, hasFilter, _deviceEnabled, _paramEnabled, composites,
-                    _saveOptions.DstConnect));
+                    _saveOptions.DstConnect,
+                    _saveOptions.IncludeDeviceIdHeaderRow));
 
                 int totalOut = outcome.Expected > 0 ? outcome.Expected : outcome.Created;
                 Log($"Готово: создано файлов: {outcome.Created} из {totalOut}.");
@@ -912,7 +916,8 @@ namespace logReader.UI
                 var service = new LogProcessingService(Log);
                 await Task.Run(() => service.ProcessSingleFile(
                     canInput, outputPath, outputFormat, allDevices, hasFilter,
-                    _deviceEnabled, _paramEnabled, composites, _saveOptions.DstConnect));
+                    _deviceEnabled, _paramEnabled, composites, _saveOptions.DstConnect,
+                    _saveOptions.IncludeDeviceIdHeaderRow));
 
                 if (File.Exists(outputPath))
                 {

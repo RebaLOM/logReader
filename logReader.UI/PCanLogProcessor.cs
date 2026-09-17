@@ -14,10 +14,11 @@ namespace logReader.UI
             string outputPath,
             OutputFormat outputFormat,
             bool isCanfox,
-            Action<string> log)
+            Action<string> log,
+            bool includeDeviceIdHeaderRow = false)
             => TimeSeriesOutputWriter.Write(
                 outputFormat, devices, deviceData, deviceEnabled, paramEnabled,
-                outputPath, "pCAN Log", isCanfox, log);
+                outputPath, "pCAN Log", isCanfox, log, includeDeviceIdHeaderRow);
 
         public void Process(
             string trcPath,
@@ -27,7 +28,8 @@ namespace logReader.UI
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null)
+            CompositeRuntime? composites = null,
+            bool includeDeviceIdHeaderRow = false)
         {
             if (!File.Exists(trcPath)) { log($"Ошибка: файл не найден: {trcPath}"); return; }
 
@@ -49,12 +51,13 @@ namespace logReader.UI
             }
             catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
 
-            DateTime? startTime = null;
+            // Нужен для предупреждения; время кадра всегда — мс из строки TRC.
             if (!isCanfox)
             {
                 try
                 {
-                    startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding));
+                    if (TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding)) == null)
+                        log("Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.");
                 }
                 catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
             }
@@ -63,7 +66,7 @@ namespace logReader.UI
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
-            // timeVal — доля суток (как в Excel); у CANfox уже распарсена из HH:mm:ss.fff.
+            // timeVal: для pCAN TRC — мс от начала записи; для CANfox — доля суток (HH:mm:ss.fff).
             var deviceData = new Dictionary<string, List<(double TimeVal, string[] Values)>>(
                 StringComparer.OrdinalIgnoreCase);
 
@@ -100,16 +103,8 @@ namespace logReader.UI
                         continue;
                     }
 
-                    double timeMs = (double)timeMsRaw;
-                    if (startTime.HasValue)
-                    {
-                        timeVal = startTime.Value.AddMilliseconds(timeMs).TimeOfDay.TotalDays;
-                    }
-                    else
-                    {
-                        // Нет заголовка — пишем смещение в мс как есть (число)
-                        timeVal = timeMs;
-                    }
+                    // Всегда мс с начала записи — не TimeOfDay (иначе Excel/CSV путает с часами суток).
+                    timeVal = (double)timeMsRaw;
                 }
 
                 composites?.OnMessage(id, bytes, parsedByteCount);
@@ -138,7 +133,7 @@ namespace logReader.UI
             }
 
             var outputDevices = CompositeOutput.WithComposites(devices, composites);
-            WriteOutput(outputDevices, deviceData, deviceEnabled, paramEnabled, outputPath, outputFormat, isCanfox, log);
+            WriteOutput(outputDevices, deviceData, deviceEnabled, paramEnabled, outputPath, outputFormat, isCanfox, log, includeDeviceIdHeaderRow);
         }
     }
 }

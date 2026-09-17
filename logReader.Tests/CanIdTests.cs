@@ -10,7 +10,9 @@ public class CanIdTests
     [InlineData("1801D0EF", "1801D0EF")]
     [InlineData("123", "123")]
     [InlineData("0x7FF", "7FF")]
-    [InlineData("00000100", "00000100")]
+    [InlineData("00000100", "100")]
+    [InlineData("100", "100")]
+    [InlineData("7FF", "7FF")]
     public void TryNormalize_preserves_extended_leading_zero(string raw, string expected)
     {
         Assert.True(CanId.TryNormalize(raw, out string id));

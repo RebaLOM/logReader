@@ -22,7 +22,8 @@ namespace logReader.UI
             Dictionary<string, bool> deviceEnabled,
             Dictionary<string, bool[]> paramEnabled,
             CompositeRuntime? composites,
-            DstConnectOptions? dstOptions = null)
+            DstConnectOptions? dstOptions = null,
+            bool includeDeviceIdHeaderRow = false)
         {
             bool isTrc = Path.GetExtension(logPath).Equals(".trc", StringComparison.OrdinalIgnoreCase);
 
@@ -39,7 +40,8 @@ namespace logReader.UI
                     logPath, allDevices, outputPath, dstOptions ?? new DstConnectOptions(), _log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null,
-                    composites);
+                    composites,
+                    includeDeviceIdHeaderRow);
                 return;
             }
 
@@ -67,7 +69,8 @@ namespace logReader.UI
                     logPath, allDevices, outputPath, outputFormat, _log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null,
-                    composites);
+                    composites,
+                    includeDeviceIdHeaderRow);
             }
             else if (isAsc)
             {
@@ -75,7 +78,8 @@ namespace logReader.UI
                     logPath, allDevices, outputPath, outputFormat, _log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null,
-                    composites);
+                    composites,
+                    includeDeviceIdHeaderRow);
             }
             else
             {
@@ -94,7 +98,8 @@ namespace logReader.UI
                             logPath, allDevices, outputPath, outputFormat, _log,
                             hasFilter ? deviceEnabled : null,
                             hasFilter ? paramEnabled : null,
-                            composites);
+                            composites,
+                            includeDeviceIdHeaderRow);
                         return;
                     }
                 }
@@ -103,7 +108,8 @@ namespace logReader.UI
                     logPath, allDevices, outputPath, outputFormat, _log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null,
-                    composites);
+                    composites,
+                    includeDeviceIdHeaderRow);
             }
         }
 
@@ -118,7 +124,8 @@ namespace logReader.UI
             Dictionary<string, bool> deviceEnabled,
             Dictionary<string, bool[]> paramEnabled,
             CompositeRuntime? composites,
-            DstConnectOptions? dstOptions = null)
+            DstConnectOptions? dstOptions = null,
+            bool includeDeviceIdHeaderRow = false)
         {
             int created = 0;
             int expected = 0;
@@ -160,7 +167,7 @@ namespace logReader.UI
                     expected++;
                     ProcessSingleFile(
                         logPath, outPath, outputFormat, allDevices, hasFilter,
-                        deviceEnabled, paramEnabled, composites, dstOptions);
+                        deviceEnabled, paramEnabled, composites, dstOptions, includeDeviceIdHeaderRow);
 
                     if (File.Exists(outPath))
                         created++;
@@ -191,7 +198,8 @@ namespace logReader.UI
                     matrixCsvFiles, allDevices, mergedOut, outputFormat, _log,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null,
-                    composites);
+                    composites,
+                    includeDeviceIdHeaderRow);
 
                 if (ok && File.Exists(mergedOut))
                     created++;
@@ -246,7 +254,7 @@ namespace logReader.UI
                     agg.DeviceData,
                     hasFilter ? deviceEnabled : null,
                     hasFilter ? paramEnabled : null,
-                    mergedOut, outputFormat, agg.IsCanfox, _log);
+                    mergedOut, outputFormat, agg.IsCanfox, _log, includeDeviceIdHeaderRow);
 
                 if (File.Exists(mergedOut))
                     created++;
@@ -290,7 +298,7 @@ namespace logReader.UI
                         kv.Value.DeviceData,
                         hasFilter ? deviceEnabled : null,
                         hasFilter ? paramEnabled : null,
-                        outPath, outputFormat, isCanfox: false, _log);
+                        outPath, outputFormat, isCanfox: false, _log, includeDeviceIdHeaderRow);
 
                     if (File.Exists(outPath))
                         created++;

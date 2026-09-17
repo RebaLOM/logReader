@@ -248,7 +248,8 @@ namespace logReader.UI
             Action<string> log,
             Dictionary<string, bool>? deviceEnabled = null,
             Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null)
+            CompositeRuntime? composites = null,
+            bool includeDeviceIdHeaderRow = false)
         {
             bool hasComposites = composites != null && !composites.IsEmpty;
             if (devices.Count == 0 && !hasComposites) { log("Ошибка: устройства не загружены."); return; }
@@ -346,7 +347,7 @@ namespace logReader.UI
             var outputDevices = CompositeOutput.WithComposites(devices, composites);
             TimeSeriesOutputWriter.Write(
                 outputFormat, outputDevices, deviceData, deviceEnabled, paramEnabled,
-                outputPath, "ASC Log", isCanfox: false, log);
+                outputPath, "ASC Log", isCanfox: false, log, includeDeviceIdHeaderRow);
         }
     }
 }
