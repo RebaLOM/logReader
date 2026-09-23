@@ -317,12 +317,9 @@ namespace logReader.UI
             Dictionary<string, bool[]>? paramEnabled,
             bool includeDeviceIdHeaderRow)
         {
-            var idRow = new List<string> { "Шаг", "Время" };
-            var headerRow = new List<string>();
-            if (includeDeviceIdHeaderRow)
-                headerRow.AddRange(new[] { "", "" });
-            else
-                headerRow.AddRange(new[] { "Шаг", "Время" });
+            // «Шаг»/«Время» всегда в строке с именами параметров; строка ID — только CAN ID.
+            var idRow = new List<string> { "", "" };
+            var headerRow = new List<string> { "Шаг", "Время" };
 
             foreach (var device in activeDevices)
             {

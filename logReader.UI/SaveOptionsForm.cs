@@ -113,7 +113,7 @@ namespace logReader.UI
             };
             var labelIdRowHint = new Label
             {
-                Text = "по умолчанию выключено — в шапке только «Шаг»/«Время» и имена переменных",
+                Text = "по умолчанию выключено — «Шаг»/«Время» всегда в одной строке с именами параметров",
                 AutoSize = true,
                 Location = new Point(40, 176),
                 ForeColor = Color.DimGray

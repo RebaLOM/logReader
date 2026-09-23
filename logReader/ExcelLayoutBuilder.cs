@@ -34,8 +34,8 @@ namespace logReader
             return headers;
         }
 
-        // Step-CSV: «Шаг»/«Время» слева, затем блоки устройств.
-        // includeDeviceIdRow: строка 1 с ID; иначе имена параметров сразу в строке 1.
+        // Step-CSV: «Шаг»/«Время» всегда в строке с именами параметров.
+        // includeDeviceIdRow: сверху строка с ID устройств (над параметрами).
         public static int BuildStepLogHeaders(
             IXLWorksheet ws,
             List<Device> devices,
@@ -48,18 +48,9 @@ namespace logReader
             int headerRows = includeDeviceIdRow ? 2 : 1;
             int paramRow = includeDeviceIdRow ? 2 : 1;
 
-            if (includeDeviceIdRow)
-            {
-                WriteFixedColumn(ws, col, "Шаг");
-                WriteFixedColumn(ws, col + 1, "Время");
-            }
-            else
-            {
-                StyleMergedHeader(ws, 1, col, FixedColumnGray);
-                ws.Cell(1, col).Value = "Шаг";
-                StyleMergedHeader(ws, 1, col + 1, FixedColumnGray);
-                ws.Cell(1, col + 1).Value = "Время";
-            }
+            // «Шаг»/«Время» всегда в строке параметров (paramRow); при ID-строке сверху — пустые ячейки.
+            WriteFixedColumn(ws, col, "Шаг", paramRow, headerRows);
+            WriteFixedColumn(ws, col + 1, "Время", paramRow, headerRows);
 
             col += 2;
 
@@ -134,11 +125,11 @@ namespace logReader
             return headerRows + 1;
         }
 
-        private static void WriteFixedColumn(IXLWorksheet ws, int col, string title)
+        private static void WriteFixedColumn(IXLWorksheet ws, int col, string title, int titleRow, int headerRows)
         {
-            StyleMergedHeader(ws, 1, col, FixedColumnGray);
-            StyleMergedHeader(ws, 2, col, FixedColumnGray);
-            ws.Cell(1, col).Value = title;
+            for (int row = 1; row <= headerRows; row++)
+                StyleMergedHeader(ws, row, col, FixedColumnGray);
+            ws.Cell(titleRow, col).Value = title;
         }
 
         // Строка 1: ID устройства на blockCols колонок.

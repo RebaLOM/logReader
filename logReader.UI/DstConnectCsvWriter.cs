@@ -75,12 +75,9 @@ namespace logReader.UI
                 var ru = CultureInfo.GetCultureInfo("ru-RU");
                 using (var writer = new StreamWriter(tempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
                 {
-                    var idRow = new List<string> { "Time", "Step" };
-                    var headerRow = new List<string>();
-                    if (includeDeviceIdHeaderRow)
-                        headerRow.AddRange(new[] { "", "" });
-                    else
-                        headerRow.AddRange(new[] { "Time", "Step" });
+                    // Time/Step всегда в строке с именами параметров; строка ID — только CAN ID.
+                    var idRow = new List<string> { "", "" };
+                    var headerRow = new List<string> { "Time", "Step" };
 
                     string? lastDeviceId = null;
                     foreach (var col in columns)
