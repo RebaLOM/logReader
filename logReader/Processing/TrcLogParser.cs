@@ -84,6 +84,11 @@ namespace logReader.Processing
             return true;
         }
 
+        internal static DateTime? ParseStartTime(string path, System.Text.Encoding encoding)
+            => ParseStartTime(LogFileReader.ReadLines(path, encoding));
+
+        // Заголовок TRC — строки «;…» в начале файла; на первой строке кадров чтение прекращается,
+        // иначе для файла без Start time читался бы весь лог.
         internal static DateTime? ParseStartTime(IEnumerable<string> lines)
         {
             DateTime? fallback = null;
@@ -94,6 +99,8 @@ namespace logReader.Processing
                     continue;
 
                 string trimmed = line.Trim();
+                if (!trimmed.StartsWith(';'))
+                    break;
 
                 if (TryParseStartTimeAfterMarker(trimmed, "Start time:", out DateTime startTime))
                     return startTime;

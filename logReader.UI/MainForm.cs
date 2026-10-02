@@ -154,13 +154,13 @@ namespace logReader.UI
 
                 if (!_paramEnabled.TryGetValue(d.ID, out var arr))
                 {
-                    _paramEnabled[d.ID] = Enumerable.Repeat(true, d.headers.Length).ToArray();
+                    _paramEnabled[d.ID] = Enumerable.Repeat(true, d.Headers.Length).ToArray();
                     continue;
                 }
 
-                if (arr.Length == d.headers.Length) continue;
+                if (arr.Length == d.Headers.Length) continue;
 
-                var resized = new bool[d.headers.Length];
+                var resized = new bool[d.Headers.Length];
                 int copyLen = Math.Min(arr.Length, resized.Length);
                 Array.Copy(arr, resized, copyLen);
                 for (int i = copyLen; i < resized.Length; i++)
@@ -177,7 +177,7 @@ namespace logReader.UI
                 : _cachedDevices!.Count(d => _deviceEnabled.GetValueOrDefault(d.ID, true));
 
             // Параметры выключенного устройства не участвуют в подсчёте активных фильтров.
-            int totalParams = _cachedDevices?.Sum(d => d.headers.Length) ?? 0;
+            int totalParams = _cachedDevices?.Sum(d => d.Headers.Length) ?? 0;
             int enabledParams = totalParams == 0
                 ? 0
                 : _cachedDevices!.Sum(d =>
@@ -185,10 +185,10 @@ namespace logReader.UI
                     bool devOn = _deviceEnabled.GetValueOrDefault(d.ID, true);
                     if (!devOn) return 0;
                     if (!_paramEnabled.TryGetValue(d.ID, out var arr))
-                        return d.headers.Length;
-                    int len = Math.Min(arr.Length, d.headers.Length);
+                        return d.Headers.Length;
+                    int len = Math.Min(arr.Length, d.Headers.Length);
                     int enabled = arr.Take(len).Count(v => v);
-                    enabled += d.headers.Length - len;
+                    enabled += d.Headers.Length - len;
                     return enabled;
                 });
 
@@ -320,7 +320,7 @@ namespace logReader.UI
 
             try
             {
-                _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, _ => { });
+                _cachedDevices = DeviceFiles.LoadDevices(textBoxDevices.Text, _ => { });
                 _cachedDevicesPath = textBoxDevices.Text;
                 // Новый файл устройств — сбрасываем фильтры, иначе останутся ID прошлого файла.
                 _deviceEnabled = new();
@@ -420,7 +420,7 @@ namespace logReader.UI
             {
                 try
                 {
-                    _cachedDevices = logReader.Program.LoadDevicesFromFile(path, Log);
+                    _cachedDevices = DeviceFiles.LoadDevices(path, Log);
                     _cachedDevicesPath = path;
                     EnsureFiltersMatchDevices();
                     UpdateFilterLabel();
@@ -460,7 +460,7 @@ namespace logReader.UI
             if (_cachedComposites != null && _cachedCompositesPath == textBoxComposites.Text)
                 return _cachedComposites;
 
-            _cachedComposites = logReader.Program.LoadCompositesFromFile(textBoxComposites.Text, Log);
+            _cachedComposites = DeviceFiles.LoadComposites(textBoxComposites.Text, Log);
             _cachedCompositesPath = textBoxComposites.Text;
             return _cachedComposites;
         }
@@ -684,7 +684,7 @@ namespace logReader.UI
             {
                 if (_cachedDevices == null || _cachedDevicesPath != textBoxDevices.Text)
                 {
-                    _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, Log);
+                    _cachedDevices = DeviceFiles.LoadDevices(textBoxDevices.Text, Log);
                     _cachedDevicesPath = textBoxDevices.Text;
                 }
 
@@ -819,29 +819,25 @@ namespace logReader.UI
                 {
                     if (_cachedDevices == null || _cachedDevicesPath != textBoxDevices.Text)
                     {
-                        _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, Log);
+                        _cachedDevices = DeviceFiles.LoadDevices(textBoxDevices.Text, Log);
                         _cachedDevicesPath = textBoxDevices.Text;
                     }
 
                     var allDevices = _cachedDevices;
-                    var composites = EnsureCompositesLoaded();
-                    bool anyDeviceOff = _deviceEnabled.Any(kv => !kv.Value);
-                    bool anyParamOff = _paramEnabled.Any(kv => kv.Value.Any(v => !v));
-                    var hasFilter = anyDeviceOff || anyParamOff;
+                    var settings = BuildOutputSettings(outputFormat);
+                    var batchMode = _saveOptions.BatchMode;
 
                     Log($"Папка с логами: найдено {totalFound} файл(ов), выбрано {files.Count}.");
                     Log($"Каталог результатов: {outputDir}");
 
-                var service = new LogProcessingService(Log);
-                var outcome = await Task.Run(() => service.ProcessFolderBatch(
-                    files, outputDir, devFull, outputFormat, _saveOptions.BatchMode,
-                    allDevices, hasFilter, _deviceEnabled, _paramEnabled, composites,
-                    _saveOptions.DstConnect,
-                    _saveOptions.IncludeDeviceIdHeaderRow));
+                    var service = new LogProcessingService();
+                    var context = new ProcessingContext(Log);
+                    var outcome = await Task.Run(() => service.ProcessFolderBatch(
+                        files, outputDir, devFull, batchMode, allDevices, settings, context));
 
-                int totalOut = outcome.Expected > 0 ? outcome.Expected : outcome.Created;
-                Log($"Готово: создано файлов: {outcome.Created} из {totalOut}.");
-                buttonOpenOutput.Visible = outcome.Created > 0;
+                    Log($"Готово: создано файлов: {outcome.Created} из {outcome.Expected}"
+                        + (outcome.Failed > 0 ? $", с ошибками: {outcome.Failed}." : "."));
+                    buttonOpenOutput.Visible = outcome.Created > 0;
                 }
                 catch (Exception ex)
                 {
@@ -903,30 +899,25 @@ namespace logReader.UI
             {
                 if (_cachedDevices == null || _cachedDevicesPath != textBoxDevices.Text)
                 {
-                    _cachedDevices = logReader.Program.LoadDevicesFromFile(textBoxDevices.Text, Log);
+                    _cachedDevices = DeviceFiles.LoadDevices(textBoxDevices.Text, Log);
                     _cachedDevicesPath = textBoxDevices.Text;
                 }
 
                 var allDevices = _cachedDevices;
-                var composites = EnsureCompositesLoaded();
-                bool anyDeviceOff = _deviceEnabled.Any(kv => !kv.Value);
-                bool anyParamOff = _paramEnabled.Any(kv => kv.Value.Any(v => !v));
-                var hasFilter = anyDeviceOff || anyParamOff;
+                var settings = BuildOutputSettings(outputFormat);
 
-                var service = new LogProcessingService(Log);
-                await Task.Run(() => service.ProcessSingleFile(
-                    canInput, outputPath, outputFormat, allDevices, hasFilter,
-                    _deviceEnabled, _paramEnabled, composites, _saveOptions.DstConnect,
-                    _saveOptions.IncludeDeviceIdHeaderRow));
+                var service = new LogProcessingService();
+                var context = new ProcessingContext(Log);
+                var result = await Task.Run(() => service.ProcessSingleFile(canInput, outputPath, allDevices, settings, context));
 
-                if (File.Exists(outputPath))
+                if (result.Success)
                 {
-                    Log("Файл успешно создан.");
+                    Log($"Файл успешно создан (строк: {result.RowsWritten:N0}).");
                     buttonOpenOutput.Visible = true;
                 }
                 else
                 {
-                    Log("Обработка завершилась с ошибкой: выходной файл не был создан.");
+                    Log("Обработка завершилась с ошибкой: выходной файл не создан.");
                     buttonOpenOutput.Visible = false;
                 }
             }
@@ -939,6 +930,16 @@ namespace logReader.UI
             buttonProcess.Text = "Обработать";
             Cursor = Cursors.Default;
         }
+
+        // Снимок фильтров и настроек: фоновая обработка не видит последующих правок в окнах.
+        private OutputSettings BuildOutputSettings(OutputFormat outputFormat) => new()
+        {
+            Format = outputFormat,
+            Filter = OutputFilter.From(_deviceEnabled, _paramEnabled),
+            Composites = EnsureCompositesLoaded(),
+            IncludeDeviceIdHeaderRow = _saveOptions.IncludeDeviceIdHeaderRow,
+            DstConnect = _saveOptions.DstConnect,
+        };
 
         private void WireContentSplitLayout()
         {

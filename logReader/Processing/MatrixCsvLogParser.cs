@@ -16,7 +16,7 @@ namespace logReader.Processing
             encoding ??= LogFileEncoding.Detect(path);
             try
             {
-                foreach (string line in File.ReadLines(path, encoding))
+                foreach (string line in LogFileReader.ReadLines(path, encoding))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     return TryReadHeader(line, out _, out _);

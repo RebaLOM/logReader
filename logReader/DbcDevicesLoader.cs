@@ -70,7 +70,6 @@ namespace logReader
                         LengthBit = sig.Length,
                         Scale = sig.Factor,
                         Offset = sig.Offset,
-                        UseBitExtraction = true,
                         IsLittleEndian = sig.IsLittleEndian,
                         SignedRaw = sig.IsSigned,
                         Unit = sig.Unit ?? "",

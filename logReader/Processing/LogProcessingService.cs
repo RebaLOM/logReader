@@ -1,115 +1,53 @@
 using System.Globalization;
-using System.Linq;
-using logReader;
 
 namespace logReader.Processing
 {
-    // Оркестрация обработки логов без WinForms — вынесено из MainForm для тестируемости.
+    // Оркестрация обработки логов без WinForms.
     internal sealed class LogProcessingService
     {
-        private readonly Action<string> _log;
+        public readonly record struct BatchOutcome(int Created, int Expected, int Failed);
 
-        public LogProcessingService(Action<string> log) => _log = log;
-
-        public readonly record struct BatchOutcome(int Created, int Expected);
-
-        public void ProcessSingleFile(
+        public ProcessingResult ProcessSingleFile(
             string logPath,
             string outputPath,
-            OutputFormat outputFormat,
             List<Device> allDevices,
-            bool hasFilter,
-            Dictionary<string, bool> deviceEnabled,
-            Dictionary<string, bool[]> paramEnabled,
-            CompositeRuntime? composites,
-            DstConnectOptions? dstOptions = null,
-            bool includeDeviceIdHeaderRow = false)
+            OutputSettings settings,
+            ProcessingContext context)
         {
-            bool isTrc = Path.GetExtension(logPath).Equals(".trc", StringComparison.OrdinalIgnoreCase);
+            string ext = Path.GetExtension(logPath);
+            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
 
-            if (outputFormat == OutputFormat.CsvDstConnect)
+            if (settings.Format == OutputFormat.CsvDstConnect)
             {
                 if (!isTrc)
-                {
-                    _log("Ошибка: CSV ДСТ Коннект применим только к файлам .trc.");
-                    return;
-                }
+                    return context.Fail("Ошибка: CSV ДСТ Коннект применим только к файлам .trc.");
 
-                _log("Формат: CSV ДСТ Коннект (pCAN .trc)");
-                new DstConnectTrcProcessor().Process(
-                    logPath, allDevices, outputPath, dstOptions ?? new DstConnectOptions(), _log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null,
-                    composites,
-                    includeDeviceIdHeaderRow);
-                return;
+                context.Log("Формат: CSV ДСТ Коннект (pCAN .trc)");
+                return new DstConnectTrcProcessor().Process(logPath, allDevices, outputPath, settings, context);
             }
 
-            bool isPCan = IsPCanLog(logPath);
-            bool isAsc = IsAscLog(logPath);
-            if (isPCan)
+            var kind = LogFormatDetector.Detect(logPath);
+            switch (kind)
             {
-                if (Path.GetExtension(logPath).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                    _log("Формат: pCAN Viewer");
-                else
-                    _log("Формат: CANfox (PCAN-View / CAN.txt)");
-            }
-            else if (isAsc) _log("Формат: ASC");
-            else if (Path.GetExtension(logPath).Equals(".csv", StringComparison.OrdinalIgnoreCase))
-            {
-                var kind = LogFormatDetector.Detect(logPath);
-                string? msg = LogFormatUiNames.GetDetectedFormatMessage(kind);
-                if (!string.IsNullOrEmpty(msg))
-                    _log(msg);
-            }
-
-            if (isPCan)
-            {
-                new PCanLogProcessor().Process(
-                    logPath, allDevices, outputPath, outputFormat, _log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null,
-                    composites,
-                    includeDeviceIdHeaderRow);
-            }
-            else if (isAsc)
-            {
-                new AscLogProcessor().Process(
-                    logPath, allDevices, outputPath, outputFormat, _log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null,
-                    composites,
-                    includeDeviceIdHeaderRow);
-            }
-            else
-            {
-                if (Path.GetExtension(logPath).Equals(".txt", StringComparison.OrdinalIgnoreCase))
-                {
-                    _log("Пропуск: текстовый файл не распознан как лог CANfox (нужен формат с колонками Date, Time, ID, Data).");
-                    return;
-                }
-
-                if (Path.GetExtension(logPath).Equals(".csv", StringComparison.OrdinalIgnoreCase))
-                {
-                    var enc = LogFileEncoding.Detect(logPath);
-                    if (MatrixCsvLogParser.LooksLikeMatrixCsv(logPath, enc))
-                    {
-                        new MatrixCsvLogProcessor().Process(
-                            logPath, allDevices, outputPath, outputFormat, _log,
-                            hasFilter ? deviceEnabled : null,
-                            hasFilter ? paramEnabled : null,
-                            composites,
-                            includeDeviceIdHeaderRow);
-                        return;
-                    }
-                }
-
-                new CanLogProcessor().Process(
-                    logPath, allDevices, outputPath, outputFormat, _log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null,
-                    composites,
-                    includeDeviceIdHeaderRow);
+                case LogFormatKind.Trc:
+                    context.Log("Формат: pCAN Viewer");
+                    return new PCanLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                case LogFormatKind.CanfoxTxt:
+                    context.Log("Формат: CANfox (PCAN-View / CAN.txt)");
+                    return new PCanLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                case LogFormatKind.Asc:
+                    context.Log("Формат: ASC");
+                    return new AscLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                case LogFormatKind.MatrixCsv:
+                    context.Log(LogFormatUiNames.GetDetectedFormatMessage(kind));
+                    return new MatrixCsvLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                case LogFormatKind.StepCsv:
+                    context.Log(LogFormatUiNames.GetDetectedFormatMessage(kind));
+                    return new CanLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                default:
+                    return context.Fail(ext.Equals(".txt", StringComparison.OrdinalIgnoreCase)
+                        ? "Пропуск: текстовый файл не распознан как лог CANfox (нужен формат с колонками Date, Time, ID, Data)."
+                        : $"Пропуск: неподдерживаемый формат файла {Path.GetFileName(logPath)}.");
             }
         }
 
@@ -117,213 +55,153 @@ namespace logReader.Processing
             IReadOnlyList<string> files,
             string outputDir,
             string devicesFullPath,
-            OutputFormat outputFormat,
             BatchOutputMode batchMode,
             List<Device> allDevices,
-            bool hasFilter,
-            Dictionary<string, bool> deviceEnabled,
-            Dictionary<string, bool[]> paramEnabled,
-            CompositeRuntime? composites,
-            DstConnectOptions? dstOptions = null,
-            bool includeDeviceIdHeaderRow = false)
+            OutputSettings settings,
+            ProcessingContext context)
         {
             int created = 0;
             int expected = 0;
+            int failed = 0;
 
-            var matrixCsvFiles = files
-                .Where(IsMatrixCsvLog)
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var kinds = files.ToDictionary(f => f, SafeDetect, StringComparer.OrdinalIgnoreCase);
+            var matrixCsvFiles = files.Where(p => kinds[p] == LogFormatKind.MatrixCsv).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+            var trcFiles = files.Where(p => kinds[p] == LogFormatKind.Trc).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+            var otherFiles = files.Where(p => kinds[p] is not (LogFormatKind.Trc or LogFormatKind.MatrixCsv)).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
 
-            var trcFiles = files
-                .Where(p => Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            bool mergeMatrix = batchMode == BatchOutputMode.MergeToSingleFile && matrixCsvFiles.Count > 0;
+            bool aggregateTrc = batchMode != BatchOutputMode.PerInputFile && trcFiles.Count > 0
+                                && settings.Format != OutputFormat.CsvDstConnect;
+            int totalSteps = otherFiles.Count
+                             + (mergeMatrix ? 1 : matrixCsvFiles.Count)
+                             + (aggregateTrc ? 1 : trcFiles.Count);
+            int stepIndex = 0;
 
-            var otherFiles = files
-                .Where(p => !Path.GetExtension(p).Equals(".trc", StringComparison.OrdinalIgnoreCase)
-                            && !IsMatrixCsvLog(p))
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            ProcessingContext NextStep(string stage)
+                => context.Slice((double)stepIndex++ / Math.Max(1, totalSteps), 1.0 / Math.Max(1, totalSteps), stage);
+
+            // Ошибка одного файла не должна обрывать весь пакет — отмена обрывает.
+            void Track(Func<ProcessingResult> run, string label)
+            {
+                expected++;
+                try
+                {
+                    var result = run();
+                    if (result.Success) created++;
+                    else failed++;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    context.Log($"Ошибка ({label}): {ex.Message}");
+                }
+            }
+
+            bool CanWrite(string outPath)
+            {
+                if (string.Equals(Path.GetFullPath(outPath), devicesFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
+                    return false;
+                }
+                if (IsFileLocked(outPath))
+                {
+                    context.Log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
+                    return false;
+                }
+                return true;
+            }
 
             void ProcessPerFile(IEnumerable<string> inputFiles)
             {
                 foreach (string logPath in inputFiles)
                 {
-                    string outPath = BuildBatchOutputPath(logPath, outputDir, outputFormat);
-                    if (string.Equals(Path.GetFullPath(outPath), devicesFullPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
-                        continue;
-                    }
+                    var stepContext = NextStep(Path.GetFileName(logPath));
+                    string outPath = BuildBatchOutputPath(logPath, outputDir, settings.Format);
+                    if (!CanWrite(outPath)) continue;
 
-                    if (IsFileLocked(outPath))
-                    {
-                        _log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
-                        continue;
-                    }
-
-                    _log($"--- {Path.GetFileName(logPath)} ---");
-                    expected++;
-                    ProcessSingleFile(
-                        logPath, outPath, outputFormat, allDevices, hasFilter,
-                        deviceEnabled, paramEnabled, composites, dstOptions, includeDeviceIdHeaderRow);
-
-                    if (File.Exists(outPath))
-                        created++;
+                    context.Log($"--- {Path.GetFileName(logPath)} ---");
+                    Track(() => ProcessSingleFile(logPath, outPath, allDevices, settings, stepContext), Path.GetFileName(logPath));
                 }
             }
 
-            // Не-.trc и не-CSV (новый формат) всегда обрабатываем по одному файлу.
             ProcessPerFile(otherFiles);
 
-            if (batchMode == BatchOutputMode.MergeToSingleFile && matrixCsvFiles.Count > 0)
+            if (mergeMatrix)
             {
-                string mergedOut = Path.Combine(outputDir, "result_matrix_csv_merged" + GetOutputExtension(outputFormat));
-                if (string.Equals(Path.GetFullPath(mergedOut), devicesFullPath, StringComparison.OrdinalIgnoreCase))
+                var stepContext = NextStep(LogFormatUiNames.Csv);
+                string mergedOut = Path.Combine(outputDir, "result_matrix_csv_merged" + GetOutputExtension(settings.Format));
+                if (CanWrite(mergedOut))
                 {
-                    _log("Пропуск: выходной файл совпадает с файлом посылок.");
-                    return new BatchOutcome(created, expected);
+                    context.Log($"--- {LogFormatUiNames.Csv}: объединение в один файл ---");
+                    Track(() => new MatrixCsvLogProcessor().ProcessMerged(matrixCsvFiles, allDevices, mergedOut, settings, stepContext),
+                        Path.GetFileName(mergedOut));
                 }
-
-                if (IsFileLocked(mergedOut))
-                {
-                    _log($"Пропуск (файл занят): {Path.GetFileName(mergedOut)}");
-                    return new BatchOutcome(created, expected);
-                }
-
-                _log($"--- {LogFormatUiNames.Csv}: объединение в один файл ---");
-                expected++;
-                bool ok = new MatrixCsvLogProcessor().ProcessMerged(
-                    matrixCsvFiles, allDevices, mergedOut, outputFormat, _log,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null,
-                    composites,
-                    includeDeviceIdHeaderRow);
-
-                if (ok && File.Exists(mergedOut))
-                    created++;
             }
             else
             {
                 ProcessPerFile(matrixCsvFiles);
             }
 
-            if (batchMode == BatchOutputMode.PerInputFile || trcFiles.Count == 0)
+            if (!aggregateTrc)
             {
+                if (batchMode != BatchOutputMode.PerInputFile && settings.Format == OutputFormat.CsvDstConnect && trcFiles.Count > 0)
+                    context.Log("CSV ДСТ: объединение и разбивка по датам не поддерживаются — обработка по одному файлу.");
                 ProcessPerFile(trcFiles);
-                return new BatchOutcome(created, expected);
+                return new BatchOutcome(created, expected, failed);
             }
 
-            if (outputFormat == OutputFormat.CsvDstConnect)
-            {
-                _log("CSV ДСТ: объединение и разбивка по датам не поддерживаются — обработка по одному файлу.");
-                ProcessPerFile(trcFiles);
-                return new BatchOutcome(created, expected);
-            }
-
+            var trcContext = NextStep(".trc");
             if (batchMode == BatchOutputMode.MergeToSingleFile)
             {
-                string mergedOut = Path.Combine(outputDir, "result_trc_merged" + GetOutputExtension(outputFormat));
-                if (string.Equals(Path.GetFullPath(mergedOut), devicesFullPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    _log("Пропуск: выходной файл совпадает с файлом посылок.");
-                    return new BatchOutcome(created, expected);
-                }
+                string mergedOut = Path.Combine(outputDir, "result_trc_merged" + GetOutputExtension(settings.Format));
+                if (!CanWrite(mergedOut))
+                    return new BatchOutcome(created, expected, failed);
 
-                if (IsFileLocked(mergedOut))
+                context.Log("--- .trc: объединение в один файл ---");
+                Track(() =>
                 {
-                    _log($"Пропуск (файл занят): {Path.GetFileName(mergedOut)}");
-                    return new BatchOutcome(created, expected);
-                }
+                    var build = TrcBatchAggregator.TryBuildMergedAggregate(trcFiles, allDevices, settings, trcContext.Slice(0, 0.8), out var agg);
+                    return build.Success
+                        ? TimeSeriesOutputWriter.Write(agg!, mergedOut, settings, "pCAN Log", trcContext.Slice(0.8, 0.2))
+                        : build;
+                }, Path.GetFileName(mergedOut));
+                return new BatchOutcome(created, expected, failed);
+            }
 
-                _log("--- .trc: объединение в один файл ---");
+            context.Log("--- .trc: разбивка по датам ---");
+            var byDateResult = TrcBatchAggregator.TryBuildAggregatesByDate(trcFiles, allDevices, settings, trcContext.Slice(0, 0.8), out var byDate);
+            if (!byDateResult.Success)
+            {
                 expected++;
-                if (!TrcBatchAggregator.TryBuildMergedAggregate(
-                        trcFiles, allDevices,
-                        hasFilter ? deviceEnabled : null,
-                        hasFilter ? paramEnabled : null,
-                        _log, out var agg, composites))
-                {
-                    _log("Ошибка: не удалось собрать данные из .trc для объединения.");
-                    return new BatchOutcome(created, expected);
-                }
-
-                PCanLogProcessor.WriteOutput(
-                    CompositeOutput.WithComposites(allDevices, composites),
-                    agg.DeviceData,
-                    hasFilter ? deviceEnabled : null,
-                    hasFilter ? paramEnabled : null,
-                    mergedOut, outputFormat, agg.IsCanfox, _log, includeDeviceIdHeaderRow);
-
-                if (File.Exists(mergedOut))
-                    created++;
-
-                return new BatchOutcome(created, expected);
+                failed++;
+                return new BatchOutcome(created, expected, failed);
             }
 
-            if (batchMode == BatchOutputMode.SplitTrcByDate)
+            foreach (var kv in byDate.OrderBy(k => k.Key))
             {
-                _log("--- .trc: разбивка по датам ---");
-                if (!TrcBatchAggregator.TryBuildAggregatesByDate(
-                        trcFiles, allDevices,
-                        hasFilter ? deviceEnabled : null,
-                        hasFilter ? paramEnabled : null,
-                        _log, out var byDate, composites))
-                {
-                    _log("Ошибка: не удалось собрать данные из .trc для разбивки по датам.");
-                    return new BatchOutcome(created, expected);
-                }
+                string datePart = kv.Key.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                string outPath = Path.Combine(outputDir, "result_" + datePart + GetOutputExtension(settings.Format));
+                if (!CanWrite(outPath)) continue;
 
-                foreach (var kv in byDate.OrderBy(k => k.Key))
-                {
-                    string datePart = kv.Key.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                    string outPath = Path.Combine(outputDir, "result_" + datePart + GetOutputExtension(outputFormat));
-                    if (string.Equals(Path.GetFullPath(outPath), devicesFullPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
-                        continue;
-                    }
-
-                    if (IsFileLocked(outPath))
-                    {
-                        _log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
-                        continue;
-                    }
-
-                    _log($"--- {Path.GetFileName(outPath)} ---");
-                    expected++;
-                    PCanLogProcessor.WriteOutput(
-                        CompositeOutput.WithComposites(allDevices, composites),
-                        kv.Value.DeviceData,
-                        hasFilter ? deviceEnabled : null,
-                        hasFilter ? paramEnabled : null,
-                        outPath, outputFormat, isCanfox: false, _log, includeDeviceIdHeaderRow);
-
-                    if (File.Exists(outPath))
-                        created++;
-                }
+                context.Log($"--- {Path.GetFileName(outPath)} ---");
+                Track(() => TimeSeriesOutputWriter.Write(kv.Value, outPath, settings, "pCAN Log", trcContext.Slice(0.8, 0.2)), Path.GetFileName(outPath));
             }
 
-            return new BatchOutcome(created, expected);
+            return new BatchOutcome(created, expected, failed);
         }
 
-        private static bool IsMatrixCsvLog(string path)
+        private static LogFormatKind SafeDetect(string path)
         {
-            if (!Path.GetExtension(path).Equals(".csv", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            try
-            {
-                return MatrixCsvLogParser.LooksLikeMatrixCsv(path, LogFileEncoding.Detect(path));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return false;
-            }
+            try { return LogFormatDetector.Detect(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return LogFormatKind.None; }
         }
 
-        private static bool IsFileLocked(string path)
+        internal static bool IsFileLocked(string path)
         {
             if (!File.Exists(path)) return false;
             try
@@ -342,14 +220,9 @@ namespace logReader.Processing
         }
 
         internal static string GetOutputExtension(OutputFormat outputFormat)
-            => outputFormat switch
-            {
-                OutputFormat.Xlsx => ".xlsx",
-                OutputFormat.CsvDstConnect => ".csv",
-                _ => ".csv"
-            };
+            => outputFormat == OutputFormat.Xlsx ? ".xlsx" : ".csv";
 
-        private static string BuildBatchOutputPath(string logFilePath, string outputFolder, OutputFormat outputFormat)
+        internal static string BuildBatchOutputPath(string logFilePath, string outputFolder, OutputFormat outputFormat)
         {
             string stem = Path.GetFileNameWithoutExtension(logFilePath);
             string ext = Path.GetExtension(logFilePath).TrimStart('.');
@@ -363,24 +236,5 @@ namespace logReader.Processing
 
             return Path.Combine(outputFolder, $"{stem}_{ext}_result{GetOutputExtension(outputFormat)}");
         }
-
-        private static bool IsPCanLog(string path)
-        {
-            if (Path.GetExtension(path).Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (!File.Exists(path)) return false;
-            try
-            {
-                var enc = LogFileEncoding.Detect(path);
-                return CanfoxLogParser.LooksLikeCanfoxLog(path, enc);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return false;
-            }
-        }
-
-        private static bool IsAscLog(string path) =>
-            Path.GetExtension(path).Equals(".asc", StringComparison.OrdinalIgnoreCase);
     }
 }

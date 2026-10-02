@@ -1,191 +1,92 @@
-using System.Linq;
-using System.Text;
-using ClosedXML.Excel;
-using logReader;
-
 namespace logReader.Processing
 {
+    // Табличный CSV (время × посылки): одна строка результата на строку лога.
     internal sealed class MatrixCsvLogProcessor
     {
-        public void Process(
+        public ProcessingResult Process(
             string csvPath,
             List<Device> devices,
             string outputPath,
-            OutputFormat outputFormat,
-            Action<string> log,
-            Dictionary<string, bool>? deviceEnabled = null,
-            Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null,
-            bool includeDeviceIdHeaderRow = false)
-        {
-            ProcessMerged(
-                new[] { csvPath }, devices, outputPath, outputFormat, log,
-                deviceEnabled, paramEnabled, composites, includeDeviceIdHeaderRow);
-        }
+            OutputSettings settings,
+            ProcessingContext context)
+            => ProcessMerged(new[] { csvPath }, devices, outputPath, settings, context);
 
-        public bool ProcessMerged(
+        public ProcessingResult ProcessMerged(
             IReadOnlyList<string> csvPaths,
             List<Device> devices,
             string outputPath,
-            OutputFormat outputFormat,
-            Action<string> log,
-            Dictionary<string, bool>? deviceEnabled = null,
-            Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null,
-            bool includeDeviceIdHeaderRow = false)
+            OutputSettings settings,
+            ProcessingContext context)
         {
-            bool hasComposites = composites != null && !composites.IsEmpty;
-            if (devices.Count == 0 && !hasComposites)
-            {
-                log("Ошибка: устройства не загружены.");
-                return false;
-            }
-
+            var composites = settings.Composites;
+            if (devices.Count == 0 && !settings.HasComposites)
+                return context.Fail("Ошибка: устройства не загружены.");
             if (csvPaths.Count == 0)
-            {
-                log("Ошибка: не указаны файлы CSV.");
-                return false;
-            }
-
-            string? outputDir = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
-            {
-                log($"Ошибка: директория для сохранения не существует: {outputDir}");
-                return false;
-            }
+                return context.Fail("Ошибка: не указаны файлы CSV.");
 
             var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
+            var inputs = new List<(string Path, System.Text.Encoding Encoding, List<MatrixCsvColumn> Columns)>();
             var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var seenSourceIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int usedFiles = 0;
 
             foreach (string csvPath in csvPaths)
             {
                 if (!File.Exists(csvPath))
                 {
-                    log($"Пропуск: файл не найден: {csvPath}");
+                    context.Log($"Пропуск: файл не найден: {csvPath}");
                     continue;
                 }
 
-                Encoding encoding;
+                System.Text.Encoding encoding;
                 try { encoding = LogFileEncoding.Detect(csvPath); }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    log($"Пропуск: ошибка определения кодировки ({Path.GetFileName(csvPath)}): {ex.Message}");
+                    context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(csvPath)}): {ex.Message}");
                     continue;
                 }
 
-                if (!MatrixCsvLogParser.LooksLikeMatrixCsv(csvPath, encoding))
+                if (!TryReadHeaderLine(csvPath, encoding, out var columns, out string? headerError))
                 {
-                    log($"Пропуск: не {LogFormatUiNames.Csv} — {Path.GetFileName(csvPath)}");
+                    context.Log($"Пропуск ({Path.GetFileName(csvPath)}): {headerError}");
                     continue;
                 }
 
-                if (!TryReadHeaderLine(csvPath, encoding, out _, out List<string> headerIds, out string? headerError))
-                {
-                    log($"Пропуск ({Path.GetFileName(csvPath)}): {headerError ?? "не удалось прочитать заголовок."}");
-                    continue;
-                }
-
-                foreach (string id in headerIds)
-                {
-                    if (deviceByID.ContainsKey(id))
-                        seenIDs.Add(id);
-                    if (hasComposites && composites!.IsSourceId(id))
-                        seenSourceIDs.Add(id);
-                }
-
-                usedFiles++;
+                foreach (var column in columns)
+                    seenIDs.Add(column.Id);
+                inputs.Add((csvPath, encoding, columns));
             }
 
-            if (usedFiles == 0)
-            {
-                log($"Ошибка: не найдено пригодных файлов {LogFormatUiNames.Csv}.");
-                return false;
-            }
+            if (inputs.Count == 0)
+                return context.Fail($"Ошибка: не найдено пригодных файлов {LogFormatUiNames.Csv}.");
 
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
+            var activeBlocks = CanLogProcessor.ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
+            var outputColumns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
+            if (outputColumns.Count == 0)
+                return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            var activeBlocks = new List<CompositeDevice>();
-            if (hasComposites)
-            {
-                foreach (var block in composites!.Blocks)
-                {
-                    bool blockOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(block.ID, true);
-                    if (!blockOn) continue;
-                    if (block.Signals.Any(s => s.Pieces.Any(pc => seenSourceIDs.Contains(pc.SourceId))))
-                        activeBlocks.Add(block);
-                }
-            }
-
-            var outputDevices = new List<Device>(activeDevices);
-            outputDevices.AddRange(activeBlocks);
-
-            if (outputDevices.Count == 0)
-            {
-                log("Нет совпадающих устройств — проверьте файл посылок.");
-                return false;
-            }
-
-            void RefreshComposites()
-            {
-                foreach (var block in activeBlocks)
-                    block.Decode();
-            }
-
-            string? csvTempPath = null;
-            StreamWriter? csvWriter = null;
-            if (outputFormat == OutputFormat.Csv)
-            {
-                csvTempPath = SafeFileWriter.CreateTempPath(outputPath);
-                csvWriter = new StreamWriter(csvTempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
-            }
-
-            using var workbook = outputFormat == OutputFormat.Xlsx ? new XLWorkbook() : null;
-
-            IXLWorksheet? ws = null;
-            int excelRow = 0;
-            if (outputFormat == OutputFormat.Csv)
-                WriteCsvHeaders(csvWriter!, outputDevices, deviceEnabled, paramEnabled, includeDeviceIdHeaderRow);
-            else
-            {
-                ws = workbook!.Worksheets.Add("Log");
-                excelRow = logReader.Program.BuildExcelHeaders(
-                    ws, outputDevices, deviceEnabled, paramEnabled, includeDeviceIdHeaderRow);
-            }
-
+            using var writer = new StepOutputWriter(outputPath, settings.Format, outputColumns, settings.IncludeDeviceIdHeaderRow);
             int step = 0;
-            int[] msgBytes = new int[8];
-            int processedFiles = 0;
+            Span<int> msgBytes = stackalloc int[8];
 
             try
             {
-                foreach (string csvPath in csvPaths)
+                for (int f = 0; f < inputs.Count; f++)
                 {
-                    if (!File.Exists(csvPath)) continue;
+                    var (csvPath, encoding, columns) = inputs[f];
+                    if (inputs.Count > 1)
+                        context.Log($"--- {Path.GetFileName(csvPath)} ---");
 
-                    Encoding encoding;
-                    try { encoding = LogFileEncoding.Detect(csvPath); }
-                    catch { continue; }
-
-                    if (!MatrixCsvLogParser.LooksLikeMatrixCsv(csvPath, encoding)) continue;
-                    if (!TryReadHeaderLine(csvPath, encoding, out List<MatrixCsvColumn> columns, out _, out _))
-                        continue;
-
-                    log($"--- {Path.GetFileName(csvPath)} ---");
-                    processedFiles++;
-
-                    logReader.Program.ResetDevicesState(devices);
+                    DeviceFiles.ResetState(devices);
                     composites?.Reset();
 
                     var timeTracker = new MatrixCsvTimeTracker();
                     bool headerSkipped = false;
-                    int rowsInFile = 0;
+                    var fileContext = context.Slice((double)f / inputs.Count, 1.0 / inputs.Count, Path.GetFileName(csvPath));
 
-                    foreach (string line in File.ReadLines(csvPath, encoding))
+                    foreach (string line in LogFileReader.ReadLines(csvPath, encoding, fileContext))
                     {
                         if (string.IsNullOrWhiteSpace(line)) continue;
 
@@ -201,7 +102,6 @@ namespace logReader.Processing
                             continue;
 
                         step++;
-                        rowsInFile++;
                         string timeText = MatrixCsvLogParser.FormatTimeWithMs(absoluteTime);
 
                         foreach (var column in columns)
@@ -211,172 +111,64 @@ namespace logReader.Processing
                             if (MatrixCsvLogParser.IsCellEmpty(cell)) continue;
                             if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes)) continue;
 
-                            string id = column.Id;
-                            if (deviceByID.TryGetValue(id, out Device? dev))
+                            if (deviceByID.TryGetValue(column.Id, out Device? dev))
                             {
-                                Array.Copy(msgBytes, dev.RawBytes, 8);
+                                dev.SetPayload(msgBytes);
                                 dev.Decode();
                             }
 
-                            composites?.OnMessage(id, msgBytes, 8);
+                            composites?.OnMessage(column.Id, msgBytes, 8);
                         }
 
-                        RefreshComposites();
+                        foreach (var block in activeBlocks)
+                            block.Decode();
 
-                        if (outputFormat == OutputFormat.Csv)
-                            WriteCsvDataRow(csvWriter!, step, timeText, outputDevices, deviceEnabled, paramEnabled);
-                        else
-                            excelRow = logReader.Program.BuildExcelRow(
-                                ws!, excelRow, step, timeText,
-                                outputDevices, deviceEnabled, paramEnabled);
+                        writer.WriteRow(step, timeText);
                     }
                 }
+
+                if (step == 0)
+                    return context.Fail("Ошибка: в файлах нет строк данных.");
+
+                writer.Complete();
             }
-            catch (Exception ex)
+            catch (ExcelRowLimitException ex)
             {
-                log($"Ошибка чтения файла: {ex.Message}");
-                return false;
+                return context.Fail("Ошибка: " + ex.Message);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return context.Fail($"Ошибка чтения файла: {ex.Message}");
             }
 
-            if (step == 0)
-            {
-                log("Ошибка: в файлах нет строк данных.");
-                return false;
-            }
-
-            try
-            {
-                if (outputFormat == OutputFormat.Csv)
-                {
-                    csvWriter!.Flush();
-                    csvWriter.Dispose();
-                    csvWriter = null;
-                    SafeFileWriter.Publish(csvTempPath!, outputPath);
-                    csvTempPath = null;
-                }
-                else
-                {
-                    SafeFileWriter.Write(outputPath, tmp =>
-                    {
-                        ws!.Columns().AdjustToContents();
-                        workbook!.SaveAs(tmp);
-                    });
-                }
-
-                log(csvPaths.Count == 1
-                    ? "Обработка завершена."
-                    : $"Обработка завершена: объединено файлов {LogFormatUiNames.Csv}: {processedFiles}, строк: {step}.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка сохранения файла: {ex.Message}");
-                return false;
-            }
-            finally
-            {
-                csvWriter?.Dispose();
-                if (csvTempPath != null && File.Exists(csvTempPath))
-                {
-                    try { File.Delete(csvTempPath); }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-                }
-            }
+            context.Log(csvPaths.Count == 1
+                ? "Обработка завершена."
+                : $"Обработка завершена: объединено файлов {LogFormatUiNames.Csv}: {inputs.Count}, строк: {step}.");
+            return ProcessingResult.Ok(outputPath, writer.RowsWritten);
         }
 
         private static bool TryReadHeaderLine(
             string csvPath,
-            Encoding encoding,
+            System.Text.Encoding encoding,
             out List<MatrixCsvColumn> columns,
-            out List<string> ids,
             out string? error)
         {
             columns = new List<MatrixCsvColumn>();
-            ids = new List<string>();
             error = null;
 
-            foreach (string line in File.ReadLines(csvPath, encoding))
+            foreach (string line in LogFileReader.ReadLines(csvPath, encoding))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
-                if (MatrixCsvLogParser.TryReadHeader(line, out columns, out ids))
+                if (MatrixCsvLogParser.TryReadHeader(line, out columns, out _))
                     return true;
 
-                error = $"Ошибка: первая строка не похожа на заголовок {LogFormatUiNames.Csv} (;ID1;ID2;...).";
+                error = $"первая строка не похожа на заголовок {LogFormatUiNames.Csv} (;ID1;ID2;...).";
                 return false;
             }
 
-            error = "Ошибка: файл пуст.";
+            error = "файл пуст.";
             return false;
-        }
-
-        private static void WriteCsvHeaders(
-            StreamWriter writer,
-            List<Device> activeDevices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            bool includeDeviceIdHeaderRow)
-        {
-            // «Шаг»/«Время» всегда в строке с именами параметров; строка ID — только CAN ID.
-            var idRow = new List<string> { "", "" };
-            var headerRow = new List<string> { "Шаг", "Время" };
-
-            foreach (var device in activeDevices)
-            {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn) continue;
-
-                var activeParams = new List<string>();
-                for (int i = 0; i < device.headers.Length; i++)
-                {
-                    bool paramOn = paramEnabled == null
-                        || !paramEnabled.TryGetValue(device.ID, out var arr)
-                        || (i < arr.Length && arr[i]);
-                    if (paramOn) activeParams.Add(device.headers[i]);
-                }
-
-                if (activeParams.Count == 0) continue;
-
-                if (includeDeviceIdHeaderRow)
-                {
-                    idRow.Add(device.ID);
-                    for (int i = 1; i < activeParams.Count; i++)
-                        idRow.Add("");
-                }
-
-                headerRow.AddRange(activeParams);
-            }
-
-            if (includeDeviceIdHeaderRow)
-                CsvOutput.WriteRow(writer, idRow);
-            CsvOutput.WriteRow(writer, headerRow);
-        }
-
-        private static void WriteCsvDataRow(
-            StreamWriter writer,
-            int step,
-            string time,
-            List<Device> activeDevices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled)
-        {
-            var row = new List<string> { step.ToString(), time };
-            foreach (var device in activeDevices)
-            {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn) continue;
-
-                for (int i = 0; i < device.ProcessedData.Length; i++)
-                {
-                    bool paramOn = paramEnabled == null
-                        || !paramEnabled.TryGetValue(device.ID, out var arr)
-                        || (i < arr.Length && arr[i]);
-                    if (!paramOn) continue;
-                    row.Add(CsvOutput.FormatValue(device.ProcessedData[i]));
-                }
-            }
-
-            CsvOutput.WriteRow(writer, row);
         }
     }
 }

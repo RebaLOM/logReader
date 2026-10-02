@@ -1,152 +1,108 @@
-using System.Globalization;
-using System.Text;
-using logReader;
-
 namespace logReader.Processing
 {
+    // Пакетная обработка .trc: объединение в один результат или разбивка по датам.
     internal static class TrcBatchAggregator
     {
-        internal sealed class TrcAggregate
-        {
-            public required Dictionary<string, List<(double TimeVal, string[] Values)>> DeviceData { get; init; }
-            public required bool IsCanfox { get; init; }
-        }
-
-        internal static bool TryBuildMergedAggregate(
-            IEnumerable<string> trcPaths,
+        internal static ProcessingResult TryBuildMergedAggregate(
+            IReadOnlyList<string> trcPaths,
             List<Device> devices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            Action<string> log,
-            out TrcAggregate aggregate,
-            CompositeRuntime? composites = null)
+            OutputSettings settings,
+            ProcessingContext context,
+            out TimeSeriesCollector? aggregate)
         {
-            aggregate = default!;
+            aggregate = null;
+            var composites = settings.Composites;
+            var filter = settings.Filter;
+            var outputDevices = CompositeOutput.WithComposites(devices, composites);
 
             var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceById[d.ID] = d;
 
             bool? isCanfoxExpected = null;
-            var deviceData = new Dictionary<string, List<(double TimeVal, string[] Values)>>(StringComparer.OrdinalIgnoreCase);
-
             Span<int> bytes = stackalloc int[8];
 
             int usedFiles = 0;
-            foreach (var trcPath in trcPaths)
+            for (int f = 0; f < trcPaths.Count; f++)
             {
+                string trcPath = trcPaths[f];
+                var fileContext = context.Slice((double)f / trcPaths.Count, 1.0 / trcPaths.Count, Path.GetFileName(trcPath));
                 if (!File.Exists(trcPath))
                 {
-                    log($"Пропуск: файл не найден: {trcPath}");
+                    context.Log($"Пропуск: файл не найден: {trcPath}");
                     continue;
                 }
 
-                Encoding encoding;
-                try { encoding = LogFileEncoding.Detect(trcPath); }
-                catch (Exception ex)
+                try
                 {
-                    log($"Пропуск: ошибка определения кодировки ({Path.GetFileName(trcPath)}): {ex.Message}");
-                    continue;
-                }
+                    var encoding = LogFileEncoding.Detect(trcPath);
+                    bool isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding);
 
-                bool isCanfox;
-                try { isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding); }
-                catch (Exception ex)
-                {
-                    log($"Пропуск: ошибка чтения ({Path.GetFileName(trcPath)}): {ex.Message}");
-                    continue;
-                }
-
-                if (isCanfoxExpected == null)
-                    isCanfoxExpected = isCanfox;
-                else if (isCanfoxExpected.Value != isCanfox)
-                {
-                    log($"Пропуск: несовместимый тип .trc — {Path.GetFileName(trcPath)}");
-                    continue;
-                }
-
-                DateTime? startTime = null;
-                if (!isCanfox)
-                {
-                    try { startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding)); }
-                    catch (Exception ex)
+                    if (isCanfoxExpected == null)
                     {
-                        log($"Пропуск: ошибка чтения заголовка ({Path.GetFileName(trcPath)}): {ex.Message}");
+                        isCanfoxExpected = isCanfox;
+                        aggregate = new TimeSeriesCollector(outputDevices, filter,
+                            isCanfox ? TimeAxisKind.TimeOfDay : TimeAxisKind.Milliseconds);
+                    }
+                    else if (isCanfoxExpected.Value != isCanfox)
+                    {
+                        context.Log($"Пропуск: несовместимый тип .trc — {Path.GetFileName(trcPath)}");
                         continue;
                     }
 
-                    if (startTime == null)
-                        log($"Предупреждение: в .trc нет Start time — {Path.GetFileName(trcPath)} (время как мс от начала записи).");
+                    if (!isCanfox && TrcLogParser.ParseStartTime(trcPath, encoding) == null)
+                        context.Log($"Предупреждение: в .trc нет Start time — {Path.GetFileName(trcPath)} (время как мс от начала записи).");
+
+                    // Устройства кешируются в UI — сброс перед каждым файлом пакета.
+                    DeviceFiles.ResetState(devices);
+                    composites?.Reset();
+
+                    foreach (var line in LogFileReader.ReadLines(trcPath, encoding, fileContext))
+                    {
+                        string id;
+                        int parsedByteCount;
+                        double timeVal;
+
+                        if (isCanfox)
+                        {
+                            if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out timeVal, out id, bytes, out parsedByteCount))
+                                continue;
+                        }
+                        else
+                        {
+                            if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
+                                continue;
+                            timeVal = (double)timeMsRaw;
+                        }
+
+                        Record(id, timeVal, bytes[..parsedByteCount], deviceById, composites, filter, aggregate!);
+                    }
+
+                    usedFiles++;
                 }
-
-                // Устройства кешируются в UI — сброс перед каждым файлом пакета.
-                logReader.Program.ResetDevicesState(devices);
-                composites?.Reset();
-
-                foreach (var line in File.ReadLines(trcPath, encoding))
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    string id;
-                    int parsedByteCount;
-                    double timeVal;
-
-                    if (isCanfox)
-                    {
-                        if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out timeVal, out id, bytes, out parsedByteCount))
-                            continue;
-                    }
-                    else
-                    {
-                        if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
-                            continue;
-
-                        timeVal = (double)timeMsRaw;
-                    }
-
-                    composites?.OnMessage(id, bytes, parsedByteCount);
-                    CompositeOutput.EmitTriggered(composites, id, timeVal, deviceData);
-
-                    if (!deviceById.TryGetValue(id, out Device? device))
-                        continue;
-
-                    bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true);
-                    if (!devOn) continue;
-
-                    for (int i = 0; i < 8; i++)
-                        device.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
-                    device.Decode();
-
-                    if (!deviceData.TryGetValue(id, out var list))
-                    {
-                        list = new List<(double, string[])>();
-                        deviceData[id] = list;
-                    }
-                    list.Add((timeVal, (string[])device.ProcessedData.Clone()));
+                    context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(trcPath)}): {ex.Message}");
                 }
-
-                usedFiles++;
             }
 
-            if (usedFiles == 0 || deviceData.Count == 0 || isCanfoxExpected == null)
-                return false;
+            if (usedFiles == 0 || aggregate == null || !aggregate.HasData)
+                return context.Fail("Ошибка: не удалось собрать данные из .trc для объединения.");
 
-            aggregate = new TrcAggregate
-            {
-                DeviceData = deviceData,
-                IsCanfox = isCanfoxExpected.Value
-            };
-            return true;
+            return ProcessingResult.Ok("", aggregate.MaxRows);
         }
 
-        internal static bool TryBuildAggregatesByDate(
-            IEnumerable<string> trcPaths,
+        internal static ProcessingResult TryBuildAggregatesByDate(
+            IReadOnlyList<string> trcPaths,
             List<Device> devices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            Action<string> log,
-            out Dictionary<DateOnly, TrcAggregate> aggregatesByDate,
-            CompositeRuntime? composites = null)
+            OutputSettings settings,
+            ProcessingContext context,
+            out Dictionary<DateOnly, TimeSeriesCollector> aggregatesByDate)
         {
-            aggregatesByDate = new Dictionary<DateOnly, TrcAggregate>();
+            aggregatesByDate = new Dictionary<DateOnly, TimeSeriesCollector>();
+            var composites = settings.Composites;
+            var filter = settings.Filter;
+            var outputDevices = CompositeOutput.WithComposites(devices, composites);
 
             var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
@@ -155,104 +111,85 @@ namespace logReader.Processing
             Span<int> bytes = stackalloc int[8];
 
             int usedFiles = 0;
-            foreach (var trcPath in trcPaths)
+            for (int f = 0; f < trcPaths.Count; f++)
             {
+                string trcPath = trcPaths[f];
+                var fileContext = context.Slice((double)f / trcPaths.Count, 1.0 / trcPaths.Count, Path.GetFileName(trcPath));
                 if (!File.Exists(trcPath))
                 {
-                    log($"Пропуск: файл не найден: {trcPath}");
+                    context.Log($"Пропуск: файл не найден: {trcPath}");
                     continue;
                 }
 
-                Encoding encoding;
-                try { encoding = LogFileEncoding.Detect(trcPath); }
-                catch (Exception ex)
+                try
                 {
-                    log($"Пропуск: ошибка определения кодировки ({Path.GetFileName(trcPath)}): {ex.Message}");
-                    continue;
-                }
-
-                bool isCanfox;
-                try { isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding); }
-                catch (Exception ex)
-                {
-                    log($"Пропуск: ошибка чтения ({Path.GetFileName(trcPath)}): {ex.Message}");
-                    continue;
-                }
-
-                if (isCanfox)
-                {
-                    log($"Пропуск: разбивка по датам не поддерживается для CANfox .trc — {Path.GetFileName(trcPath)}");
-                    continue;
-                }
-
-                DateTime? startTime;
-                try { startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding)); }
-                catch (Exception ex)
-                {
-                    log($"Пропуск: ошибка чтения заголовка ({Path.GetFileName(trcPath)}): {ex.Message}");
-                    continue;
-                }
-
-                if (!startTime.HasValue)
-                {
-                    log($"Пропуск: в .trc не найден Start time (нужен для разбивки по датам) — {Path.GetFileName(trcPath)}");
-                    continue;
-                }
-
-                // Устройства кешируются в UI — сброс перед каждым файлом пакета.
-                logReader.Program.ResetDevicesState(devices);
-                composites?.Reset();
-
-                foreach (var line in File.ReadLines(trcPath, encoding))
-                {
-                    if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out string id, out _, bytes, out int parsedByteCount))
-                        continue;
-
-                    double timeMs = (double)timeMsRaw;
-                    DateTime frameTime = startTime.Value.AddMilliseconds(timeMs);
-                    DateOnly date = DateOnly.FromDateTime(frameTime);
-                    double timeVal = timeMs;
-
-                    composites?.OnMessage(id, bytes, parsedByteCount);
-
-                    bool hasDevice = deviceById.TryGetValue(id, out Device? device);
-                    bool devOn = hasDevice && (deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true));
-                    bool isCompositeSource = composites != null && composites.IsSourceId(id);
-
-                    if (!devOn && !isCompositeSource)
-                        continue;
-
-                    if (!aggregatesByDate.TryGetValue(date, out var agg))
+                    var encoding = LogFileEncoding.Detect(trcPath);
+                    if (CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding))
                     {
-                        agg = new TrcAggregate
+                        context.Log($"Пропуск: разбивка по датам не поддерживается для CANfox .trc — {Path.GetFileName(trcPath)}");
+                        continue;
+                    }
+
+                    DateTime? startTime = TrcLogParser.ParseStartTime(trcPath, encoding);
+                    if (!startTime.HasValue)
+                    {
+                        context.Log($"Пропуск: в .trc не найден Start time (нужен для разбивки по датам) — {Path.GetFileName(trcPath)}");
+                        continue;
+                    }
+
+                    // Устройства кешируются в UI — сброс перед каждым файлом пакета.
+                    DeviceFiles.ResetState(devices);
+                    composites?.Reset();
+
+                    foreach (var line in LogFileReader.ReadLines(trcPath, encoding, fileContext))
+                    {
+                        if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out string id, out _, bytes, out int parsedByteCount))
+                            continue;
+
+                        double timeMs = (double)timeMsRaw;
+                        DateOnly date = DateOnly.FromDateTime(startTime.Value.AddMilliseconds(timeMs));
+
+                        if (!aggregatesByDate.TryGetValue(date, out var agg))
                         {
-                            IsCanfox = false,
-                            DeviceData = new Dictionary<string, List<(double, string[])>>(StringComparer.OrdinalIgnoreCase)
-                        };
-                        aggregatesByDate[date] = agg;
+                            agg = new TimeSeriesCollector(outputDevices, filter, TimeAxisKind.Milliseconds);
+                            aggregatesByDate[date] = agg;
+                        }
+
+                        Record(id, timeMs, bytes[..parsedByteCount], deviceById, composites, filter, agg);
                     }
 
-                    CompositeOutput.EmitTriggered(composites, id, timeVal, agg.DeviceData);
-
-                    if (!devOn) continue;
-
-                    for (int i = 0; i < 8; i++)
-                        device!.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
-                    device!.Decode();
-
-                    if (!agg.DeviceData.TryGetValue(id, out var list))
-                    {
-                        list = new List<(double, string[])>();
-                        agg.DeviceData[id] = list;
-                    }
-                    list.Add((timeVal, (string[])device.ProcessedData.Clone()));
+                    usedFiles++;
                 }
-
-                usedFiles++;
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(trcPath)}): {ex.Message}");
+                }
             }
 
-            return usedFiles > 0 && aggregatesByDate.Count > 0;
+            if (usedFiles == 0 || !aggregatesByDate.Values.Any(a => a.HasData))
+                return context.Fail("Ошибка: не удалось собрать данные из .trc для разбивки по датам.");
+
+            return ProcessingResult.Ok("", aggregatesByDate.Count);
+        }
+
+        private static void Record(
+            string id,
+            double time,
+            ReadOnlySpan<int> bytes,
+            Dictionary<string, Device> deviceById,
+            CompositeRuntime? composites,
+            OutputFilter filter,
+            TimeSeriesCollector collector)
+        {
+            composites?.OnMessage(id, bytes, bytes.Length);
+            CompositeOutput.EmitTriggered(composites, id, time, collector, filter);
+
+            if (!deviceById.TryGetValue(id, out Device? device)) return;
+            if (!filter.IsDeviceEnabled(id)) return;
+
+            device.SetPayload(bytes);
+            device.Decode();
+            collector.Record(device, time);
         }
     }
 }
-

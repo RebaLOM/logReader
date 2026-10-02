@@ -1,140 +1,101 @@
 using System.Globalization;
-using System.Text;
 
 namespace logReader.Processing
 {
     internal static class DstConnectCsvWriter
     {
-        internal sealed record Column(string Key, string DeviceId, string Header);
+        internal sealed record Column(int Index, Device Device, int ParamIndex, string Header);
 
-        internal static List<Column> BuildColumns(
-            List<Device> devices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled)
+        // Колонки по плану фильтра; повтор имени параметра у разных устройств — с префиксом ID.
+        internal static List<Column> BuildColumns(IEnumerable<Device> devices, OutputFilter filter)
         {
             var columns = new List<Column>();
             var headerCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var device in devices)
+            foreach (var group in filter.BuildColumns(devices))
             {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn) continue;
-
-                for (int i = 0; i < device.headers.Length; i++)
+                foreach (int i in group.ParamIndexes)
                 {
-                    bool paramOn = paramEnabled == null
-                        || !paramEnabled.TryGetValue(device.ID, out var arr)
-                        || (i < arr.Length && arr[i]);
-                    if (!paramOn) continue;
-
-                    string paramName = device.headers[i];
+                    string paramName = group.Device.Headers[i];
                     string header = paramName;
                     if (!headerCounts.TryAdd(paramName, 1))
                     {
                         headerCounts[paramName]++;
-                        header = device.ID + " " + paramName;
+                        header = group.Device.ID + " " + paramName;
                     }
 
-                    string key = device.ID + "|" + i;
-                    columns.Add(new Column(key, device.ID, header));
+                    columns.Add(new Column(columns.Count, group.Device, i, header));
                 }
             }
 
             return columns;
         }
 
-        internal static List<Column> FilterColumnsWithData(
-            IReadOnlyList<Column> columns,
-            IReadOnlyList<DstConnectSnapshotRow> rows)
+        internal static List<Column> FilterColumnsWithData(IReadOnlyList<Column> columns, IReadOnlyList<DstConnectSnapshotRow> rows)
         {
             if (columns.Count == 0 || rows.Count == 0)
                 return [];
 
-            var usedKeys = new HashSet<string>(StringComparer.Ordinal);
+            var used = new bool[columns.Count];
             foreach (var row in rows)
-            {
-                foreach (var key in row.Values.Keys)
-                    usedKeys.Add(key);
-            }
+                for (int i = 0; i < used.Length; i++)
+                    if (!double.IsNaN(row.Values[i]) || TimeSeriesCollector.IsError(row.Values[i]))
+                        used[i] = true;
 
-            return columns.Where(c => usedKeys.Contains(c.Key)).ToList();
+            return columns.Where(c => used[c.Index]).ToList();
         }
 
-        internal static void Write(
+        internal static ProcessingResult Write(
             string outputPath,
             DateTime? startTime,
             IReadOnlyList<Column> columns,
             IReadOnlyList<DstConnectSnapshotRow> rows,
-            Action<string> log,
-            bool includeDeviceIdHeaderRow = false)
+            bool includeDeviceIdHeaderRow,
+            ProcessingContext context)
         {
-            string? tempPath = null;
+            var ru = CultureInfo.GetCultureInfo("ru-RU");
             try
             {
-                tempPath = SafeFileWriter.CreateTempPath(outputPath);
-                var ru = CultureInfo.GetCultureInfo("ru-RU");
-                using (var writer = new StreamWriter(tempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
+                SafeFileWriter.Write(outputPath, tmp =>
                 {
+                    using var writer = new StreamWriter(tmp, false, CsvOutput.Encoding);
+
                     // Time/Step всегда в строке с именами параметров; строка ID — только CAN ID.
-                    var idRow = new List<string> { "", "" };
-                    var headerRow = new List<string> { "Time", "Step" };
-
-                    string? lastDeviceId = null;
-                    foreach (var col in columns)
-                    {
-                        if (includeDeviceIdHeaderRow)
-                        {
-                            if (!col.DeviceId.Equals(lastDeviceId, StringComparison.OrdinalIgnoreCase))
-                            {
-                                idRow.Add(col.DeviceId);
-                                lastDeviceId = col.DeviceId;
-                            }
-                            else
-                            {
-                                idRow.Add("");
-                            }
-                        }
-
-                        headerRow.Add(col.Header);
-                    }
-
                     if (includeDeviceIdHeaderRow)
-                        CsvOutput.WriteRow(writer, idRow);
-                    CsvOutput.WriteRow(writer, headerRow);
-
-                    foreach (var row in rows.OrderBy(r => r.StepMs))
                     {
-                        var line = new List<string>
-                        {
-                            FormatClockTime(startTime, row.StepMs),
-                            FormatStep(row.StepMs, ru)
-                        };
-
+                        var idRow = new List<string> { "", "" };
+                        Device? lastDevice = null;
                         foreach (var col in columns)
                         {
-                            row.Values.TryGetValue(col.Key, out string? val);
-                            line.Add(FormatValue(val, ru));
+                            idRow.Add(ReferenceEquals(col.Device, lastDevice) ? "" : CsvOutput.Text(col.Device.ID));
+                            lastDevice = col.Device;
                         }
+                        CsvOutput.WriteRow(writer, idRow);
+                    }
 
+                    var headerRow = new List<string> { "Time", "Step" };
+                    headerRow.AddRange(columns.Select(c => CsvOutput.Text(c.Header)));
+                    CsvOutput.WriteRow(writer, headerRow);
+
+                    var line = new List<string>(columns.Count + 2);
+                    foreach (var row in rows.OrderBy(r => r.StepMs))
+                    {
+                        line.Clear();
+                        line.Add(FormatClockTime(startTime, row.StepMs));
+                        line.Add(FormatStep(row.StepMs, ru));
+                        foreach (var col in columns)
+                            line.Add(FormatValue(row.Values[col.Index], ru));
                         CsvOutput.WriteRow(writer, line);
                     }
-                }
+                });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return context.Fail($"Ошибка сохранения: {ex.Message}");
+            }
 
-                SafeFileWriter.Publish(tempPath, outputPath);
-                log("Обработка завершена.");
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка сохранения: {ex.Message}");
-            }
-            finally
-            {
-                if (tempPath != null && File.Exists(tempPath))
-                {
-                    try { File.Delete(tempPath); }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-                }
-            }
+            context.Log("Обработка завершена.");
+            return ProcessingResult.Ok(outputPath, rows.Count);
         }
 
         private static string FormatClockTime(DateTime? startTime, double stepMs)
@@ -153,15 +114,10 @@ namespace logReader.Processing
             return stepMs.ToString(ru);
         }
 
-        private static string FormatValue(string? value, CultureInfo ru)
+        private static string FormatValue(double value, CultureInfo ru)
         {
-            if (string.IsNullOrEmpty(value))
-                return "";
-
-            if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
-                return d.ToString(ru);
-
-            return value;
+            if (TimeSeriesCollector.IsError(value)) return "ERR";
+            return double.IsNaN(value) ? "" : value.ToString(ru);
         }
     }
 }

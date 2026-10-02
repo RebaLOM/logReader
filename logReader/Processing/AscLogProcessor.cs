@@ -238,116 +238,76 @@ namespace logReader.Processing
         }
     }
 
-    internal class AscLogProcessor
+    internal sealed class AscLogProcessor
     {
-        public void Process(
+        public ProcessingResult Process(
             string ascPath,
             List<Device> devices,
             string outputPath,
-            OutputFormat outputFormat,
-            Action<string> log,
-            Dictionary<string, bool>? deviceEnabled = null,
-            Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null,
-            bool includeDeviceIdHeaderRow = false)
+            OutputSettings settings,
+            ProcessingContext context)
         {
-            bool hasComposites = composites != null && !composites.IsEmpty;
-            if (devices.Count == 0 && !hasComposites) { log("Ошибка: устройства не загружены."); return; }
-            if (!File.Exists(ascPath)) { log($"Ошибка: файл не найден: {ascPath}"); return; }
+            var composites = settings.Composites;
+            var filter = settings.Filter;
+            if (devices.Count == 0 && !settings.HasComposites) return context.Fail("Ошибка: устройства не загружены.");
+            if (!File.Exists(ascPath)) return context.Fail($"Ошибка: файл не найден: {ascPath}");
 
             // Устройства кешируются в UI — сброс перед каждым прогоном.
-            logReader.Program.ResetDevicesState(devices);
+            DeviceFiles.ResetState(devices);
             composites?.Reset();
 
-            Encoding encoding;
-            try
-            {
-                encoding = LogFileEncoding.Detect(ascPath);
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка определения кодировки: {ex.Message}");
-                return;
-            }
+            var encoding = LogFileEncoding.Detect(ascPath);
 
             long baseTicks = 0;
             bool hasBaseTime = false;
-            try
+            foreach (var line in LogFileReader.ReadLines(ascPath, encoding))
             {
-                foreach (var line in File.ReadLines(ascPath, encoding))
+                if (AscLogParser.TryParseBaseTimeTicksFromHeaderLine(line, out baseTicks))
                 {
-                    if (AscLogParser.TryParseBaseTimeTicksFromHeaderLine(line, out baseTicks))
-                    {
-                        hasBaseTime = true;
-                        break;
-                    }
+                    hasBaseTime = true;
+                    break;
                 }
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка чтения файла: {ex.Message}");
-                return;
             }
 
             if (!hasBaseTime)
-                log("Предупреждение: не найдено стартовое время (строка 'date ...'). Время будет считаться от 00:00:00.000.");
+                context.Log("Предупреждение: не найдено стартовое время (строка 'date ...'). Время будет считаться от 00:00:00.000.");
 
             var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
-            var deviceData = new Dictionary<string, List<(double TimeVal, string[] Values)>>(
-                StringComparer.OrdinalIgnoreCase);
+            var collector = new TimeSeriesCollector(
+                CompositeOutput.WithComposites(devices, composites), filter, TimeAxisKind.TimeOfDay);
 
             try
             {
                 Span<int> bytes = stackalloc int[8];
 
-                foreach (var line in File.ReadLines(ascPath, encoding))
+                foreach (var line in LogFileReader.ReadLines(ascPath, encoding, context.Slice(0, 0.8)))
                 {
                     if (!AscLogParser.TryParseFrameLine(line, out long offsetTicks, out string id, bytes, out int parsedByteCount))
                         continue;
 
                     // Суммируем смещение без сброса в полночь — иначе ломаются логи через 00:00.
-                    long ticks = baseTicks + offsetTicks;
-                    double timeVal = ticks / (double)TimeSpan.TicksPerDay;
+                    double timeVal = (baseTicks + offsetTicks) / (double)TimeSpan.TicksPerDay;
 
                     composites?.OnMessage(id, bytes, parsedByteCount);
-                    CompositeOutput.EmitTriggered(composites, id, timeVal, deviceData);
+                    CompositeOutput.EmitTriggered(composites, id, timeVal, collector, filter);
 
-                    if (!deviceByID.TryGetValue(id, out Device? device))
-                        continue;
+                    if (!deviceByID.TryGetValue(id, out Device? device)) continue;
+                    if (!filter.IsDeviceEnabled(id)) continue;
 
-                    bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(id, true);
-                    if (!devOn) continue;
-
-                    for (int i = 0; i < 8; i++)
-                        device.RawBytes[i] = i < parsedByteCount ? bytes[i] : 0;
-
+                    device.SetPayload(bytes[..parsedByteCount]);
                     device.Decode();
-
-                    if (!deviceData.ContainsKey(id))
-                        deviceData[id] = new List<(double, string[])>();
-
-                    deviceData[id].Add((timeVal, (string[])device.ProcessedData.Clone()));
+                    collector.Record(device, timeVal);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                log($"Ошибка обработки файла: {ex.Message}");
-                return;
+                return context.Fail($"Ошибка обработки файла: {ex.Message}");
             }
 
-            if (deviceData.Count == 0)
-            {
-                log("Нет совпадающих устройств — проверьте файл посылок.");
-                return;
-            }
-
-            var outputDevices = CompositeOutput.WithComposites(devices, composites);
-            TimeSeriesOutputWriter.Write(
-                outputFormat, outputDevices, deviceData, deviceEnabled, paramEnabled,
-                outputPath, "ASC Log", isCanfox: false, log, includeDeviceIdHeaderRow);
+            return TimeSeriesOutputWriter.Write(collector, outputPath, settings, "ASC Log", context.Slice(0.8, 0.2));
         }
     }
 }

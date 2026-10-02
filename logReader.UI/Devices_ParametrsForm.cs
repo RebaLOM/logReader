@@ -60,7 +60,7 @@ namespace logReader.UI
             int totalH = 6;
 
             foreach (var d in _devices)
-                totalH += GbHeight(d.headers.Length) + GB_MARGIN;
+                totalH += GbHeight(d.Headers.Length) + GB_MARGIN;
 
             _innerPanel = new Panel
             {
@@ -77,12 +77,12 @@ namespace logReader.UI
 
                 if (!_paramEnabled.TryGetValue(device.ID, out var paramArr))
                 {
-                    paramArr = Enumerable.Repeat(true, device.headers.Length).ToArray();
+                    paramArr = Enumerable.Repeat(true, device.Headers.Length).ToArray();
                     _paramEnabled[device.ID] = paramArr;
                 }
-                else if (paramArr.Length != device.headers.Length)
+                else if (paramArr.Length != device.Headers.Length)
                 {
-                    var resized = new bool[device.headers.Length];
+                    var resized = new bool[device.Headers.Length];
                     int copyLen = Math.Min(paramArr.Length, resized.Length);
                     Array.Copy(paramArr, resized, copyLen);
                     for (int i = copyLen; i < resized.Length; i++)
@@ -96,7 +96,7 @@ namespace logReader.UI
                 var gb = CreateGroupBox(device, devOn, paramArr, gbW, yOffset);
                 _innerPanel.Controls.Add(gb);
 
-                yOffset += GbHeight(device.headers.Length) + GB_MARGIN;
+                yOffset += GbHeight(device.Headers.Length) + GB_MARGIN;
             }
 
             scrollPanel.Controls.Add(_innerPanel);
@@ -110,7 +110,7 @@ namespace logReader.UI
                 Left = 6,
                 Top = top,
                 Width = gbW,
-                Height = GbHeight(device.headers.Length),
+                Height = GbHeight(device.Headers.Length),
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
             };
 
@@ -167,7 +167,7 @@ namespace logReader.UI
 
             int paramTop = 18 + HeaderH + 2;
 
-            for (int i = 0; i < device.headers.Length; i++)
+            for (int i = 0; i < device.Headers.Length; i++)
             {
                 bool paramOn = i < paramArr.Length ? paramArr[i] : true;
 
@@ -184,7 +184,7 @@ namespace logReader.UI
 
                 paramPanel.Controls.Add(new Label
                 {
-                    Text = device.headers[i],
+                    Text = device.Headers[i],
                     Left = 8,
                     Top = 0,
                     Height = ParamH,
@@ -331,15 +331,15 @@ namespace logReader.UI
             if (!_paramEnabled.TryGetValue(deviceId, out var arr))
             {
                 var dev = _devices.First(d => d.ID == deviceId);
-                arr = Enumerable.Repeat(true, dev.headers.Length).ToArray();
+                arr = Enumerable.Repeat(true, dev.Headers.Length).ToArray();
                 _paramEnabled[deviceId] = arr;
             }
             else if (idx >= arr.Length)
             {
                 var dev = _devices.First(d => d.ID == deviceId);
-                if (idx >= dev.headers.Length) return;
+                if (idx >= dev.Headers.Length) return;
 
-                var resized = new bool[dev.headers.Length];
+                var resized = new bool[dev.Headers.Length];
                 int copyLen = Math.Min(arr.Length, resized.Length);
                 Array.Copy(arr, resized, copyLen);
                 for (int i = copyLen; i < resized.Length; i++)
@@ -362,9 +362,9 @@ namespace logReader.UI
             {
                 _deviceEnabled[dev.ID] = value;
 
-                if (!_paramEnabled.TryGetValue(dev.ID, out var arr) || arr.Length != dev.headers.Length)
+                if (!_paramEnabled.TryGetValue(dev.ID, out var arr) || arr.Length != dev.Headers.Length)
                 {
-                    arr = new bool[dev.headers.Length];
+                    arr = new bool[dev.Headers.Length];
                     _paramEnabled[dev.ID] = arr;
                 }
                 for (int i = 0; i < arr.Length; i++)

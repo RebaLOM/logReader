@@ -11,18 +11,22 @@ namespace logReader.Processing
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
 
+        public static Encoding Windows1251 => Encoding.GetEncoding(1251);
+
         public static Encoding Detect(string path)
         {
-            using var fs = File.OpenRead(path);
+            using var fs = LogFileReader.OpenShared(path);
 
             // BOM надёжнее эвристики по содержимому.
-            if (fs.Length >= 3)
-            {
-                Span<byte> bom = stackalloc byte[3];
-                if (fs.Read(bom) == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
-                    return new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
-                fs.Position = 0;
-            }
+            Span<byte> bom = stackalloc byte[3];
+            int bomLength = fs.Read(bom);
+            if (bomLength >= 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
+                return new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+            if (bomLength >= 2 && bom[0] == 0xFF && bom[1] == 0xFE)
+                return Encoding.Unicode;
+            if (bomLength >= 2 && bom[0] == 0xFE && bom[1] == 0xFF)
+                return Encoding.BigEndianUnicode;
+            fs.Position = 0;
 
             // Достаточно первых 64 KB — не читаем многомегабайтные логи целиком.
             const int sampleSize = 64 * 1024;
@@ -44,7 +48,7 @@ namespace logReader.Processing
             }
             catch (DecoderFallbackException)
             {
-                return Encoding.GetEncoding(1251);
+                return Windows1251;
             }
         }
     }

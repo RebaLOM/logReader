@@ -1,228 +1,194 @@
-using System.Text;
-using logReader;
-
 namespace logReader.Processing
 {
+    // CSV «ДСТ Коннект»: одна строка на завершённый блок посылок шины (last-known значения).
     internal sealed class DstConnectTrcProcessor
     {
-        public void Process(
+        private readonly record struct Frame(int MessageIndex, double TimeMs, string Id, int DataOffset, int DataLength);
+
+        public ProcessingResult Process(
             string trcPath,
             List<Device> devices,
             string outputPath,
-            DstConnectOptions options,
-            Action<string> log,
-            Dictionary<string, bool>? deviceEnabled = null,
-            Dictionary<string, bool[]>? paramEnabled = null,
-            CompositeRuntime? composites = null,
-            bool includeDeviceIdHeaderRow = false)
+            OutputSettings settings,
+            ProcessingContext context)
         {
             if (!File.Exists(trcPath))
-            {
-                log($"Ошибка: файл не найден: {trcPath}");
-                return;
-            }
+                return context.Fail($"Ошибка: файл не найден: {trcPath}");
 
-            logReader.Program.ResetDevicesState(devices);
+            var options = settings.DstConnect;
+            var composites = settings.Composites;
+            var filter = settings.Filter;
+
+            DeviceFiles.ResetState(devices);
             composites?.Reset();
 
-            Encoding encoding;
-            try
-            {
-                encoding = LogFileEncoding.Detect(trcPath);
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка определения кодировки: {ex.Message}");
-                return;
-            }
-
+            var encoding = LogFileEncoding.Detect(trcPath);
             if (CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding))
-            {
-                log("Ошибка: CSV ДСТ Коннект применим только к pCAN .trc, не к CANfox.");
-                return;
-            }
+                return context.Fail("Ошибка: CSV ДСТ Коннект применим только к pCAN .trc, не к CANfox.");
 
-            DateTime? startTime;
+            DateTime? startTime = TrcLogParser.ParseStartTime(trcPath, encoding);
+
+            // Все кадры нужны заранее для детектора блоков; байты — в одном буфере, ID — без дублей строк.
+            var frames = new List<Frame>();
+            var data = new List<int>();
+            var idPool = new Dictionary<string, string>(StringComparer.Ordinal);
+            Span<int> byteSpan = stackalloc int[8];
             try
             {
-                startTime = TrcLogParser.ParseStartTime(File.ReadLines(trcPath, encoding));
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка чтения заголовка: {ex.Message}");
-                return;
-            }
-
-            var allFrames = new List<(int MessageIndex, double TimeMs, string Id, int[] Bytes)>();
-
-            Span<int> byteSpan = stackalloc int[8];
-            foreach (var line in File.ReadLines(trcPath, encoding))
-            {
-                if (!TrcLogParser.TryParseTrcFrameLine(
-                        line,
-                        out int messageIndex,
-                        out decimal timeMsRaw,
-                        out _,
-                        out string id,
-                        out _,
-                        byteSpan,
-                        out int parsedByteCount))
+                foreach (var line in LogFileReader.ReadLines(trcPath, encoding, context.Slice(0, 0.5)))
                 {
-                    continue;
+                    if (!TrcLogParser.TryParseTrcFrameLine(line, out int messageIndex, out decimal timeMsRaw,
+                            out _, out string id, out _, byteSpan, out int parsedByteCount))
+                        continue;
+
+                    if (!idPool.TryGetValue(id, out string? pooled))
+                    {
+                        pooled = id;
+                        idPool[id] = id;
+                    }
+
+                    frames.Add(new Frame(messageIndex, (double)timeMsRaw, pooled, data.Count, parsedByteCount));
+                    for (int i = 0; i < parsedByteCount; i++)
+                        data.Add(byteSpan[i]);
                 }
-
-                double timeMs = (double)timeMsRaw;
-                var bytes = new int[parsedByteCount];
-                for (int i = 0; i < parsedByteCount; i++)
-                    bytes[i] = byteSpan[i];
-                allFrames.Add((messageIndex, timeMs, id, bytes));
             }
-
-            if (allFrames.Count == 0)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                log("Ошибка: в .trc нет кадров.");
-                return;
+                return context.Fail($"Ошибка чтения файла: {ex.Message}");
             }
 
-            int processingFromIndex = ResolveProcessingStartIndex(allFrames, options.BlockStartIndex, log);
-            if (processingFromIndex < 0)
-                return;
+            if (frames.Count == 0)
+                return context.Fail("Ошибка: в .trc нет кадров.");
 
-            var activeFrames = allFrames
-                .Where(f => f.MessageIndex >= processingFromIndex)
-                .ToList();
-
-            if (activeFrames.Count == 0)
+            int firstFrame = 0;
+            if (options.BlockStartIndex > 0)
             {
-                log($"Ошибка: после посылки №{processingFromIndex} нет кадров.");
-                return;
+                firstFrame = frames.FindIndex(f => f.MessageIndex == options.BlockStartIndex);
+                if (firstFrame < 0)
+                    return context.Fail($"Ошибка: посылка №{options.BlockStartIndex} не найдена в файле.");
+                if (firstFrame > 0)
+                    context.Log($"ДСТ: обработка с посылки №{options.BlockStartIndex} (ранние кадры пропущены).");
             }
 
-            if (processingFromIndex > allFrames[0].MessageIndex)
-                log($"ДСТ: обработка с посылки №{processingFromIndex} (ранние кадры пропущены).");
-
-            var cycleFrames = activeFrames.Select(f => (f.MessageIndex, f.TimeMs, f.Id)).ToList();
+            var activeFrames = new FrameView(frames, firstFrame);
             var targetIds = devices
-                .Where(d => deviceEnabled == null || deviceEnabled.GetValueOrDefault(d.ID, true))
+                .Where(d => filter.IsDeviceEnabled(d.ID))
                 .Select(d => d.ID)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var blockDetection = TrcBlockDetector.Detect(
-                cycleFrames,
-                options.BlockStartIndex,
-                options.BlockPeriodMs,
-                targetIds,
-                log);
-            var tracker = new DstConnectBlockTracker(options, blockDetection);
 
+            var blockDetection = TrcBlockDetector.Detect(
+                activeFrames, options.BlockStartIndex, options.BlockPeriodMs, targetIds, context.Log);
+
+            var outputDevices = CompositeOutput.WithComposites(devices, composites);
+            var columns = DstConnectCsvWriter.BuildColumns(outputDevices, filter);
+            if (columns.Count == 0)
+                return context.Fail("Нет активных параметров для вывода.");
+
+            var columnsByDevice = columns
+                .GroupBy(c => c.Device)
+                .ToDictionary(g => g.Key, g => g.ToArray());
             var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceById[d.ID] = d;
 
-            var columns = DstConnectCsvWriter.BuildColumns(
-                CompositeOutput.WithComposites(devices, composites),
-                deviceEnabled,
-                paramEnabled);
+            var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count);
+            int[] payload = new int[8];
+            var decodeContext = context.Slice(0.5, 0.4);
 
-            if (columns.Count == 0)
+            for (int f = firstFrame; f < frames.Count; f++)
             {
-                log("Нет активных параметров для вывода.");
-                return;
-            }
-
-            foreach (var frame in activeFrames)
-            {
-                tracker.OnFrameStart(frame.MessageIndex, frame.TimeMs, frame.Id);
-
-                if (deviceById.TryGetValue(frame.Id, out Device? device))
+                if ((f & 0xFFFF) == 0)
                 {
-                    bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(frame.Id, true);
-                    if (devOn)
-                    {
-                        for (int i = 0; i < 8; i++)
-                            device.RawBytes[i] = i < frame.Bytes.Length ? frame.Bytes[i] : 0;
-                        device.Decode();
-                        PushDeviceValues(device, columns, tracker);
-                    }
+                    context.ThrowIfCancellationRequested();
+                    decodeContext.ReportProgress((double)f / frames.Count);
                 }
 
-                composites?.OnMessage(frame.Id, frame.Bytes, frame.Bytes.Length);
-                PushCompositeValues(composites, frame.Id, deviceEnabled, columns, tracker);
+                var frame = frames[f];
+                tracker.OnFrameStart(frame.MessageIndex, frame.TimeMs, frame.Id);
+
+                data.CopyTo(frame.DataOffset, payload, 0, frame.DataLength);
+                var bytes = payload.AsSpan(0, frame.DataLength);
+
+                if (deviceById.TryGetValue(frame.Id, out Device? device) && filter.IsDeviceEnabled(frame.Id))
+                {
+                    device.SetPayload(bytes);
+                    device.Decode();
+                    PushValues(device, columnsByDevice, tracker);
+                }
+
+                if (composites != null && !composites.IsEmpty)
+                {
+                    composites.OnMessage(frame.Id, bytes, frame.DataLength);
+                    if (composites.IsSourceId(frame.Id))
+                    {
+                        foreach (var block in composites.Blocks)
+                        {
+                            if (!filter.IsDeviceEnabled(block.ID) || !block.HasReadyParamForSource(frame.Id)) continue;
+                            block.Decode();
+                            PushValues(block, columnsByDevice, tracker);
+                        }
+                    }
+                }
             }
 
-            tracker.Finish(activeFrames[^1].TimeMs);
+            tracker.Finish(frames[^1].TimeMs);
 
             if (tracker.Rows.Count == 0)
-            {
-                log("Нет данных для CSV ДСТ — проверьте файл посылок.");
-                return;
-            }
+                return context.Fail("Нет данных для CSV ДСТ — проверьте файл посылок.");
 
             var outputColumns = DstConnectCsvWriter.FilterColumnsWithData(columns, tracker.Rows);
             if (outputColumns.Count == 0)
-            {
-                log("Нет колонок для CSV ДСТ — в логе нет посылок из файла устройств.");
-                return;
-            }
+                return context.Fail("Нет колонок для CSV ДСТ — в логе нет посылок из файла устройств.");
 
-            DstConnectCsvWriter.Write(
-                outputPath, startTime, outputColumns, tracker.Rows, log, includeDeviceIdHeaderRow);
+            return DstConnectCsvWriter.Write(
+                outputPath, startTime, outputColumns, tracker.Rows, settings.IncludeDeviceIdHeaderRow, context.Slice(0.9, 0.1));
         }
 
-        private static int ResolveProcessingStartIndex(
-            List<(int MessageIndex, double TimeMs, string Id, int[] Bytes)> allFrames,
-            int userAnchorMessageIndex,
-            Action<string> log)
-        {
-            if (userAnchorMessageIndex <= 0)
-                return allFrames[0].MessageIndex;
-
-            if (!allFrames.Any(f => f.MessageIndex == userAnchorMessageIndex))
-            {
-                log($"Ошибка: посылка №{userAnchorMessageIndex} не найдена в файле.");
-                return -1;
-            }
-
-            return userAnchorMessageIndex;
-        }
-
-        private static void PushDeviceValues(
+        private static void PushValues(
             Device device,
-            List<DstConnectCsvWriter.Column> columns,
+            Dictionary<Device, DstConnectCsvWriter.Column[]> columnsByDevice,
             DstConnectBlockTracker tracker)
         {
-            string prefix = device.ID + "|";
-            foreach (var col in columns)
+            if (!columnsByDevice.TryGetValue(device, out var deviceColumns)) return;
+            foreach (var col in deviceColumns)
             {
-                if (!col.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (!int.TryParse(col.Key.AsSpan(prefix.Length), out int idx))
-                    continue;
-                if (idx < 0 || idx >= device.ProcessedData.Length)
-                    continue;
-                tracker.UpdateParameter(col.Key, device.ProcessedData[idx]);
+                double value = device.FieldErrors[col.ParamIndex]
+                    ? TimeSeriesCollector.ErrorMarker
+                    : device.Values[col.ParamIndex];
+                tracker.UpdateParameter(col.Index, value);
             }
         }
 
-        private static void PushCompositeValues(
-            CompositeRuntime? composites,
-            string id,
-            Dictionary<string, bool>? deviceEnabled,
-            List<DstConnectCsvWriter.Column> columns,
-            DstConnectBlockTracker tracker)
+        // Кадры для детектора блоков без копирования списка.
+        private sealed class FrameView : IReadOnlyList<(int MessageIndex, double TimeMs, string Id)>
         {
-            if (composites == null || composites.IsEmpty || !composites.IsSourceId(id))
-                return;
+            private readonly List<Frame> _frames;
+            private readonly int _offset;
 
-            foreach (var block in composites.Blocks)
+            public FrameView(List<Frame> frames, int offset)
             {
-                if (!block.HasReadyParamForSource(id)) continue;
-
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(block.ID, true);
-                if (!devOn) continue;
-
-                block.Decode();
-                PushDeviceValues(block, columns, tracker);
+                _frames = frames;
+                _offset = offset;
             }
+
+            public (int MessageIndex, double TimeMs, string Id) this[int index]
+            {
+                get
+                {
+                    var f = _frames[_offset + index];
+                    return (f.MessageIndex, f.TimeMs, f.Id);
+                }
+            }
+
+            public int Count => _frames.Count - _offset;
+
+            public IEnumerator<(int MessageIndex, double TimeMs, string Id)> GetEnumerator()
+            {
+                for (int i = _offset; i < _frames.Count; i++)
+                    yield return (_frames[i].MessageIndex, _frames[i].TimeMs, _frames[i].Id);
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 }

@@ -1,204 +1,39 @@
 using System.Globalization;
-using System.Text;
 using ClosedXML.Excel;
-using logReader;
 
 namespace logReader.Processing
 {
-    // Единый вывод time-series в Excel/CSV для всех процессоров с форматом deviceData.
-    internal static class TimeSeriesOutputWriter
+    public enum TimeAxisKind
     {
-        public static void Write(
-            OutputFormat format,
-            List<Device> devices,
-            Dictionary<string, List<(double TimeVal, string[] Values)>> deviceData,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            string outputPath,
-            string sheetName,
-            bool isCanfox,
-            Action<string> log,
-            bool includeDeviceIdHeaderRow = false)
+        // Миллисекунды от начала записи (pCAN .trc).
+        Milliseconds,
+        // Время суток как доля суток (может превышать 1 после полуночи): ASC, CANfox.
+        TimeOfDay,
+        // Абсолютная дата и время как OADate (объединение логов с разным началом записи).
+        DateTime
+    }
+
+    internal static class TimeAxisFormat
+    {
+        public static string Format(double value, TimeAxisKind kind) => kind switch
         {
-            if (format == OutputFormat.Csv)
-                WriteCsv(devices, deviceData, deviceEnabled, paramEnabled, outputPath, isCanfox, log, includeDeviceIdHeaderRow);
-            else
-                WriteExcel(devices, deviceData, deviceEnabled, paramEnabled, outputPath, sheetName, isCanfox, log, includeDeviceIdHeaderRow);
-        }
+            TimeAxisKind.TimeOfDay => FormatTimeOfDay(value),
+            TimeAxisKind.DateTime => FromOADate(value).ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+            _ => value.ToString(CultureInfo.InvariantCulture)
+        };
 
-        private static void WriteExcel(
-            List<Device> devices,
-            Dictionary<string, List<(double TimeVal, string[] Values)>> deviceData,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            string outputPath,
-            string sheetName,
-            bool isCanfox,
-            Action<string> log,
-            bool includeDeviceIdHeaderRow)
+        public static string? ExcelNumberFormat(TimeAxisKind kind) => kind switch
         {
-            try
-            {
-                using var workbook = new XLWorkbook();
-                var ws = workbook.Worksheets.Add(sheetName);
+            TimeAxisKind.TimeOfDay => "[h]:mm:ss.000",
+            TimeAxisKind.DateTime => "yyyy-mm-dd hh:mm:ss.000",
+            _ => null
+        };
 
-                int firstDataRow = ExcelLayoutBuilder.BuildTimeSeriesHeaders(
-                    ws, devices, d => deviceData.ContainsKey(d.ID), deviceEnabled, paramEnabled, includeDeviceIdHeaderRow);
-
-                int col = 1;
-                foreach (var device in devices)
-                {
-                    bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                    if (!devOn || !deviceData.TryGetValue(device.ID, out var rows)) continue;
-
-                    int paramCols = ExcelLayoutBuilder.GetActiveParamHeaders(device, paramEnabled).Count;
-
-                    for (int r = 0; r < rows.Count; r++)
-                    {
-                        int excelRow = firstDataRow + r;
-                        int c = col;
-
-                        var timeCell = ws.Cell(excelRow, c++);
-                        timeCell.Value = rows[r].TimeVal;
-                        if (isCanfox)
-                            timeCell.Style.DateFormat.Format = "HH:mm:ss.000";
-
-                        for (int i = 0; i < device.headers.Length; i++)
-                        {
-                            bool paramOn = paramEnabled == null
-                                || !paramEnabled.TryGetValue(device.ID, out var arr)
-                                || (i < arr.Length && arr[i]);
-                            if (!paramOn) continue;
-
-                            string val = i < rows[r].Values.Length ? rows[r].Values[i] : "";
-                            if (double.TryParse(val, NumberStyles.Float,
-                                CultureInfo.InvariantCulture, out double d))
-                                ws.Cell(excelRow, c).Value = d;
-                            else
-                                ws.Cell(excelRow, c).Value = val;
-                            c++;
-                        }
-                    }
-
-                    col += 1 + paramCols;
-                }
-
-                SafeFileWriter.Write(outputPath, tmp =>
-                {
-                    ws.Columns().AdjustToContents();
-                    workbook.SaveAs(tmp);
-                });
-                log("Обработка завершена.");
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка сохранения: {ex.Message}");
-            }
-        }
-
-        private static void WriteCsv(
-            List<Device> devices,
-            Dictionary<string, List<(double TimeVal, string[] Values)>> deviceData,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            string outputPath,
-            bool isCanfox,
-            Action<string> log,
-            bool includeDeviceIdHeaderRow)
+        // Округление до тика: прямое TimeSpan.FromDays(доля) теряло 1 мс примерно у 5 % меток.
+        public static string FormatTimeOfDay(double dayFraction)
         {
-            string? tempPath = null;
-            try
-            {
-                tempPath = SafeFileWriter.CreateTempPath(outputPath);
-                using (var writer = new StreamWriter(tempPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
-                {
-                    var idRow = new List<string>();
-                    var headerRow = new List<string>();
-                    var visibleDevices = new List<(Device Device, List<int> ParamIndexes)>();
-                    int maxRows = 0;
-
-                    foreach (var device in devices)
-                    {
-                        bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                        if (!devOn || !deviceData.ContainsKey(device.ID)) continue;
-
-                        var activeParamIndexes = new List<int>();
-                        for (int i = 0; i < device.headers.Length; i++)
-                        {
-                            bool paramOn = paramEnabled == null
-                                || !paramEnabled.TryGetValue(device.ID, out var chk)
-                                || (i < chk.Length && chk[i]);
-                            if (paramOn) activeParamIndexes.Add(i);
-                        }
-                        visibleDevices.Add((device, activeParamIndexes));
-                        maxRows = Math.Max(maxRows, deviceData[device.ID].Count);
-
-                        if (includeDeviceIdHeaderRow)
-                        {
-                            idRow.Add(device.ID);
-                            for (int i = 0; i < activeParamIndexes.Count; i++)
-                                idRow.Add("");
-                        }
-
-                        headerRow.Add("Время");
-                        foreach (int idx in activeParamIndexes)
-                            headerRow.Add(device.headers[idx]);
-                    }
-
-                    if (includeDeviceIdHeaderRow)
-                        CsvOutput.WriteRow(writer, idRow);
-                    CsvOutput.WriteRow(writer, headerRow);
-
-                    for (int r = 0; r < maxRows; r++)
-                    {
-                        var row = new List<string>();
-                        foreach (var entry in visibleDevices)
-                        {
-                            var rows = deviceData[entry.Device.ID];
-                            if (r < rows.Count)
-                            {
-                                string t = isCanfox
-                                    ? FormatHmsFffFromDayFraction(rows[r].TimeVal)
-                                    : rows[r].TimeVal.ToString(CultureInfo.InvariantCulture);
-                                row.Add(t);
-                                foreach (int idx in entry.ParamIndexes)
-                                {
-                                    string val = idx < rows[r].Values.Length ? rows[r].Values[idx] : "";
-                                    row.Add(CsvOutput.FormatValue(val));
-                                }
-                            }
-                            else
-                            {
-                                row.Add("");
-                                for (int i = 0; i < entry.ParamIndexes.Count; i++)
-                                    row.Add("");
-                            }
-                        }
-                        CsvOutput.WriteRow(writer, row);
-                    }
-                }
-
-                SafeFileWriter.Publish(tempPath, outputPath);
-                tempPath = null;
-                log("Обработка завершена.");
-            }
-            catch (Exception ex)
-            {
-                log($"Ошибка сохранения: {ex.Message}");
-            }
-            finally
-            {
-                if (tempPath != null && File.Exists(tempPath))
-                {
-                    try { File.Delete(tempPath); }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-                }
-            }
-        }
-
-        private static string FormatHmsFffFromDayFraction(double timeDayFraction)
-        {
-            var ts = TimeSpan.FromDays(timeDayFraction);
+            var ts = TimeSpan.FromTicks((long)Math.Round(dayFraction * TimeSpan.TicksPerDay));
+            ts = TimeSpan.FromMilliseconds(Math.Round(ts.TotalMilliseconds, MidpointRounding.AwayFromZero));
             return string.Format(
                 CultureInfo.InvariantCulture,
                 "{0:00}:{1:00}:{2:00}.{3:000}",
@@ -206,6 +41,220 @@ namespace logReader.Processing
                 ts.Minutes,
                 ts.Seconds,
                 ts.Milliseconds);
+        }
+
+        public static double ToOADate(DateTime value) => value.ToOADate();
+
+        public static DateTime FromOADate(double value)
+            => new DateTime((long)Math.Round(DateTime.FromOADate(0).Ticks + value * TimeSpan.TicksPerDay), DateTimeKind.Unspecified);
+    }
+
+    // Накопление time-series: на каждый кадр устройства — время и значения только активных параметров.
+    internal sealed class TimeSeriesCollector
+    {
+        private readonly Dictionary<string, Series> _series = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<Device> _order;
+        private readonly OutputFilter _filter;
+
+        public TimeAxisKind TimeKind { get; }
+
+        public TimeSeriesCollector(IEnumerable<Device> outputDevices, OutputFilter filter, TimeAxisKind timeKind)
+        {
+            _order = outputDevices.ToList();
+            _filter = filter;
+            TimeKind = timeKind;
+        }
+
+        // Ошибка поля хранится как NaN с особым битовым шаблоном: обычный NaN означает «нет значения».
+        internal static readonly double ErrorMarker = BitConverter.Int64BitsToDouble(0x7FF8_0000_0E44_0001);
+
+        internal static bool IsError(double value)
+            => BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(ErrorMarker);
+
+        public bool HasData => _series.Values.Any(s => s.Times.Count > 0);
+
+        public int MaxRows => _series.Count == 0 ? 0 : _series.Values.Max(s => s.Times.Count);
+
+        public void Record(Device device, double time)
+        {
+            if (!_series.TryGetValue(device.ID, out var series))
+            {
+                series = new Series(_filter.GetActiveParams(device));
+                _series[device.ID] = series;
+            }
+
+            if (series.ParamIndexes.Length == 0) return;
+
+            var values = new double[series.ParamIndexes.Length];
+            for (int i = 0; i < values.Length; i++)
+            {
+                int idx = series.ParamIndexes[i];
+                values[i] = device.FieldErrors[idx] ? ErrorMarker : device.Values[idx];
+            }
+            series.Times.Add(time);
+            series.Rows.Add(values);
+        }
+
+        public IReadOnlyList<(OutputColumnGroup Group, Series Series)> Columns()
+        {
+            var result = new List<(OutputColumnGroup, Series)>();
+            foreach (var device in _order)
+            {
+                if (_series.TryGetValue(device.ID, out var s) && s.Times.Count > 0 && s.ParamIndexes.Length > 0)
+                    result.Add((new OutputColumnGroup(device, s.ParamIndexes), s));
+            }
+            return result;
+        }
+
+        internal sealed class Series
+        {
+            public Series(int[] paramIndexes) => ParamIndexes = paramIndexes;
+            public int[] ParamIndexes { get; }
+            public List<double> Times { get; } = new();
+            public List<double[]> Rows { get; } = new();
+        }
+    }
+
+    // Единый вывод time-series в Excel/CSV: у каждого устройства своя колонка «Время».
+    internal static class TimeSeriesOutputWriter
+    {
+        public static ProcessingResult Write(
+            TimeSeriesCollector data,
+            string outputPath,
+            OutputSettings settings,
+            string sheetName,
+            ProcessingContext context)
+        {
+            var columns = data.Columns();
+            if (columns.Count == 0)
+                return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
+
+            int maxRows = columns.Max(c => c.Series.Times.Count);
+            try
+            {
+                if (settings.Format == OutputFormat.Xlsx)
+                {
+                    int headerRows = ExcelLayoutBuilder.HeaderRowCount(settings.IncludeDeviceIdHeaderRow);
+                    if (maxRows + headerRows > ExcelLayoutBuilder.MaxRows)
+                        return context.Fail(new ExcelRowLimitException().Message);
+                    WriteExcel(columns, data.TimeKind, outputPath, sheetName, settings.IncludeDeviceIdHeaderRow, context);
+                }
+                else
+                {
+                    WriteCsv(columns, data.TimeKind, outputPath, settings.IncludeDeviceIdHeaderRow, context);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return context.Fail($"Ошибка сохранения: {ex.Message}");
+            }
+
+            context.Log("Обработка завершена.");
+            return ProcessingResult.Ok(outputPath, maxRows);
+        }
+
+        private static void WriteExcel(
+            IReadOnlyList<(OutputColumnGroup Group, TimeSeriesCollector.Series Series)> columns,
+            TimeAxisKind timeKind,
+            string outputPath,
+            string sheetName,
+            bool includeDeviceIdRow,
+            ProcessingContext context)
+        {
+            using var workbook = new XLWorkbook();
+            var ws = workbook.Worksheets.Add(sheetName);
+            int firstDataRow = ExcelLayoutBuilder.BuildTimeSeriesHeaders(ws, columns.Select(c => c.Group).ToList(), includeDeviceIdRow);
+            string? timeFormat = TimeAxisFormat.ExcelNumberFormat(timeKind);
+
+            int col = 1;
+            foreach (var (group, series) in columns)
+            {
+                context.ThrowIfCancellationRequested();
+                for (int r = 0; r < series.Times.Count; r++)
+                {
+                    int excelRow = firstDataRow + r;
+                    ws.Cell(excelRow, col).Value = series.Times[r];
+                    double[] values = series.Rows[r];
+                    for (int i = 0; i < values.Length; i++)
+                        SetValue(ws.Cell(excelRow, col + 1 + i), values[i]);
+                }
+
+                if (timeFormat != null && series.Times.Count > 0)
+                    ws.Range(firstDataRow, col, firstDataRow + series.Times.Count - 1, col).Style.NumberFormat.Format = timeFormat;
+
+                col += 1 + group.ParamIndexes.Length;
+            }
+
+            SafeFileWriter.Write(outputPath, tmp =>
+            {
+                ExcelLayoutBuilder.AutoFitColumns(ws);
+                workbook.SaveAs(tmp);
+            });
+        }
+
+        private static void WriteCsv(
+            IReadOnlyList<(OutputColumnGroup Group, TimeSeriesCollector.Series Series)> columns,
+            TimeAxisKind timeKind,
+            string outputPath,
+            bool includeDeviceIdRow,
+            ProcessingContext context)
+        {
+            SafeFileWriter.Write(outputPath, tmp =>
+            {
+                using var writer = new StreamWriter(tmp, false, CsvOutput.Encoding);
+
+                if (includeDeviceIdRow)
+                {
+                    var idRow = new List<string>();
+                    foreach (var (group, _) in columns)
+                    {
+                        idRow.Add(CsvOutput.Text(group.Device.ID));
+                        for (int i = 0; i < group.ParamIndexes.Length; i++)
+                            idRow.Add("");
+                    }
+                    CsvOutput.WriteRow(writer, idRow);
+                }
+
+                var headerRow = new List<string>();
+                foreach (var (group, _) in columns)
+                {
+                    headerRow.Add("Время");
+                    headerRow.AddRange(group.Headers.Select(CsvOutput.Text));
+                }
+                CsvOutput.WriteRow(writer, headerRow);
+
+                int maxRows = columns.Max(c => c.Series.Times.Count);
+                var row = new List<string>();
+                for (int r = 0; r < maxRows; r++)
+                {
+                    if (r % 4096 == 0) context.ThrowIfCancellationRequested();
+                    row.Clear();
+                    foreach (var (group, series) in columns)
+                    {
+                        if (r < series.Times.Count)
+                        {
+                            row.Add(TimeAxisFormat.Format(series.Times[r], timeKind));
+                            foreach (double v in series.Rows[r])
+                                row.Add(FormatValue(v));
+                        }
+                        else
+                        {
+                            for (int i = 0; i <= group.ParamIndexes.Length; i++)
+                                row.Add("");
+                        }
+                    }
+                    CsvOutput.WriteRow(writer, row);
+                }
+            });
+        }
+
+        private static string FormatValue(double v)
+            => TimeSeriesCollector.IsError(v) ? "ERR" : ValueFormatter.FormatInvariant(v);
+
+        private static void SetValue(IXLCell cell, double v)
+        {
+            if (TimeSeriesCollector.IsError(v)) cell.Value = "ERR";
+            else if (!double.IsNaN(v)) cell.Value = v;
         }
     }
 }

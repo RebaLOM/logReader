@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using logReader;
 
 namespace logReader.Processing
 {
@@ -13,121 +8,117 @@ namespace logReader.Processing
         public List<string> MatchedInDevices { get; init; } = new();
     }
 
+    // Сверка ID из лога (или папки логов) с файлом посылок.
     internal static class UnknownDevicesScanner
     {
-        public static LogDeviceScanResult ScanLogDevices(string logPath, List<Device> knownDevices, Action<string>? log = null)
+        public static LogDeviceScanResult ScanLogDevices(
+            string logPath,
+            IEnumerable<Device> knownDevices,
+            Action<string>? log = null,
+            CancellationToken cancellationToken = default)
         {
             var knownIds = new HashSet<string>(knownDevices.Select(d => d.ID), StringComparer.OrdinalIgnoreCase);
-            var logIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var logIds = CollectLogIds(logPath, log, cancellationToken).Keys;
 
-            if (string.IsNullOrWhiteSpace(logPath))
-                return new LogDeviceScanResult();
-
-            var filesToProcess = new List<string>();
-            if (Directory.Exists(logPath))
-            {
-                string[] patterns = { "*.csv", "*.trc", "*.asc", "*.txt" };
-                foreach (string pattern in patterns)
-                {
-                    filesToProcess.AddRange(Directory.EnumerateFiles(logPath, pattern, SearchOption.TopDirectoryOnly));
-                }
-            }
-            else if (File.Exists(logPath))
-            {
-                filesToProcess.Add(logPath);
-            }
-
-            foreach (var file in filesToProcess)
-                ScanFile(file, logIds, log);
-
-            var missing = new List<string>();
-            var matched = new List<string>();
-            foreach (string id in logIds)
-            {
-                if (knownIds.Contains(id))
-                    matched.Add(id);
-                else
-                    missing.Add(id);
-            }
-
-            missing.Sort(StringComparer.OrdinalIgnoreCase);
-            matched.Sort(StringComparer.OrdinalIgnoreCase);
-
-            return new LogDeviceScanResult
-            {
-                MissingInDevices = missing,
-                MatchedInDevices = matched,
-            };
+            var missing = logIds.Where(id => !knownIds.Contains(id)).OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToList();
+            var matched = logIds.Where(knownIds.Contains).OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToList();
+            return new LogDeviceScanResult { MissingInDevices = missing, MatchedInDevices = matched };
         }
 
-        private static void ScanFile(string filePath, HashSet<string> logIds, Action<string>? log = null)
+        // ID → число кадров; для табличного CSV — число непустых ячеек колонки.
+        public static Dictionary<string, int> CollectLogIds(
+            string logPath,
+            Action<string>? log = null,
+            CancellationToken cancellationToken = default)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(logPath))
+                return counts;
+
+            IEnumerable<string> files = Directory.Exists(logPath)
+                ? LogFolderScanner.EnumerateSupportedLogFiles(logPath).OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                : File.Exists(logPath) ? new[] { logPath } : Array.Empty<string>();
+
+            var context = new ProcessingContext(cancellationToken: cancellationToken);
+            foreach (var file in files)
+                ScanFile(file, counts, log, context);
+            return counts;
+        }
+
+        private static void ScanFile(string filePath, Dictionary<string, int> counts, Action<string>? log, ProcessingContext context)
         {
             try
             {
-                string ext = Path.GetExtension(filePath).ToLowerInvariant();
+                var kind = LogFormatDetector.Detect(filePath);
+                if (kind == LogFormatKind.None) return;
                 Encoding enc = LogFileEncoding.Detect(filePath);
 
-                bool isCanfox = ext == ".txt" && CanfoxLogParser.LooksLikeCanfoxLog(filePath, enc);
-                bool isTrc = ext == ".trc";
-                bool isAsc = ext == ".asc";
-                bool isMatrixCsv = ext == ".csv" && MatrixCsvLogParser.LooksLikeMatrixCsv(filePath, enc);
-
-                if (isMatrixCsv)
+                if (kind == LogFormatKind.MatrixCsv)
                 {
-                    foreach (string line in File.ReadLines(filePath, enc))
-                    {
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        if (MatrixCsvLogParser.TryReadHeader(line, out _, out List<string> ids))
-                        {
-                            foreach (string id in ids)
-                                logIds.Add(id);
-                        }
-
-                        break;
-                    }
-
+                    ScanMatrixCsv(filePath, enc, counts, context);
                     return;
                 }
 
-                Span<int> bytes = stackalloc int[8];
-
-                foreach (var line in File.ReadLines(filePath, enc))
+                Span<int> bytes = stackalloc int[Device.MaxDataLength];
+                foreach (var line in LogFileReader.ReadLines(filePath, enc, context))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
-                    string? id = null;
-
-                    if (isAsc)
+                    bool ok;
+                    string id;
+                    switch (kind)
                     {
-                        if (AscLogParser.TryParseFrameId(line, out string parsedId))
-                            id = parsedId;
-                    }
-                    else if (isTrc)
-                    {
-                        if (TrcLogParser.TryParseTrcFrameLine(line, out _, out _, out string parsedId, out _, bytes, out _))
-                            id = parsedId;
-                    }
-                    else if (isCanfox)
-                    {
-                        if (CanfoxLogParser.TryParseCanfoxFrameLine(line, out _, out string parsedId, bytes, out _))
-                            id = parsedId;
-                    }
-                    else // step-csv
-                    {
-                        if (StepCsvLogParser.TryParseAcceptedId(line, out string parsedId))
-                            id = parsedId;
+                        case LogFormatKind.Asc:
+                            ok = AscLogParser.TryParseFrameId(line, out id);
+                            break;
+                        case LogFormatKind.Trc:
+                            ok = TrcLogParser.TryParseTrcFrameLine(line, out _, out _, out id, out _, bytes, out _);
+                            break;
+                        case LogFormatKind.CanfoxTxt:
+                            ok = CanfoxLogParser.TryParseCanfoxFrameLine(line, out _, out id, bytes, out _);
+                            break;
+                        default:
+                            ok = StepCsvLogParser.TryParseAcceptedId(line, out id);
+                            break;
                     }
 
-                    if (!string.IsNullOrEmpty(id))
-                        logIds.Add(id);
+                    if (ok && id.Length > 0)
+                        counts[id] = counts.TryGetValue(id, out int n) ? n + 1 : 1;
                 }
             }
-            catch (Exception ex) when (ex is IOException
-                                       or UnauthorizedAccessException
-                                       or System.Security.SecurityException
-                                       or DecoderFallbackException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
             {
                 log?.Invoke($"Не удалось просканировать '{Path.GetFileName(filePath)}': {ex.Message}");
+            }
+        }
+
+        private static void ScanMatrixCsv(string filePath, Encoding enc, Dictionary<string, int> counts, ProcessingContext context)
+        {
+            List<MatrixCsvColumn>? columns = null;
+            Span<int> msgBytes = stackalloc int[8];
+
+            foreach (string line in LogFileReader.ReadLines(filePath, enc, context))
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                if (columns == null)
+                {
+                    if (!MatrixCsvLogParser.TryReadHeader(line, out columns, out _)) return;
+                    foreach (var col in columns)
+                        counts.TryAdd(col.Id, 0);
+                    continue;
+                }
+
+                string[] parts = line.Split(';');
+                if (parts.Length < 2 || !MatrixCsvLogParser.TryParseTimeCell(parts[0], out _)) continue;
+
+                foreach (var col in columns)
+                {
+                    if (col.ColumnIndex >= parts.Length) continue;
+                    string cell = parts[col.ColumnIndex];
+                    if (MatrixCsvLogParser.IsCellEmpty(cell) || !MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes)) continue;
+                    counts[col.Id]++;
+                }
             }
         }
     }

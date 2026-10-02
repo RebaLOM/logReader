@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace logReader.Processing
@@ -7,33 +6,42 @@ namespace logReader.Processing
     {
         internal const char Delimiter = ';';
 
-        internal static void WriteRow(StreamWriter writer, IEnumerable<string> values)
+        private static readonly char[] QuoteTriggers = { Delimiter, '"', '\r', '\n' };
+
+        public static UTF8Encoding Encoding { get; } = new(encoderShouldEmitUTF8Identifier: true);
+
+        internal static void WriteRow(TextWriter writer, IEnumerable<string> values)
         {
             bool first = true;
             foreach (string value in values)
             {
                 if (!first)
                     writer.Write(Delimiter);
-                writer.Write(Escape(value));
+                writer.Write(Quote(value));
                 first = false;
             }
             writer.WriteLine();
         }
 
-        internal static string Escape(string? value)
+        internal static string Quote(string? value)
         {
             string text = value ?? "";
-            bool mustQuote = text.IndexOfAny(new[] { Delimiter, '"', '\r', '\n' }) >= 0;
-            if (!mustQuote)
+            if (text.IndexOfAny(QuoteTriggers) < 0)
                 return text;
             return "\"" + text.Replace("\"", "\"\"") + "\"";
         }
 
-        internal static string FormatValue(string value)
+        // Текст из файлов описаний/логов (заголовки, ID, время): «=…», «+…», «@…» Excel выполнил бы как формулу.
+        internal static string Text(string? value)
         {
-            if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
-                return d.ToString(CultureInfo.InvariantCulture);
-            return value;
+            string text = value ?? "";
+            if (text.Length == 0) return text;
+            char c = text[0];
+            bool looksLikeFormula = c is '=' or '+' or '-' or '@' or '\t' or '\r';
+            if (looksLikeFormula && !double.TryParse(text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out _))
+                return "'" + text;
+            return text;
         }
     }
 }

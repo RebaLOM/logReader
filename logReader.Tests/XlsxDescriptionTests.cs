@@ -34,7 +34,7 @@ public class XlsxDescriptionTests
             wb.SaveAs(path);
         }
 
-        var runtime = logReader.Program.LoadCompositesFromFile(path);
+        var runtime = DeviceFiles.LoadComposites(path);
 
         Assert.True(runtime.IsSourceId("0CFF0008"));
         Assert.True(runtime.IsSourceId("18FF0101"));

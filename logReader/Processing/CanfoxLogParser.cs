@@ -27,7 +27,7 @@ namespace logReader.Processing
         {
             Span<int> bytes = stackalloc int[8];
             int n = 0;
-            foreach (var line in File.ReadLines(filePath, encoding))
+            foreach (var line in LogFileReader.ReadLines(filePath, encoding))
             {
                 if (++n > PeekLineCount) break;
                 if (string.IsNullOrWhiteSpace(line)) continue;

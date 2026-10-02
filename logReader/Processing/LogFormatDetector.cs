@@ -55,9 +55,12 @@ namespace logReader.Processing
             if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase))
             {
                 Encoding enc = LogFileEncoding.Detect(path);
-                return MatrixCsvLogParser.LooksLikeMatrixCsv(path, enc)
-                    ? LogFormatKind.MatrixCsv
-                    : LogFormatKind.StepCsv;
+                if (MatrixCsvLogParser.LooksLikeMatrixCsv(path, enc))
+                    return LogFormatKind.MatrixCsv;
+                // Результаты обработки (Шаг;Время;…) тоже .csv — их нельзя снова брать как входной лог.
+                return StepCsvLogParser.LooksLikeStepCsv(path, enc)
+                    ? LogFormatKind.StepCsv
+                    : LogFormatKind.None;
             }
 
             if (ext.Equals(".txt", StringComparison.OrdinalIgnoreCase))

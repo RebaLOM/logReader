@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Text;
 
 namespace logReader.UI
@@ -101,7 +101,7 @@ namespace logReader.UI
                 return;
             }
 
-            foreach (var line in File.ReadLines(inputPath, encoding))
+            foreach (var line in LogFileReader.ReadLines(inputPath, encoding))
             {
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
@@ -154,7 +154,7 @@ namespace logReader.UI
             List<MatrixCsvColumn> columns = new();
             Span<int> msgBytes = stackalloc int[8];
 
-            foreach (string line in File.ReadLines(inputPath, encoding))
+            foreach (string line in LogFileReader.ReadLines(inputPath, encoding))
             {
                 if (string.IsNullOrWhiteSpace(line))
                     continue;

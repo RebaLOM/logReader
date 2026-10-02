@@ -1,6 +1,6 @@
 namespace logReader.Processing
 {
-    internal enum OutputFormat
+    public enum OutputFormat
     {
         Xlsx,
         Csv,

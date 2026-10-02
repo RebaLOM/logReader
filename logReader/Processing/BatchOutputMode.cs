@@ -1,7 +1,7 @@
 namespace logReader.Processing
 {
     // Режим пакетной обработки папки с логами.
-    internal enum BatchOutputMode
+    public enum BatchOutputMode
     {
         PerInputFile = 0,
         MergeToSingleFile = 1,

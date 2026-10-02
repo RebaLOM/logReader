@@ -1,6 +1,4 @@
-using System.Globalization;
-
-namespace logReader
+﻿namespace logReader
 {
     // Составной блок как Device: переиспользуем вывод и фильтры; байты — из CompositeRuntime.
     public sealed class CompositeDevice : Device
@@ -15,7 +13,7 @@ namespace logReader
             _runtime = runtime;
             Signals = signals;
             for (int i = 0; i < signals.Count; i++)
-                headers[i] = signals[i].Param;
+                Headers[i] = signals[i].Param;
         }
 
         // Параметр готов, когда все источники цепочки уже встречались в логе.
@@ -38,13 +36,13 @@ namespace logReader
         public override void Decode()
         {
             for (int i = 0; i < Signals.Count; i++)
-                ProcessedData[i] = Compute(Signals[i]);
+                Values[i] = Compute(Signals[i]);
         }
 
-        private string Compute(CompositeSignal sig)
+        private double Compute(CompositeSignal sig)
         {
             if (sig.Pieces.Count == 0 || !_runtime.AllSourcesSeen(sig))
-                return "";
+                return double.NaN;
 
             ulong raw = 0;
             int totalBits = 0;
@@ -61,21 +59,11 @@ namespace logReader
                 totalBits += len;
             }
 
-            long value;
-            if (sig.Signed && totalBits > 0 && totalBits < 64)
-            {
-                ulong signBit = 1UL << (totalBits - 1);
-                if ((raw & signBit) != 0)
-                    raw |= ~((1UL << totalBits) - 1);
-                value = unchecked((long)raw);
-            }
-            else
-            {
-                value = unchecked((long)raw);
-            }
+            double value = sig.Signed && totalBits > 0
+                ? BitExtractor.SignExtend(raw, totalBits)
+                : raw;
 
-            double phys = (value * sig.Scale) + sig.Offset;
-            return phys.ToString(CultureInfo.InvariantCulture);
+            return (value * sig.Scale) + sig.Offset;
         }
     }
 
@@ -121,8 +109,7 @@ namespace logReader
             foreach (var arr in _bytes.Values)
                 Array.Clear(arr, 0, arr.Length);
             foreach (var block in Blocks)
-                for (int i = 0; i < block.ProcessedData.Length; i++)
-                    block.ProcessedData[i] = "";
+                block.ResetState();
         }
 
         public void OnMessage(string id, ReadOnlySpan<int> bytes, int count)
