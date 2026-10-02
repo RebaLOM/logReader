@@ -27,7 +27,8 @@ namespace logReader.UI
         private readonly Label _lblFilterStatus = new();
 
         private List<DeviceDefinition> _xlsxDevices = new();
-        private List<DbcMessage> _dbcMessages = new();
+        private DbcDatabase _dbcDatabase = new();
+        private List<DbcMessage> _dbcMessages => _dbcDatabase.Messages;
 
         private bool _dirty;
         private bool _suppressClosePrompt;
@@ -214,9 +215,9 @@ namespace logReader.UI
             {
                 if (UsesDbcModel)
                 {
-                    _dbcMessages = _kind == FileKind.Dbf
-                        ? DbfFile.Read(_path)
-                        : DbcFile.Read(_path);
+                    _dbcDatabase = _kind == FileKind.Dbf
+                        ? DbfFile.ReadDatabase(_path)
+                        : DbcFile.ReadDatabase(_path);
                 }
                 else
                 {
@@ -490,9 +491,9 @@ namespace logReader.UI
                 if (UsesDbcModel)
                 {
                     if (_kind == FileKind.Dbf)
-                        DbfFile.Write(_path, _dbcMessages);
+                        DbfFile.WriteDatabase(_path, _dbcDatabase);
                     else
-                        DbcFile.Write(_path, _dbcMessages);
+                        DbcFile.WriteDatabase(_path, _dbcDatabase);
                 }
                 else
                     DeviceExcelFile.WriteAllDevices(_path, _xlsxDevices);
