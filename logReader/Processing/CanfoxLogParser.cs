@@ -45,7 +45,17 @@ namespace logReader.Processing
             out string id,
             Span<int> bytes,
             out int parsedByteCount)
+            => TryParseCanfoxFrameLine(line, out _, out timeDayFraction, out id, bytes, out parsedByteCount);
+
+        internal static bool TryParseCanfoxFrameLine(
+            string line,
+            out DateOnly date,
+            out double timeDayFraction,
+            out string id,
+            Span<int> bytes,
+            out int parsedByteCount)
         {
+            date = default;
             timeDayFraction = 0;
             id = "";
             parsedByteCount = 0;
@@ -55,7 +65,9 @@ namespace logReader.Processing
             var tokens = line.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length < 5) return false;
 
-            if (!IsDataDateToken(tokens[0])) return false;
+            if (!IsDataDateToken(tokens[0])
+                || !DateOnly.TryParseExact(tokens[0], "yyyy.MM.dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+                return false;
             if (!TryParseHmsFff(tokens[1], out timeDayFraction)) return false;
             if (!tokens[2].Equals("-", StringComparison.Ordinal)) return false;
 
@@ -64,15 +76,12 @@ namespace logReader.Processing
             if (!int.TryParse(tokens[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc) || dlc < 0)
                 return false;
 
-            for (int i = 5; i < tokens.Length && parsedByteCount < bytes.Length; i++)
+            int expected = Math.Min(dlc, bytes.Length);
+            for (int i = 0; i < expected; i++)
             {
-                if (!CanToken.TryParseHexByte(tokens[i], out int value)) break;
+                if (5 + i >= tokens.Length || !CanToken.TryParseHexByte(tokens[5 + i], out int value)) return false;
                 bytes[parsedByteCount++] = value;
             }
-
-            if (dlc == 0) return true;
-
-            if (parsedByteCount < dlc) return false;
 
             return true;
         }

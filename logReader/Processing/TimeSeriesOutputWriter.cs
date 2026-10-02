@@ -18,7 +18,7 @@ namespace logReader.Processing
         public static string Format(double value, TimeAxisKind kind) => kind switch
         {
             TimeAxisKind.TimeOfDay => FormatTimeOfDay(value),
-            TimeAxisKind.DateTime => FromOADate(value).ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+            TimeAxisKind.DateTime => RoundToMillisecond(FromOADate(value)).ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
             _ => value.ToString(CultureInfo.InvariantCulture)
         };
 
@@ -43,10 +43,17 @@ namespace logReader.Processing
                 ts.Milliseconds);
         }
 
-        public static double ToOADate(DateTime value) => value.ToOADate();
+        public static double ToOADate(DateTime value)
+            => (value.Ticks - OADateEpochTicks) / (double)TimeSpan.TicksPerDay;
+
+        private static readonly long OADateEpochTicks = new DateTime(1899, 12, 30).Ticks;
+
+        // «fff» усекает: 10,0099999 мс без округления печатается как .009.
+        private static DateTime RoundToMillisecond(DateTime value)
+            => new(value.Ticks + TimeSpan.TicksPerMillisecond / 2 - (value.Ticks + TimeSpan.TicksPerMillisecond / 2) % TimeSpan.TicksPerMillisecond);
 
         public static DateTime FromOADate(double value)
-            => new DateTime((long)Math.Round(DateTime.FromOADate(0).Ticks + value * TimeSpan.TicksPerDay), DateTimeKind.Unspecified);
+            => new DateTime(OADateEpochTicks + (long)Math.Round(value * TimeSpan.TicksPerDay), DateTimeKind.Unspecified);
     }
 
     // Накопление time-series: на каждый кадр устройства — время и значения только активных параметров.

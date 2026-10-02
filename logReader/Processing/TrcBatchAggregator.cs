@@ -3,6 +3,11 @@ namespace logReader.Processing
     // Пакетная обработка .trc: объединение в один результат или разбивка по датам.
     internal static class TrcBatchAggregator
     {
+        private sealed record TrcInput(string Path, System.Text.Encoding Encoding, bool IsCanfox, DateTime? StartTime);
+
+        // Объединение на общей оси времени: pCAN — абсолютное время (Start time + смещение),
+        // CANfox — дата и время из строк. Если Start time есть не у всех .trc, файлы
+        // выстраиваются друг за другом в миллисекундах, без «прыжков» к нулю.
         internal static ProcessingResult TryBuildMergedAggregate(
             IReadOnlyList<string> trcPaths,
             List<Device> devices,
@@ -13,51 +18,46 @@ namespace logReader.Processing
             aggregate = null;
             var composites = settings.Composites;
             var filter = settings.Filter;
-            var outputDevices = CompositeOutput.WithComposites(devices, composites);
+
+            var inputs = ReadInputs(trcPaths, context);
+            if (inputs.Count == 0)
+                return context.Fail("Ошибка: не удалось собрать данные из .trc для объединения.");
+
+            bool isCanfox = inputs[0].IsCanfox;
+            foreach (var skipped in inputs.Where(i => i.IsCanfox != isCanfox))
+                context.Log($"Пропуск: несовместимый тип .trc — {Path.GetFileName(skipped.Path)}");
+            inputs = inputs.Where(i => i.IsCanfox == isCanfox).ToList();
+
+            bool absolute = isCanfox || inputs.All(i => i.StartTime.HasValue);
+            if (!isCanfox && !absolute)
+                context.Log("Предупреждение: не во всех .trc есть Start time — файлы объединены последовательно, время в мс от начала первого файла.");
+            if (!isCanfox && absolute)
+                inputs = inputs.OrderBy(i => i.StartTime).ToList();
+
+            aggregate = new TimeSeriesCollector(CompositeOutput.WithComposites(devices, composites), filter,
+                absolute ? TimeAxisKind.DateTime : TimeAxisKind.Milliseconds);
 
             var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
                 deviceById[d.ID] = d;
 
-            bool? isCanfoxExpected = null;
             Span<int> bytes = stackalloc int[Device.MaxDataLength];
-
+            double sequentialOffsetMs = 0;
             int usedFiles = 0;
-            for (int f = 0; f < trcPaths.Count; f++)
+
+            for (int f = 0; f < inputs.Count; f++)
             {
-                string trcPath = trcPaths[f];
-                var fileContext = context.Slice((double)f / trcPaths.Count, 1.0 / trcPaths.Count, Path.GetFileName(trcPath));
-                if (!File.Exists(trcPath))
-                {
-                    context.Log($"Пропуск: файл не найден: {trcPath}");
-                    continue;
-                }
+                var input = inputs[f];
+                var fileContext = context.Slice((double)f / inputs.Count, 1.0 / inputs.Count, Path.GetFileName(input.Path));
+                double lastTimeMs = 0;
 
                 try
                 {
-                    var encoding = LogFileEncoding.Detect(trcPath);
-                    bool isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding);
-
-                    if (isCanfoxExpected == null)
-                    {
-                        isCanfoxExpected = isCanfox;
-                        aggregate = new TimeSeriesCollector(outputDevices, filter,
-                            isCanfox ? TimeAxisKind.TimeOfDay : TimeAxisKind.Milliseconds);
-                    }
-                    else if (isCanfoxExpected.Value != isCanfox)
-                    {
-                        context.Log($"Пропуск: несовместимый тип .trc — {Path.GetFileName(trcPath)}");
-                        continue;
-                    }
-
-                    if (!isCanfox && TrcLogParser.ParseStartTime(trcPath, encoding) == null)
-                        context.Log($"Предупреждение: в .trc нет Start time — {Path.GetFileName(trcPath)} (время как мс от начала записи).");
-
                     // Устройства кешируются в UI — сброс перед каждым файлом пакета.
                     DeviceFiles.ResetState(devices);
                     composites?.Reset();
 
-                    foreach (var line in LogFileReader.ReadLines(trcPath, encoding, fileContext))
+                    foreach (var line in LogFileReader.ReadLines(input.Path, input.Encoding, fileContext))
                     {
                         string id;
                         int parsedByteCount;
@@ -65,31 +65,63 @@ namespace logReader.Processing
 
                         if (isCanfox)
                         {
-                            if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out timeVal, out id, bytes, out parsedByteCount))
+                            if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out DateOnly date, out double dayFraction, out id, bytes, out parsedByteCount))
                                 continue;
+                            timeVal = date.ToDateTime(TimeOnly.MinValue).ToOADate() + dayFraction;
                         }
                         else
                         {
                             if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
                                 continue;
-                            timeVal = (double)timeMsRaw;
+                            double timeMs = (double)timeMsRaw;
+                            lastTimeMs = Math.Max(lastTimeMs, timeMs);
+                            timeVal = absolute
+                                ? TimeAxisFormat.ToOADate(input.StartTime!.Value.AddMilliseconds(timeMs))
+                                : sequentialOffsetMs + timeMs;
                         }
 
-                        Record(id, timeVal, bytes[..parsedByteCount], deviceById, composites, filter, aggregate!);
+                        Record(id, timeVal, bytes[..parsedByteCount], deviceById, composites, filter, aggregate);
                     }
 
+                    sequentialOffsetMs += lastTimeMs;
                     usedFiles++;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(trcPath)}): {ex.Message}");
+                    context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(input.Path)}): {ex.Message}");
                 }
             }
 
-            if (usedFiles == 0 || aggregate == null || !aggregate.HasData)
+            if (usedFiles == 0 || !aggregate.HasData)
                 return context.Fail("Ошибка: не удалось собрать данные из .trc для объединения.");
 
             return ProcessingResult.Ok("", aggregate.MaxRows);
+        }
+
+        private static List<TrcInput> ReadInputs(IReadOnlyList<string> trcPaths, ProcessingContext context)
+        {
+            var inputs = new List<TrcInput>();
+            foreach (string path in trcPaths)
+            {
+                if (!File.Exists(path))
+                {
+                    context.Log($"Пропуск: файл не найден: {path}");
+                    continue;
+                }
+
+                try
+                {
+                    var encoding = LogFileEncoding.Detect(path);
+                    bool isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(path, encoding);
+                    DateTime? start = isCanfox ? null : TrcLogParser.ParseStartTime(path, encoding);
+                    inputs.Add(new TrcInput(path, encoding, isCanfox, start));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(path)}): {ex.Message}");
+                }
+            }
+            return inputs;
         }
 
         internal static ProcessingResult TryBuildAggregatesByDate(
@@ -146,16 +178,16 @@ namespace logReader.Processing
                         if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out string id, out _, bytes, out int parsedByteCount))
                             continue;
 
-                        double timeMs = (double)timeMsRaw;
-                        DateOnly date = DateOnly.FromDateTime(startTime.Value.AddMilliseconds(timeMs));
+                        DateTime frameTime = startTime.Value.AddMilliseconds((double)timeMsRaw);
+                        DateOnly date = DateOnly.FromDateTime(frameTime);
 
                         if (!aggregatesByDate.TryGetValue(date, out var agg))
                         {
-                            agg = new TimeSeriesCollector(outputDevices, filter, TimeAxisKind.Milliseconds);
+                            agg = new TimeSeriesCollector(outputDevices, filter, TimeAxisKind.DateTime);
                             aggregatesByDate[date] = agg;
                         }
 
-                        Record(id, timeMs, bytes[..parsedByteCount], deviceById, composites, filter, agg);
+                        Record(id, TimeAxisFormat.ToOADate(frameTime), bytes[..parsedByteCount], deviceById, composites, filter, agg);
                     }
 
                     usedFiles++;
