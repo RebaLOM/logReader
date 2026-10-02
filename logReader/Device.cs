@@ -59,24 +59,24 @@ namespace logReader
 
     public class FieldInstruction
     {
-        public int FieldIndex;
-        public string Header = "";
-        public string Type = "";
-        public int ByteLow;
-        public int StartBit;
-        public int LengthBit;
-        public bool IsLittleEndian = true;
-        public bool SignedRaw;
-        public double Scale = 1;
-        public double Offset;
-        public double Min;
-        public double Max;
-        public string Unit = "";
-        public SignalValueType ValueType = SignalValueType.Integer;
+        public int FieldIndex { get; set; }
+        public string Header { get; set; } = "";
+        public string Type { get; set; } = "";
+        public int ByteLow { get; set; }
+        public int StartBit { get; set; }
+        public int LengthBit { get; set; }
+        public bool IsLittleEndian { get; set; } = true;
+        public bool SignedRaw { get; set; }
+        public double Scale { get; set; } = 1;
+        public double Offset { get; set; }
+        public double Min { get; set; }
+        public double Max { get; set; }
+        public string Unit { get; set; } = "";
+        public SignalValueType ValueType { get; set; } = SignalValueType.Integer;
 
         // DBC-мультиплексирование: значение сигнала обновляется, только когда мультиплексор равен MuxValue.
-        public bool IsMultiplexor;
-        public int? MuxValue;
+        public bool IsMultiplexor { get; set; }
+        public int? MuxValue { get; set; }
     }
 
     public class DynamicDevice : Device

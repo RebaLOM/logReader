@@ -16,17 +16,17 @@ namespace logReader.Processing
             Action<string>? log = null,
             IProgress<ProcessingProgress>? progress = null,
             CancellationToken cancellationToken = default)
-            : this(log, progress, cancellationToken, 0, 1, null)
+            : this(log, progress, 0, 1, null, cancellationToken)
         {
         }
 
         private ProcessingContext(
             Action<string>? log,
             IProgress<ProcessingProgress>? progress,
-            CancellationToken cancellationToken,
             double from,
             double span,
-            string? stage)
+            string? stage,
+            CancellationToken cancellationToken)
         {
             _log = log;
             _progress = progress;
@@ -53,7 +53,7 @@ namespace logReader.Processing
 
         // Часть [from, from + span] текущего диапазона прогресса.
         public ProcessingContext Slice(double from, double span, string? stage = null)
-            => new(_log, _progress, CancellationToken, _from + _span * from, _span * span, stage ?? _stage);
+            => new(_log, _progress, _from + _span * from, _span * span, stage ?? _stage, CancellationToken);
     }
 
     public sealed record ProcessingResult(bool Success, string? OutputPath, long RowsWritten, string? Error)
