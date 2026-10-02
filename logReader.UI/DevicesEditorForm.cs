@@ -55,7 +55,6 @@ namespace logReader.UI
                 _ => "Редактор посылок (XLSX)"
             };
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(820, 520);
             ClientSize = new Size(820, 520);
 
@@ -64,6 +63,7 @@ namespace logReader.UI
             BuildLayout();
             LoadFromFile();
             FormClosing += OnFormClosing;
+            UiScaling.Apply(this);
         }
 
         private void BuildLayout()

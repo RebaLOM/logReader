@@ -30,8 +30,6 @@ namespace logReader.UI
             MaximizeBox = false;
             ShowInTaskbar = false;
             ClientSize = new Size(560, 230);
-            MinimumSize = Size;
-            MaximumSize = Size;
 
             var inputPathLabel = new Label
             {
@@ -157,6 +155,7 @@ namespace logReader.UI
 
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
+            UiScaling.Apply(this);
         }
 
         private async void convertButton_Click(object? sender, EventArgs e)

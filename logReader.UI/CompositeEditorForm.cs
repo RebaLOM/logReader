@@ -33,8 +33,6 @@ namespace logReader.UI
 
             Text = BaseTitle;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleDimensions = new SizeF(96F, 96F);
-            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(820, 480);
             ClientSize = new Size(820, 480);
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
@@ -42,6 +40,7 @@ namespace logReader.UI
             BuildLayout();
             LoadFromFile();
             FormClosing += OnFormClosing;
+            UiScaling.Apply(this);
         }
 
         private void BuildLayout()

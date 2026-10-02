@@ -51,7 +51,6 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(540, 560);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
@@ -62,6 +61,7 @@ namespace logReader.UI
 
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
+            UiScaling.Apply(this);
         }
 
         private void WireGridSync()

@@ -44,7 +44,6 @@ namespace logReader.UI
             _baseTitle = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
             Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(1000, 500);
             ClientSize = new Size(1000, 500);
 
@@ -56,6 +55,7 @@ namespace logReader.UI
             FormClosing += OnFormClosing;
 
             AcceptButton = _btnSave;
+            UiScaling.Apply(this);
         }
 
         private void WireDirtyTracking()

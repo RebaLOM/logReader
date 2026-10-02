@@ -15,7 +15,6 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(520, 190);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
@@ -109,6 +108,7 @@ namespace logReader.UI
 
             Controls.Add(root);
             CancelButton = btnCancel;
+            UiScaling.Apply(this);
         }
     }
 }

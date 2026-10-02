@@ -35,8 +35,6 @@ namespace logReader.UI
             MaximizeBox = false;
             ShowInTaskbar = false;
             ClientSize = new Size(680, 472);
-            MinimumSize = Size;
-            MaximumSize = Size;
 
             var labelFormat = new Label
             {
@@ -215,6 +213,7 @@ namespace logReader.UI
             BuildFormatsList(logFolderPath);
             UpdateDstPanelVisibility();
             UpdateOkEnabledState(buttonOk);
+            UiScaling.Apply(this);
         }
 
         private void UpdateDstPanelVisibility()

@@ -38,6 +38,7 @@ namespace logReader.UI
                 _txtScale.Text = "1";
                 _txtOffset.Text = "0";
             }
+            UiScaling.Apply(this);
         }
 
         private void BuildLayout()

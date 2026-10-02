@@ -24,10 +24,11 @@ namespace logReader.UI
 
     internal sealed class CanPayloadGridControl : UserControl
     {
-        private const int CellSize = 24;
-        private const int LabelColWidth = 34;
-        private const int HeaderRowHeight = 22;
-        private const int LegendRowHeight = 18;
+        // Размеры заданы для 96 DPI и пересчитываются в пиксели устройства.
+        private int CellSize => LogicalToDeviceUnits(24);
+        private int LabelColWidth => LogicalToDeviceUnits(34);
+        private int HeaderRowHeight => LogicalToDeviceUnits(22);
+        private int LegendRowHeight => LogicalToDeviceUnits(18);
 
         private static readonly Color EmptyCell = Color.FromArgb(240, 242, 245);
         private static readonly Color ConflictColor = Color.FromArgb(220, 53, 69);
@@ -212,12 +213,27 @@ namespace logReader.UI
         public static Color ColorForSignalName(string name) =>
             CanPayloadGridPalette.ColorForName(name);
 
+        // Форма масштабирует размер контрола сама; здесь размер считается от DPI, поэтому
+        // после масштабирования его пересчитываем, а не умножаем повторно.
+        protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+        {
+            base.ScaleControl(factor, specified);
+            UpdatePreferredSize();
+        }
+
+        protected override void OnDpiChangedAfterParent(EventArgs e)
+        {
+            base.OnDpiChangedAfterParent(e);
+            UpdatePreferredSize();
+            Invalidate();
+        }
+
         private void UpdatePreferredSize()
         {
-            int gridH = HeaderRowHeight + _dlc * CellSize + 8;
-            int legendH = _showLegend && _overlays.Count > 0 ? 6 + _overlays.Count * LegendRowHeight : 0;
-            int w = LabelColWidth + 8 * CellSize + 16;
-            int h = gridH + legendH + 4;
+            int gridH = HeaderRowHeight + _dlc * CellSize + LogicalToDeviceUnits(8);
+            int legendH = _showLegend && _overlays.Count > 0 ? LogicalToDeviceUnits(6) + _overlays.Count * LegendRowHeight : 0;
+            int w = LabelColWidth + 8 * CellSize + LogicalToDeviceUnits(16);
+            int h = gridH + legendH + LogicalToDeviceUnits(4);
             MinimumSize = new Size(w, h);
             Size = new Size(w, h);
         }
@@ -246,6 +262,14 @@ namespace logReader.UI
                     }
                 }
             }
+
+            using var gridPen = new Pen(Color.FromArgb(180, 180, 190));
+            using var selectionPen = new Pen(Color.FromArgb(30, 60, 120), Math.Max(2, LogicalToDeviceUnits(2)));
+            using var previewBrush = new SolidBrush(Color.FromArgb(90, 100, 149, 237));
+            HashSet<int>? preview = null;
+            if (_dragAnchorBit is int anchor && _dragHoverBit is int hover
+                && TryPreviewBits(anchor, hover, payloadBits, out var previewBits))
+                preview = previewBits;
 
             for (int row = 0; row < _dlc; row++)
             {
@@ -278,29 +302,15 @@ namespace logReader.UI
 
                     using var brush = new SolidBrush(fill);
                     g.FillRectangle(brush, rect);
-                    using var pen = new Pen(Color.FromArgb(180, 180, 190));
-                    g.DrawRectangle(pen, rect);
+                    g.DrawRectangle(gridPen, rect);
 
-                    if (_mode == CanPayloadGridMode.Edit && _selectionBits.Contains(global))
-                    {
-                        using var selPen = new Pen(Color.FromArgb(30, 60, 120), 2);
-                        g.DrawRectangle(selPen, Rectangle.Inflate(rect, -1, -1));
-                    }
+                    bool selected = (_mode == CanPayloadGridMode.Edit && _selectionBits.Contains(global))
+                                    || (viewHighlightActive && currentOverlayBits.Contains(global));
+                    if (selected)
+                        g.DrawRectangle(selectionPen, Rectangle.Inflate(rect, -1, -1));
 
-                    if (viewHighlightActive && currentOverlayBits.Contains(global))
-                    {
-                        using var selPen = new Pen(Color.FromArgb(30, 60, 120), 2);
-                        g.DrawRectangle(selPen, Rectangle.Inflate(rect, -1, -1));
-                    }
-
-                    if (_dragAnchorBit is int anchor && _dragHoverBit is int hover)
-                    {
-                        if (TryPreviewBits(anchor, hover, payloadBits, out var preview) && preview.Contains(global))
-                        {
-                            using var prevBrush = new SolidBrush(Color.FromArgb(90, 100, 149, 237));
-                            g.FillRectangle(prevBrush, rect);
-                        }
-                    }
+                    if (preview != null && preview.Contains(global))
+                        g.FillRectangle(previewBrush, rect);
                 }
             }
 
@@ -308,7 +318,7 @@ namespace logReader.UI
             {
                 int bitInByte = 7 - col;
                 int x = LabelColWidth + col * CellSize;
-                TextRenderer.DrawText(g, bitInByte.ToString(), Font,
+                TextRenderer.DrawText(g, bitInByte.ToString(System.Globalization.CultureInfo.InvariantCulture), Font,
                     new Rectangle(x, 2, CellSize, HeaderRowHeight - 2),
                     Color.DimGray, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
@@ -319,14 +329,16 @@ namespace logReader.UI
 
         private void PaintLegend(Graphics g)
         {
-            int y = HeaderRowHeight + _dlc * CellSize + 8;
+            int y = HeaderRowHeight + _dlc * CellSize + LogicalToDeviceUnits(8);
+            int swatchSize = LogicalToDeviceUnits(12);
+            int textLeft = LogicalToDeviceUnits(22);
             foreach (var ov in _overlays.DistinctBy(o => o.Name))
             {
-                var swatch = new Rectangle(4, y + 3, 12, 12);
+                var swatch = new Rectangle(LogicalToDeviceUnits(4), y + (LegendRowHeight - swatchSize) / 2, swatchSize, swatchSize);
                 using var brush = new SolidBrush(ov.Color);
                 g.FillRectangle(brush, swatch);
                 g.DrawRectangle(Pens.Gray, swatch);
-                TextRenderer.DrawText(g, ov.Name, Font, new Rectangle(22, y, Width - 24, LegendRowHeight),
+                TextRenderer.DrawText(g, ov.Name, Font, new Rectangle(textLeft, y, Width - textLeft - 2, LegendRowHeight),
                     ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
                 y += LegendRowHeight;
             }
@@ -509,8 +521,7 @@ namespace logReader.UI
         public static Color ColorForName(string name)
         {
             if (string.IsNullOrEmpty(name)) return Colors[0];
-            int hash = StableHash(name);
-            return Colors[Math.Abs(hash) % Colors.Length];
+            return Colors[PaletteIndex(name)];
         }
 
         public static IReadOnlyDictionary<string, Color> AssignColors(IEnumerable<string> names)
@@ -522,7 +533,7 @@ namespace logReader.UI
                 if (string.IsNullOrEmpty(name) || map.ContainsKey(name))
                     continue;
 
-                int preferred = Math.Abs(StableHash(name)) % Colors.Length;
+                int preferred = PaletteIndex(name);
                 int idx = FindFreeIndex(preferred, used);
                 used.Add(idx);
                 map[name] = Colors[idx];
@@ -542,6 +553,9 @@ namespace logReader.UI
             }
             return preferred;
         }
+
+        // Math.Abs(int.MinValue) бросает OverflowException — берём хеш без знакового бита.
+        private static int PaletteIndex(string name) => (StableHash(name) & int.MaxValue) % Colors.Length;
 
         private static int StableHash(string s)
         {
