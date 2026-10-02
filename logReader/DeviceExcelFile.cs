@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using ClosedXML.Excel;
 using static logReader.XlsxCellReader;
 
@@ -202,7 +202,7 @@ namespace logReader
                 ws.SheetView.FreezeRows(1);
                 ws.Columns().AdjustToContents();
                 workbook.SaveAs(tmp);
-            });
+            }, keepBackup: true);
         }
 
         private static void WriteRow(IXLWorksheet ws, int row, DeviceDefinition dev, int fieldIndex, DeviceFieldRow r)

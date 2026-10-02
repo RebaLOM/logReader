@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 
 namespace logReader
@@ -116,7 +116,7 @@ namespace logReader
 
                 var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
                 File.WriteAllText(tmp, sb.ToString(), utf8NoBom);
-            });
+            }, keepBackup: true);
         }
 
         public static void CreateEmpty(string path)

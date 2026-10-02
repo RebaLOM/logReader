@@ -1,44 +1,40 @@
 namespace logReader
 {
-    // Атомарная запись: tmp → Replace с .bak, чтобы сбой не оставил битый целевой файл.
+    // Атомарная запись: tmp в той же папке → Move/Replace, чтобы сбой не оставил битый целевой файл.
     public static class SafeFileWriter
     {
+        // ClosedXML определяет формат по расширению, поэтому для .xlsx оно сохраняется в конце имени;
+        // для остальных — «.tmp», чтобы временный файл не подхватывался как входной лог (*.csv, *.asc).
         public static string CreateTempPath(string path)
         {
             string? dir = Path.GetDirectoryName(path);
+            string name = Path.GetFileName(path);
             string ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext)) ext = ".xlsx";
-            string tmpName = Path.GetFileNameWithoutExtension(path) + ".tmp" + ext;
+            string suffix = ".~" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            if (ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                suffix += ext;
+            string tmpName = name + suffix;
             return string.IsNullOrEmpty(dir) ? tmpName : Path.Combine(dir, tmpName);
         }
 
-        public static void Write(string path, Action<string> writeToPath)
+        public static void Write(string path, Action<string> writeToPath, bool keepBackup = false)
         {
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
+            EnsureDirectory(path);
             string tmpPath = CreateTempPath(path);
-            string bakPath = path + ".bak";
-
-            if (File.Exists(tmpPath))
+            try
             {
-                try { File.Delete(tmpPath); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                writeToPath(tmpPath);
+                Publish(tmpPath, path, keepBackup);
             }
-
-            writeToPath(tmpPath);
-            Publish(tmpPath, path, bakPath);
+            finally
+            {
+                TryDelete(tmpPath);
+            }
         }
 
-        public static void Publish(string tempPath, string destinationPath)
-            => Publish(tempPath, destinationPath, destinationPath + ".bak");
-
-        public static void Publish(string tempPath, string destinationPath, string backupPath)
+        public static void Publish(string tempPath, string destinationPath, bool keepBackup = false)
         {
-            string? dir = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            EnsureDirectory(destinationPath);
 
             if (!File.Exists(destinationPath))
             {
@@ -46,7 +42,22 @@ namespace logReader
                 return;
             }
 
+            string? backupPath = keepBackup ? destinationPath + ".bak" : null;
             File.Replace(tempPath, destinationPath, backupPath, ignoreMetadataErrors: true);
+        }
+
+        public static void TryDelete(string? path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+
+        private static void EnsureDirectory(string path)
+        {
+            string? dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
         }
     }
 }
