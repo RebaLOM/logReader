@@ -35,6 +35,9 @@ namespace logReader.UI
 
         public bool Modified { get; private set; }
 
+        // Файл не прочитан: редактор не открывается, иначе первое сохранение перезаписало бы файл пустым списком.
+        public bool LoadFailed { get; private set; }
+
         public DevicesEditorForm(string path)
         {
             _path = path;
@@ -224,10 +227,15 @@ namespace logReader.UI
                     _xlsxDevices = DeviceExcelFile.ReadAllDevices(_path);
                 }
                 RefreshGrid();
+
+                if (UsesDbcModel && _dbcDatabase.PreservedLineCount > 0)
+                    _lblInfo.Text = $"Файл: {_path}   (прочие строки файла — {_dbcDatabase.PreservedLineCount} — сохраняются без изменений)";
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadFailed = true;
+                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message + "\nРедактор не будет открыт, файл не изменён.",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -365,6 +373,7 @@ namespace logReader.UI
             if (UsesDbcModel)
             {
                 if (idx >= _dbcMessages.Count) return;
+                if (!ConfirmClassicDlc(_dbcMessages[idx].Dlc)) return;
                 using var dlg = new DbcMessageEditForm(_dbcMessages[idx]);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
@@ -388,6 +397,7 @@ namespace logReader.UI
             {
                 if (idx >= _xlsxDevices.Count) return;
                 var dev = _xlsxDevices[idx];
+                if (!ConfirmClassicDlc(dev.Dlc)) return;
                 using var dlg = new XlsxMessageEditForm(dev, deviceIdReadOnly: true);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
@@ -438,6 +448,17 @@ namespace logReader.UI
 
             MarkDirty();
             RefreshGrid();
+        }
+
+        // Редактор посылки рассчитан на DLC 1..8: открыть CAN FD-посылку значило бы молча обрезать её до 8 байт.
+        private bool ConfirmClassicDlc(int dlc)
+        {
+            if (dlc <= 8) return true;
+            MessageBox.Show(this,
+                $"Посылка с DLC = {dlc} (CAN FD) не редактируется в этой версии: форма поддерживает 1–8 байт.\n" +
+                "Посылка сохраняется в файле без изменений и используется при обработке.",
+                "CAN FD", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return false;
         }
 
         private void MarkDirty()
@@ -505,7 +526,7 @@ namespace logReader.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nИзменения отменены.",
+                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nФайл на диске не изменён, правки остаются в редакторе.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }

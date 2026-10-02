@@ -414,6 +414,11 @@ namespace logReader.UI
             }
 
             using var editor = new DevicesEditorForm(path);
+            if (editor.LoadFailed)
+            {
+                Log("Ошибка: файл посылок не прочитан — редактор не открыт.");
+                return;
+            }
             editor.ShowDialog(this);
 
             if (editor.Modified)
@@ -529,6 +534,11 @@ namespace logReader.UI
             }
 
             using var editor = new CompositeEditorForm(path);
+            if (editor.LoadFailed)
+            {
+                Log("Ошибка: файл составных параметров не прочитан — редактор не открыт.");
+                return;
+            }
             editor.ShowDialog(this);
 
             if (editor.Modified)
