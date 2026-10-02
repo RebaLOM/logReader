@@ -1,28 +1,20 @@
 using System.Linq;
-using logReader;
 
 namespace logReader.UI
 {
+    // Фильтры устройств и параметров: дерево с флажками (один оконный контрол вместо трёх на параметр).
+    // Правки делаются на копии и применяются только по «OK».
     public partial class Devices_ParametrsForm : Form
     {
         private readonly List<Device> _devices;
-        private readonly Dictionary<string, bool> _deviceEnabled;
-        private readonly Dictionary<string, bool[]> _paramEnabled;
+        private readonly Dictionary<string, bool> _targetDeviceEnabled;
+        private readonly Dictionary<string, bool[]> _targetParamEnabled;
+        private readonly Dictionary<string, bool> _deviceEnabled = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, bool[]> _paramEnabled = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _missingDevices;
         private readonly List<string> _matchedDevices;
-
-        private const int GB_MARGIN = 8;
-
-        // Размеры от шрифта — корректный layout при любом DPI.
-        private int HeaderH => Font.Height + 18;
-        private int ParamH => Font.Height + 12;
-        private int BtnH => Font.Height + 6;
-        private int GbTitleH => Font.Height + 8;
-
-        private int DeviceBtnW => TextRenderer.MeasureText("Выключено", Font).Width + 20;
-        private int ParamBtnW => TextRenderer.MeasureText("Выкл", Font).Width + 20;
-
-        private Panel _innerPanel = null!;
+        private readonly SingleClickCheckTreeView _tree = new();
+        private bool _updatingChecks;
 
         public Devices_ParametrsForm(List<Device> devices,
             Dictionary<string, bool> deviceEnabled,
@@ -32,371 +24,169 @@ namespace logReader.UI
         {
             InitializeComponent();
             _devices = devices;
-            _deviceEnabled = deviceEnabled;
-            _paramEnabled = paramEnabled;
+            _targetDeviceEnabled = deviceEnabled;
+            _targetParamEnabled = paramEnabled;
             _missingDevices = missingDevices ?? new List<string>();
             _matchedDevices = matchedDevices ?? new List<string>();
 
-            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
-
-            RefreshLogDeviceLists("");
-
-            Shown += (_, _) => BuildDevicePanels();
-        }
-
-        private int GbWidth() =>
-            scrollPanel.ClientSize.Width
-            - SystemInformation.VerticalScrollBarWidth - 12;
-
-        private int GbHeight(int paramCount) =>
-            GbTitleH + HeaderH + 2 + paramCount * ParamH + GbTitleH;
-
-        private void BuildDevicePanels()
-        {
-            scrollPanel.Controls.Clear();
-
-            int gbW = GbWidth();
-            int yOffset = 6;
-            int totalH = 6;
-
-            foreach (var d in _devices)
-                totalH += GbHeight(d.Headers.Length) + GB_MARGIN;
-
-            _innerPanel = new Panel
-            {
-                Top = 0,
-                Left = 0,
-                Width = scrollPanel.ClientSize.Width,
-                Height = totalH,
-            };
-
             foreach (var device in _devices)
             {
-                if (!_deviceEnabled.ContainsKey(device.ID))
-                    _deviceEnabled[device.ID] = true;
-
-                if (!_paramEnabled.TryGetValue(device.ID, out var paramArr))
-                {
-                    paramArr = Enumerable.Repeat(true, device.Headers.Length).ToArray();
-                    _paramEnabled[device.ID] = paramArr;
-                }
-                else if (paramArr.Length != device.Headers.Length)
-                {
-                    var resized = new bool[device.Headers.Length];
-                    int copyLen = Math.Min(paramArr.Length, resized.Length);
-                    Array.Copy(paramArr, resized, copyLen);
-                    for (int i = copyLen; i < resized.Length; i++)
-                        resized[i] = true;
-                    paramArr = resized;
-                    _paramEnabled[device.ID] = resized;
-                }
-
-                bool devOn = _deviceEnabled[device.ID];
-
-                var gb = CreateGroupBox(device, devOn, paramArr, gbW, yOffset);
-                _innerPanel.Controls.Add(gb);
-
-                yOffset += GbHeight(device.Headers.Length) + GB_MARGIN;
+                _deviceEnabled[device.ID] = deviceEnabled.GetValueOrDefault(device.ID, true);
+                var source = paramEnabled.GetValueOrDefault(device.ID);
+                var arr = new bool[device.Headers.Length];
+                for (int i = 0; i < arr.Length; i++)
+                    arr[i] = source == null || i >= source.Length || source[i];
+                _paramEnabled[device.ID] = arr;
             }
 
-            scrollPanel.Controls.Add(_innerPanel);
+            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
+
+            _tree.Dock = DockStyle.Fill;
+            _tree.CheckBoxes = true;
+            _tree.HideSelection = false;
+            _tree.AfterCheck += Tree_AfterCheck;
+            scrollPanel.AutoScroll = false;
+            scrollPanel.Controls.Add(_tree);
+            textBoxSearch.PlaceholderText = "Поиск по ID устройства или имени параметра...";
+
+            AddDialogButtons();
+            RefreshLogDeviceLists("");
+            BuildTree("");
         }
 
-        private GroupBox CreateGroupBox(Device device, bool devOn, bool[] paramArr, int gbW, int top)
+        private void AddDialogButtons()
         {
-            var gb = new GroupBox
+            var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Size = new Size(90, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            var cancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel, Size = new Size(90, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            cancel.Location = new Point(panelButtons.ClientSize.Width - cancel.Width - 12, 10);
+            ok.Location = new Point(cancel.Left - ok.Width - 8, 10);
+            ok.Click += (_, _) => ApplyToTarget();
+            panelButtons.Controls.Add(ok);
+            panelButtons.Controls.Add(cancel);
+            AcceptButton = ok;
+            CancelButton = cancel;
+        }
+
+        private void ApplyToTarget()
+        {
+            foreach (var kv in _deviceEnabled)
+                _targetDeviceEnabled[kv.Key] = kv.Value;
+            foreach (var kv in _paramEnabled)
+                _targetParamEnabled[kv.Key] = (bool[])kv.Value.Clone();
+        }
+
+        private void BuildTree(string query)
+        {
+            _updatingChecks = true;
+            _tree.BeginUpdate();
+            try
             {
-                Tag = device.ID,
-                Left = 6,
-                Top = top,
-                Width = gbW,
-                Height = GbHeight(device.Headers.Length),
-                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
-            };
-
-            var headerPanel = new Panel
-            {
-                Left = 6,
-                Top = 18,
-                Height = HeaderH,
-                Width = gb.ClientSize.Width - 12,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                BackColor = Color.FromArgb(220, 228, 242)
-            };
-
-            headerPanel.Controls.Add(new Label
-            {
-                Text = "Устройство:  " + device.ID,
-                Left = 8,
-                Top = 0,
-                Height = HeaderH,
-                Width = headerPanel.Width - DeviceBtnW - 16,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Font = new Font(Font, FontStyle.Bold)
-            });
-
-            int devW = DeviceBtnW;
-            var btnDevice = new Button
-            {
-                Tag = device.ID,
-                Text = devOn ? "Включено" : "Выключено",
-                Left = headerPanel.Width - devW - 4,
-                Top = (HeaderH - BtnH) / 2,
-                Width = devW,
-                Height = BtnH,
-                Anchor = AnchorStyles.Right,
-                BackColor = devOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168),
-                FlatStyle = FlatStyle.Flat,
-                UseVisualStyleBackColor = false
-            };
-            btnDevice.FlatAppearance.BorderSize = 0;
-            btnDevice.Click += DeviceBtn_Click;
-            headerPanel.Controls.Add(btnDevice);
-            gb.Controls.Add(headerPanel);
-
-            gb.Controls.Add(new Panel
-            {
-                Left = 6,
-                Top = 18 + HeaderH,
-                Width = gb.ClientSize.Width - 12,
-                Height = 1,
-                BackColor = Color.Silver,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
-            });
-
-            int paramTop = 18 + HeaderH + 2;
-
-            for (int i = 0; i < device.Headers.Length; i++)
-            {
-                bool paramOn = i < paramArr.Length ? paramArr[i] : true;
-
-                var paramPanel = new Panel
+                _tree.Nodes.Clear();
+                foreach (var device in _devices)
                 {
-                    Tag = (device.ID, i),
-                    Left = 6,
-                    Top = paramTop + i * ParamH,
-                    Height = ParamH,
-                    Width = gb.ClientSize.Width - 12,
-                    Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                    BackColor = i % 2 == 0 ? Color.White : Color.FromArgb(246, 246, 252)
-                };
+                    bool idMatches = query.Length == 0 || device.ID.Contains(query, StringComparison.OrdinalIgnoreCase);
+                    var paramIndexes = Enumerable.Range(0, device.Headers.Length)
+                        .Where(i => idMatches || device.Headers[i].Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (!idMatches && paramIndexes.Count == 0) continue;
 
-                paramPanel.Controls.Add(new Label
-                {
-                    Text = device.Headers[i],
-                    Left = 8,
-                    Top = 0,
-                    Height = ParamH,
-                    Width = paramPanel.Width - ParamBtnW - 16,
-                    Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoEllipsis = true
-                });
-
-                int prmW = ParamBtnW;
-                int btnTop = (ParamH - BtnH) / 2;
-                var btnParam = new Button
-                {
-                    Tag = (device.ID, i),
-                    Text = paramOn ? "Вкл" : "Выкл",
-                    Left = paramPanel.Width - prmW - 4,
-                    Top = btnTop,
-                    Width = prmW,
-                    Height = BtnH,
-                    Anchor = AnchorStyles.Right,
-                    BackColor = paramOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200),
-                    FlatStyle = FlatStyle.Flat,
-                    UseVisualStyleBackColor = false
-                };
-                btnParam.FlatAppearance.BorderSize = 0;
-                btnParam.Click += ParamBtn_Click;
-
-                paramPanel.Controls.Add(btnParam);
-                gb.Controls.Add(paramPanel);
+                    var deviceNode = new TreeNode(DeviceText(device)) { Tag = device, Checked = _deviceEnabled[device.ID] };
+                    foreach (int i in paramIndexes)
+                        deviceNode.Nodes.Add(new TreeNode(device.Headers[i]) { Tag = (device, i), Checked = _paramEnabled[device.ID][i] });
+                    _tree.Nodes.Add(deviceNode);
+                    if (query.Length > 0) deviceNode.Expand();
+                }
             }
+            finally
+            {
+                _tree.EndUpdate();
+                _updatingChecks = false;
+            }
+        }
 
-            return gb;
+        private string DeviceText(Device device)
+        {
+            int enabled = _paramEnabled[device.ID].Count(v => v);
+            return $"{device.ID}   ({enabled}/{device.Headers.Length})";
+        }
+
+        private void Tree_AfterCheck(object? sender, TreeViewEventArgs e)
+        {
+            if (_updatingChecks || e.Node == null) return;
+
+            if (e.Node.Tag is Device device)
+            {
+                _deviceEnabled[device.ID] = e.Node.Checked;
+            }
+            else if (e.Node.Tag is ValueTuple<Device, int> param)
+            {
+                _paramEnabled[param.Item1.ID][param.Item2] = e.Node.Checked;
+                if (e.Node.Parent != null)
+                    e.Node.Parent.Text = DeviceText(param.Item1);
+            }
         }
 
         private void textBoxSearch_TextChanged(object? sender, EventArgs e)
-        {
-            string query = textBoxSearch.Text.Trim().ToLowerInvariant();
-            ApplyFilter(query);
-        }
+            => BuildTree(textBoxSearch.Text.Trim());
 
         private void textBoxSearchUnknown_TextChanged(object? sender, EventArgs e)
-        {
-            string query = textBoxSearchUnknown.Text.Trim().ToLowerInvariant();
-            RefreshLogDeviceLists(query);
-        }
+            => RefreshLogDeviceLists(textBoxSearchUnknown.Text.Trim());
 
         private void RefreshLogDeviceLists(string query)
         {
-            listBoxMissing.Items.Clear();
-            listBoxMatched.Items.Clear();
+            FillList(listBoxMissing, _missingDevices, query, "Нет отсутствующих устройств");
+            FillList(listBoxMatched, _matchedDevices, query, "Нет совпадающих устройств");
+        }
 
-            if (_missingDevices.Count == 0)
+        private static void FillList(ListBox list, List<string> ids, string query, string emptyText)
+        {
+            list.BeginUpdate();
+            list.Items.Clear();
+            if (ids.Count == 0)
             {
-                listBoxMissing.Items.Add("Нет отсутствующих устройств");
-                listBoxMissing.Items.Add("или лог не выбран.");
+                list.Items.Add(emptyText);
+                list.Items.Add("или лог не выбран.");
             }
             else
             {
-                foreach (string id in _missingDevices)
-                {
-                    if (string.IsNullOrEmpty(query) || id.ToLowerInvariant().Contains(query))
-                        listBoxMissing.Items.Add(id);
-                }
-
-                if (listBoxMissing.Items.Count == 0)
-                    listBoxMissing.Items.Add("Нет совпадений по поиску.");
+                foreach (string id in ids)
+                    if (query.Length == 0 || id.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        list.Items.Add(id);
+                if (list.Items.Count == 0)
+                    list.Items.Add("Нет совпадений по поиску.");
             }
-
-            if (_matchedDevices.Count == 0)
-            {
-                listBoxMatched.Items.Add("Нет совпадающих устройств");
-                listBoxMatched.Items.Add("или лог не выбран.");
-            }
-            else
-            {
-                foreach (string id in _matchedDevices)
-                {
-                    if (string.IsNullOrEmpty(query) || id.ToLowerInvariant().Contains(query))
-                        listBoxMatched.Items.Add(id);
-                }
-
-                if (listBoxMatched.Items.Count == 0)
-                    listBoxMatched.Items.Add("Нет совпадений по поиску.");
-            }
-        }
-
-        private void ApplyFilter(string query)
-        {
-            if (_innerPanel == null) return;
-
-            _innerPanel.SuspendLayout();
-
-            int yOffset = 6;
-            int totalH = 6;
-
-            foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
-            {
-                string deviceId = gb.Tag as string ?? "";
-                bool visible = string.IsNullOrEmpty(query)
-                               || deviceId.ToLowerInvariant().Contains(query);
-
-                gb.Visible = visible;
-
-                if (visible)
-                {
-                    gb.Top = yOffset;
-                    yOffset += gb.Height + GB_MARGIN;
-                    totalH += gb.Height + GB_MARGIN;
-                }
-            }
-
-            _innerPanel.Height = Math.Max(totalH, scrollPanel.ClientSize.Height);
-            _innerPanel.ResumeLayout();
-        }
-
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-            if (_innerPanel == null || scrollPanel == null) return;
-
-            int newW = scrollPanel.ClientSize.Width;
-            int gbW = GbWidth();
-
-            _innerPanel.Width = newW;
-
-            foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
-                gb.Width = gbW;
-        }
-
-        private void DeviceBtn_Click(object? sender, EventArgs e)
-        {
-            if (sender is not Button btn || btn.Tag is not string deviceId) return;
-            // Инвертируем состояние по клику на заголовок группы.
-            bool isOn = !_deviceEnabled.GetValueOrDefault(deviceId, true);
-            btn.Text = isOn ? "Включено" : "Выключено";
-            btn.BackColor = isOn ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
-            _deviceEnabled[deviceId] = isOn;
-        }
-
-        private void ParamBtn_Click(object? sender, EventArgs e)
-        {
-            if (sender is not Button btn || btn.Tag is not (string deviceId, int idx)) return;
-
-            if (!_paramEnabled.TryGetValue(deviceId, out var arr))
-            {
-                var dev = _devices.First(d => d.ID == deviceId);
-                arr = Enumerable.Repeat(true, dev.Headers.Length).ToArray();
-                _paramEnabled[deviceId] = arr;
-            }
-            else if (idx >= arr.Length)
-            {
-                var dev = _devices.First(d => d.ID == deviceId);
-                if (idx >= dev.Headers.Length) return;
-
-                var resized = new bool[dev.Headers.Length];
-                int copyLen = Math.Min(arr.Length, resized.Length);
-                Array.Copy(arr, resized, copyLen);
-                for (int i = copyLen; i < resized.Length; i++)
-                    resized[i] = true;
-                arr = resized;
-                _paramEnabled[deviceId] = arr;
-            }
-
-            bool isOn = !arr[idx];
-            btn.Text = isOn ? "Вкл" : "Выкл";
-            btn.BackColor = isOn ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
-
-            arr[idx] = isOn;
+            list.EndUpdate();
         }
 
         private void SetAll(bool value)
         {
-            // «Включить/выключить всё» — по всей модели, не только по видимым после фильтра.
+            // «Включить/выключить всё» — по всей модели, не только по видимым после поиска.
             foreach (var dev in _devices)
             {
                 _deviceEnabled[dev.ID] = value;
-
-                if (!_paramEnabled.TryGetValue(dev.ID, out var arr) || arr.Length != dev.Headers.Length)
-                {
-                    arr = new bool[dev.Headers.Length];
-                    _paramEnabled[dev.ID] = arr;
-                }
-                for (int i = 0; i < arr.Length; i++)
-                    arr[i] = value;
+                Array.Fill(_paramEnabled[dev.ID], value);
             }
-
-            RefreshAllButtonVisuals(value);
-        }
-
-        // Синхронизирует кнопки с моделью; скрытые фильтром подтянутся при сбросе поиска.
-        private void RefreshAllButtonVisuals(bool value)
-        {
-            if (_innerPanel == null) return;
-
-            foreach (var gb in _innerPanel.Controls.OfType<GroupBox>())
-            foreach (var panel in gb.Controls.OfType<Panel>())
-            foreach (var btn in panel.Controls.OfType<Button>())
-            {
-                if (btn.Tag is string)
-                {
-                    btn.Text = value ? "Включено" : "Выключено";
-                    btn.BackColor = value ? Color.FromArgb(168, 214, 168) : Color.FromArgb(214, 168, 168);
-                }
-                else if (btn.Tag is ValueTuple<string, int>)
-                {
-                    btn.Text = value ? "Вкл" : "Выкл";
-                    btn.BackColor = value ? Color.FromArgb(200, 232, 200) : Color.FromArgb(232, 200, 200);
-                }
-            }
+            BuildTree(textBoxSearch.Text.Trim());
         }
 
         private void buttonEnableAll_Click(object sender, EventArgs e) => SetAll(true);
         private void buttonDisableAll_Click(object sender, EventArgs e) => SetAll(false);
+
+        // Двойной щелчок по флажку TreeView меняет его вид без второго AfterCheck — состояние
+        // расходится с моделью. Второй щелчок обрабатывается как обычный одиночный.
+        private sealed class SingleClickCheckTreeView : TreeView
+        {
+            private const int WM_LBUTTONDBLCLK = 0x0203;
+
+            protected override void WndProc(ref Message m)
+            {
+                if (m.Msg == WM_LBUTTONDBLCLK)
+                {
+                    m.Result = IntPtr.Zero;
+                    return;
+                }
+                base.WndProc(ref m);
+            }
+        }
     }
 }

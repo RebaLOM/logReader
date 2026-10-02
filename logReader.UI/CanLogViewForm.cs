@@ -1,343 +1,120 @@
 using System.Linq;
-using System.Text;
 
 namespace logReader.UI
 {
+    // Статистика ID лога: чтение в фоне с отменой, виртуальный список — без тысяч дочерних контролов.
     public partial class CanLogViewForm : Form
     {
         private readonly string _sourcePath;
-        private Panel _innerPanel = null!;
-        private const int ROW_MARGIN = 2;
-
-        private int RowH => Font.Height + 10;
-        private int HeaderH => Font.Height + 14;
-
+        private readonly ListView _list = new();
+        private readonly CancellationTokenSource _loading = new();
         private List<(string ID, int Count)> _packets = new();
+        private List<(string ID, int Count)> _filtered = new();
 
         public CanLogViewForm(string sourcePath)
         {
             InitializeComponent();
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             _sourcePath = sourcePath;
-            Shown += (_, _) => LoadAndBuild();
+
+            _list.Dock = DockStyle.Fill;
+            _list.View = View.Details;
+            _list.FullRowSelect = true;
+            _list.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+            _list.VirtualMode = true;
+            _list.Columns.Add("ID посылки");
+            _list.Columns.Add("Кол-во посылок", -2, HorizontalAlignment.Right);
+            _list.RetrieveVirtualItem += (_, e) =>
+            {
+                var (id, count) = _filtered[e.ItemIndex];
+                e.Item = new ListViewItem(new[] { id, count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) });
+            };
+            _list.Resize += (_, _) => FitColumns();
+            scrollPanel.AutoScroll = false;
+            scrollPanel.Controls.Add(_list);
+
+            labelCount.Text = "Чтение лога…";
+            textBoxSearch.Enabled = false;
+            Shown += async (_, _) => await LoadAsync();
+            FormClosing += (_, _) => _loading.Cancel();
         }
 
-        private void LoadAndBuild()
+        private async Task LoadAsync()
         {
-            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
+            UseWaitCursor = true;
             try
             {
-                Span<int> bytes = stackalloc int[8];
-                var paths = ResolveInputPaths(_sourcePath);
-                if (paths.Count == 0)
+                var token = _loading.Token;
+                var counts = await Task.Run(() => logReader.Processing.UnknownDevicesScanner.CollectLogIds(_sourcePath, null, token), token);
+                if (IsDisposed) return;
+
+                if (counts.Count == 0 && Directory.Exists(_sourcePath)
+                    && !logReader.Processing.LogFolderScanner.EnumerateSupportedLogFiles(_sourcePath).Any())
                 {
-                    MessageBox.Show("В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
+                    MessageBox.Show(this, "В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
                         "Нет логов", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     Close();
                     return;
                 }
 
-                foreach (var inputPath in paths)
-                    ProcessSingleLogFile(inputPath, counts, bytes);
+                _packets = counts.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                                 .Select(kv => (kv.Key, kv.Value))
+                                 .ToList();
+                textBoxSearch.Enabled = true;
+                ApplyFilter();
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                MessageBox.Show("Ошибка чтения файла: " + ex.Message,
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (IsDisposed) return;
+                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
-                return;
             }
-
-            _packets = counts.OrderBy(kv => kv.Key)
-                             .Select(kv => (kv.Key, kv.Value))
-                             .ToList();
-
-            int totalPackets = _packets.Sum(p => p.Count);
-            labelCount.Text = $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}";
-            BuildList(_packets);
-        }
-
-        private static List<string> ResolveInputPaths(string sourcePath)
-        {
-            if (Directory.Exists(sourcePath))
+            finally
             {
-                return EnumerateLogFilesInFolder(sourcePath)
-                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-
-            if (File.Exists(sourcePath))
-                return new List<string> { sourcePath };
-
-            return new List<string>();
-        }
-
-        private static IEnumerable<string> EnumerateLogFilesInFolder(string folder)
-        {
-            string[] patterns = { "*.csv", "*.trc", "*.asc", "*.txt" };
-            foreach (var pattern in patterns)
-            {
-                foreach (var path in Directory.EnumerateFiles(folder, pattern, SearchOption.TopDirectoryOnly))
-                    yield return path;
+                if (!IsDisposed) UseWaitCursor = false;
             }
         }
 
-        private static void ProcessSingleLogFile(
-            string inputPath,
-            Dictionary<string, int> counts,
-            Span<int> bytes)
-        {
-            string ext = Path.GetExtension(inputPath);
-            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
-            bool isAsc = ext.Equals(".asc", StringComparison.OrdinalIgnoreCase);
-            var encoding = LogFileEncoding.Detect(inputPath);
-            bool isCanfox = !isTrc && !isAsc && CanfoxLogParser.LooksLikeCanfoxLog(inputPath, encoding);
-
-            if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase)
-                && MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, encoding))
-            {
-                ProcessMatrixCsvFile(inputPath, encoding, counts);
-                return;
-            }
-
-            foreach (var line in LogFileReader.ReadLines(inputPath, encoding))
-            {
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                string id;
-                if (isTrc)
-                {
-                    if (!TrcLogParser.TryParseTrcFrameLine(
-                            line,
-                            out _,
-                            out _,
-                            out id,
-                            out _,
-                            bytes,
-                            out _))
-                    {
-                        continue;
-                    }
-                }
-                else if (isAsc)
-                {
-                    if (!AscLogParser.TryParseFrameId(line, out id))
-                        continue;
-                }
-                else if (isCanfox)
-                {
-                    if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out _, out id, bytes, out _))
-                        continue;
-                }
-                else
-                {
-                    // Как в CanLogProcessor: только принятые кадры (признак = 1).
-                    if (!StepCsvLogParser.TryParseAcceptedId(line, out id))
-                        continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(id))
-                    continue;
-
-                counts[id] = counts.TryGetValue(id, out int n) ? n + 1 : 1;
-            }
-        }
-
-        private static void ProcessMatrixCsvFile(
-            string inputPath,
-            Encoding encoding,
-            Dictionary<string, int> counts)
-        {
-            bool headerRead = false;
-            List<MatrixCsvColumn> columns = new();
-            Span<int> msgBytes = stackalloc int[8];
-
-            foreach (string line in LogFileReader.ReadLines(inputPath, encoding))
-            {
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                if (!headerRead)
-                {
-                    if (!MatrixCsvLogParser.TryReadHeader(line, out columns, out _))
-                        return;
-
-                    foreach (MatrixCsvColumn col in columns)
-                    {
-                        if (!counts.ContainsKey(col.Id))
-                            counts[col.Id] = 0;
-                    }
-
-                    headerRead = true;
-                    continue;
-                }
-
-                string[] parts = line.Split(';');
-                if (parts.Length < 2 || !MatrixCsvLogParser.TryParseTimeCell(parts[0], out _))
-                    continue;
-
-                foreach (MatrixCsvColumn col in columns)
-                {
-                    if (col.ColumnIndex >= parts.Length)
-                        continue;
-
-                    string cell = parts[col.ColumnIndex];
-                    if (MatrixCsvLogParser.IsCellEmpty(cell))
-                        continue;
-                    if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes))
-                        continue;
-
-                    counts[col.Id] = counts.TryGetValue(col.Id, out int n) ? n + 1 : 1;
-                }
-            }
-        }
-
-        private void BuildList(List<(string ID, int Count)> items)
-        {
-            scrollPanel.Controls.Clear();
-
-            if (items.Count == 0)
-            {
-                scrollPanel.Controls.Add(new Label
-                {
-                    Text = "Ничего не найдено",
-                    Left = 12,
-                    Top = 12,
-                    AutoSize = true,
-                    ForeColor = Color.Gray
-                });
-                return;
-            }
-
-            int totalH = 4 + HeaderH + ROW_MARGIN;
-            foreach (var _ in items)
-                totalH += RowH + ROW_MARGIN;
-
-            int panelW = scrollPanel.ClientSize.Width
-                         - SystemInformation.VerticalScrollBarWidth - 2;
-            if (panelW < 100) panelW = scrollPanel.ClientSize.Width;
-
-            _innerPanel = new Panel
-            {
-                Top = 0,
-                Left = 0,
-                Width = panelW,
-                Height = totalH
-            };
-
-            int colCntW = 140;
-            var headerPanel = new Panel
-            {
-                Left = 4,
-                Top = 4,
-                Height = HeaderH,
-                Width = panelW - 8,
-                BackColor = Color.FromArgb(60, 80, 120)
-            };
-
-            int colIdW = headerPanel.Width - colCntW - 12;
-
-            headerPanel.Controls.Add(new Label
-            {
-                Text = "ID посылки",
-                Left = 8,
-                Top = 0,
-                Width = colIdW,
-                Height = HeaderH,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.White,
-                Font = new Font(Font, FontStyle.Bold)
-            });
-            headerPanel.Controls.Add(new Label
-            {
-                Text = "Кол-во посылок",
-                Left = colIdW + 4,
-                Top = 0,
-                Width = colCntW,
-                Height = HeaderH,
-                Anchor = AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleRight,
-                ForeColor = Color.White,
-                Font = new Font(Font, FontStyle.Bold)
-            });
-
-            _innerPanel.Controls.Add(headerPanel);
-
-            int yOffset = 4 + HeaderH + ROW_MARGIN;
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                var (id, count) = items[i];
-                Color bg = i % 2 == 0 ? Color.White : Color.FromArgb(245, 246, 250);
-
-                int rowW = panelW - 8;
-                var row = new Panel
-                {
-                    Left = 4,
-                    Top = yOffset,
-                    Height = RowH,
-                    Width = rowW,
-                    BackColor = bg
-                };
-
-                row.Controls.Add(new Label
-                {
-                    Text = id,
-                    Left = 8,
-                    Top = 0,
-                    Width = rowW - colCntW - 12,
-                    Height = RowH,
-                    TextAlign = ContentAlignment.MiddleLeft
-                });
-                row.Controls.Add(new Label
-                {
-                    Text = count.ToString("N0"),
-                    Left = rowW - colCntW - 4,
-                    Top = 0,
-                    Width = colCntW,
-                    Height = RowH,
-                    TextAlign = ContentAlignment.MiddleRight,
-                    ForeColor = Color.DimGray
-                });
-
-                _innerPanel.Controls.Add(row);
-                yOffset += RowH + ROW_MARGIN;
-            }
-
-            scrollPanel.Controls.Add(_innerPanel);
-        }
-
-        private void textBoxSearch_TextChanged(object? sender, EventArgs e)
+        private void ApplyFilter()
         {
             string query = textBoxSearch.Text.Trim();
-
-            var filtered = string.IsNullOrEmpty(query)
+            _filtered = string.IsNullOrEmpty(query)
                 ? _packets
                 : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
 
             int totalPackets = _packets.Sum(p => p.Count);
-            int filteredPackets = filtered.Sum(p => p.Count);
+            int filteredPackets = _filtered.Sum(p => p.Count);
             labelCount.Text = string.IsNullOrEmpty(query)
                 ? $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}"
-                : $"Найдено ID: {filtered.Count} из {_packets.Count}   Посылок: {filteredPackets:N0} из {totalPackets:N0}";
+                : $"Найдено ID: {_filtered.Count} из {_packets.Count}   Посылок: {filteredPackets:N0} из {totalPackets:N0}";
 
-            BuildList(filtered);
+            _list.VirtualListSize = _filtered.Count;
+            _list.Invalidate();
+            FitColumns();
         }
 
-        protected override void OnResize(EventArgs e)
+        private void FitColumns()
         {
-            base.OnResize(e);
-            if (_packets.Count == 0 || scrollPanel == null) return;
+            if (_list.Columns.Count < 2) return;
+            int countWidth = TextRenderer.MeasureText("Кол-во посылок__", _list.Font).Width;
+            _list.Columns[1].Width = countWidth;
+            _list.Columns[0].Width = Math.Max(80, _list.ClientSize.Width - countWidth);
+        }
 
-            string query = textBoxSearch.Text.Trim();
-            var current = string.IsNullOrEmpty(query)
-                ? _packets
-                : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+        private void textBoxSearch_TextChanged(object? sender, EventArgs e) => ApplyFilter();
 
-            BuildList(current);
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _loading.Dispose();
+                components?.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }
