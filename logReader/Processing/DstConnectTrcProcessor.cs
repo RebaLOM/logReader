@@ -71,8 +71,10 @@ namespace logReader.Processing
             }
 
             var activeFrames = new FrameView(frames, firstFrame);
+            // Покрытие блока считается по ID, которые реально есть в логе: иначе DBC «на всю машину»
+            // опускает покрытие ниже порога и детектор по повтору якорной посылки не срабатывает.
             var targetIds = devices
-                .Where(d => filter.IsDeviceEnabled(d.ID))
+                .Where(d => filter.IsDeviceEnabled(d.ID) && idPool.ContainsKey(d.ID))
                 .Select(d => d.ID)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
