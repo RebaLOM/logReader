@@ -32,7 +32,7 @@ namespace logReader.Processing
             var frames = new List<Frame>();
             var data = new List<int>();
             var idPool = new Dictionary<string, string>(StringComparer.Ordinal);
-            Span<int> byteSpan = stackalloc int[8];
+            Span<int> byteSpan = stackalloc int[Device.MaxDataLength];
             try
             {
                 foreach (var line in LogFileReader.ReadLines(trcPath, encoding, context.Slice(0, 0.5)))
@@ -92,7 +92,7 @@ namespace logReader.Processing
                 deviceById[d.ID] = d;
 
             var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count);
-            int[] payload = new int[8];
+            int[] payload = new int[Device.MaxDataLength];
             var decodeContext = context.Slice(0.5, 0.4);
 
             for (int f = firstFrame; f < frames.Count; f++)

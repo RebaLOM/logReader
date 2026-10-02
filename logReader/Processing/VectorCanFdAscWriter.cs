@@ -28,6 +28,31 @@ namespace logReader.Processing
             return idValue > 0x7FFUL ? id + "x" : id;
         }
 
+        // Код DLC CAN FD для длины данных (9..15 → 12, 16, 20, 24, 32, 48, 64 байт).
+        public static int DlcForLength(int length) => length switch
+        {
+            <= 8 => Math.Max(0, length),
+            <= 12 => 9,
+            <= 16 => 10,
+            <= 20 => 11,
+            <= 24 => 12,
+            <= 32 => 13,
+            <= 48 => 14,
+            _ => 15
+        };
+
+        public static int LengthForDlc(int dlc) => dlc switch
+        {
+            <= 8 => Math.Max(0, dlc),
+            9 => 12,
+            10 => 16,
+            11 => 20,
+            12 => 24,
+            13 => 32,
+            14 => 48,
+            _ => 64
+        };
+
         public static void WriteFrame(
             TextWriter writer,
             double offsetSeconds,
@@ -48,7 +73,10 @@ namespace logReader.Processing
         {
             string idOut = FormatId(idHex);
             string dir = string.IsNullOrWhiteSpace(direction) ? "Rx" : direction.Trim();
-            int count = Math.Clamp(byteCount, 0, bytes.Length);
+            int count = Math.Clamp(byteCount, 0, Math.Min(bytes.Length, Device.MaxDataLength));
+            // Длина данных CAN FD — только из ряда 0..8, 12, 16, …, 64: недостающие байты дополняются нулями.
+            int dlc = DlcForLength(count);
+            int dataLength = LengthForDlc(dlc);
 
             var sb = new StringBuilder();
             sb.Append("   ");
@@ -63,10 +91,16 @@ namespace logReader.Processing
             // Выравнивание как в CANoe — парсер читает по токенам, не по колонкам.
             int pad = Math.Max(1, 38 - idOut.Length);
             sb.Append(' ', pad);
-            sb.Append("0 0 8  8");
+            sb.Append("0 0 ")
+              .Append(dlc.ToString(CultureInfo.InvariantCulture))
+              .Append(' ')
+              .Append(dataLength.ToString(CultureInfo.InvariantCulture));
 
-            for (int i = 0; i < count; i++)
-                sb.Append(' ').Append(bytes[i].ToString("X2", CultureInfo.InvariantCulture));
+            for (int i = 0; i < dataLength; i++)
+            {
+                int value = i < count ? bytes[i] : 0;
+                sb.Append(' ').Append(value.ToString("X2", CultureInfo.InvariantCulture));
+            }
 
             sb.Append("        0    0   200000        0        0        0        0        0");
             return sb.ToString();

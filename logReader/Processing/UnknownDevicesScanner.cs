@@ -59,6 +59,7 @@ namespace logReader.Processing
                     return;
                 }
 
+                var ascFormat = kind == LogFormatKind.Asc ? AscFileFormat.Read(filePath, enc) : AscFileFormat.Default;
                 Span<int> bytes = stackalloc int[Device.MaxDataLength];
                 foreach (var line in LogFileReader.ReadLines(filePath, enc, context))
                 {
@@ -69,7 +70,7 @@ namespace logReader.Processing
                     switch (kind)
                     {
                         case LogFormatKind.Asc:
-                            ok = AscLogParser.TryParseFrameId(line, out id);
+                            ok = AscLogParser.TryParseFrameId(line, ascFormat, out id);
                             break;
                         case LogFormatKind.Trc:
                             ok = TrcLogParser.TryParseTrcFrameLine(line, out _, out _, out id, out _, bytes, out _);

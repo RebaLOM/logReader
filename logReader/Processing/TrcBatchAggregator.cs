@@ -20,7 +20,7 @@ namespace logReader.Processing
                 deviceById[d.ID] = d;
 
             bool? isCanfoxExpected = null;
-            Span<int> bytes = stackalloc int[8];
+            Span<int> bytes = stackalloc int[Device.MaxDataLength];
 
             int usedFiles = 0;
             for (int f = 0; f < trcPaths.Count; f++)
@@ -108,7 +108,7 @@ namespace logReader.Processing
             foreach (var d in devices)
                 deviceById[d.ID] = d;
 
-            Span<int> bytes = stackalloc int[8];
+            Span<int> bytes = stackalloc int[Device.MaxDataLength];
 
             int usedFiles = 0;
             for (int f = 0; f < trcPaths.Count; f++)

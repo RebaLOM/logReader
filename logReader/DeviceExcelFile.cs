@@ -104,7 +104,7 @@ namespace logReader
                 string messageName = row.Cell(2).GetString().Trim();
                 bool extended = ParseBool01(row.Cell(3), defaultValue: true);
                 int dlc = GetInt(row.Cell(4)) ?? 8;
-                dlc = Math.Clamp(dlc, 1, 8);
+                dlc = Math.Clamp(dlc, 0, Device.MaxDataLength);
 
                 string header = row.Cell(6).GetString().Trim();
                 string type = row.Cell(7).GetString().Trim().ToUpperInvariant();

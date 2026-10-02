@@ -35,7 +35,7 @@ namespace logReader.Processing
                 filter,
                 isCanfox ? TimeAxisKind.TimeOfDay : TimeAxisKind.Milliseconds);
 
-            Span<int> bytes = stackalloc int[8];
+            Span<int> bytes = stackalloc int[Device.MaxDataLength];
             try
             {
                 foreach (var line in LogFileReader.ReadLines(trcPath, encoding, context.Slice(0, 0.8)))

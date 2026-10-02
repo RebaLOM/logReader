@@ -38,6 +38,8 @@ namespace logReader
                     order.Add(deviceId);
                 }
 
+                // Не меньше 8 байт: DLC в описаниях бывает занижен, сигналы раньше проверялись по 64 битам.
+                int payloadBits = Math.Clamp(message.Dlc, 8, Device.MaxDataLength) * 8;
                 foreach (var sig in message.Signals)
                 {
                     if (sig.Length <= 0 || sig.Length > 64)
@@ -46,17 +48,9 @@ namespace logReader
                         continue;
                     }
 
-                    if (sig.IsLittleEndian)
+                    if (!BitMath.SignalFitsInDlc(sig.StartBit, sig.Length, sig.IsLittleEndian, payloadBits))
                     {
-                        if (sig.StartBit < 0 || sig.StartBit + sig.Length > 64)
-                        {
-                            logger($"Предупреждение: Intel сигнал '{sig.Name}' вне 64 бит — пропущен.");
-                            continue;
-                        }
-                    }
-                    else if (sig.StartBit < 0 || sig.StartBit > 63)
-                    {
-                        logger($"Предупреждение: Motorola сигнал '{sig.Name}': StartBit={sig.StartBit} вне 0..63 — пропущен.");
+                        logger($"Предупреждение: сигнал '{sig.Name}' ({sig.StartBit}|{sig.Length}) выходит за {payloadBits / 8} байт данных — пропущен.");
                         continue;
                     }
 

@@ -25,7 +25,7 @@ namespace logReader.Processing
 
         internal static bool LooksLikeCanfoxLog(string filePath, Encoding encoding)
         {
-            Span<int> bytes = stackalloc int[8];
+            Span<int> bytes = stackalloc int[Device.MaxDataLength];
             int n = 0;
             foreach (var line in LogFileReader.ReadLines(filePath, encoding))
             {
