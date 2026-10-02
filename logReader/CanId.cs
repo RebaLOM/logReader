@@ -52,5 +52,9 @@ namespace logReader
             id = Format(value, looksExtended);
             return true;
         }
+
+        // Для ключей из пользовательских файлов: нормализованный ID или исходный текст в верхнем регистре.
+        public static string NormalizeOrUpper(string? raw)
+            => TryNormalize(raw, out string id) ? id : (raw ?? "").Trim().ToUpperInvariant();
     }
 }

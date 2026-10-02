@@ -2,9 +2,15 @@ using ClosedXML.Excel;
 
 namespace logReader
 {
-    // Общая двухстрочная шапка Excel: стили и раскладка для step-CSV и time-series логов.
+    // Общая шапка Excel: стили и раскладка для step-таблиц и time-series логов.
     public static class ExcelLayoutBuilder
     {
+        public const int MaxRows = 1_048_576;
+
+        // Ширина колонок подбирается по первым строкам: полный AdjustToContents на сотнях тысяч
+        // строк занимает больше времени, чем вся обработка лога.
+        public const int AutoFitSampleRows = 300;
+
         public static readonly XLColor[] DeviceColors =
         {
             XLColor.FromArgb(198, 214, 240),
@@ -21,54 +27,28 @@ namespace logReader
 
         private static readonly XLColor FixedColumnGray = XLColor.FromArgb(180, 180, 180);
 
-        public static List<string> GetActiveParamHeaders(Device device, Dictionary<string, bool[]>? paramEnabled)
+        public static int HeaderRowCount(bool includeDeviceIdRow) => includeDeviceIdRow ? 2 : 1;
+
+        // Step-таблица: «Шаг»/«Время» всегда в строке с именами параметров;
+        // includeDeviceIdRow — сверху строка с ID устройств. Возвращает номер первой строки данных.
+        public static int BuildStepLogHeaders(IXLWorksheet ws, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow)
         {
-            var headers = new List<string>();
-            for (int i = 0; i < device.headers.Length; i++)
+            int headerRows = HeaderRowCount(includeDeviceIdRow);
+            int paramRow = headerRows;
+
+            WriteFixedColumn(ws, 1, "Шаг", paramRow, headerRows);
+            WriteFixedColumn(ws, 2, "Время", paramRow, headerRows);
+
+            int col = 3;
+            for (int g = 0; g < columns.Count; g++)
             {
-                bool paramOn = paramEnabled == null
-                    || !paramEnabled.TryGetValue(device.ID, out var arr)
-                    || (i < arr.Length && arr[i]);
-                if (paramOn) headers.Add(device.headers[i]);
-            }
-            return headers;
-        }
-
-        // Step-CSV: «Шаг»/«Время» всегда в строке с именами параметров.
-        // includeDeviceIdRow: сверху строка с ID устройств (над параметрами).
-        public static int BuildStepLogHeaders(
-            IXLWorksheet ws,
-            List<Device> devices,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            bool includeDeviceIdRow = false)
-        {
-            int col = 1;
-            int colorIdx = 0;
-            int headerRows = includeDeviceIdRow ? 2 : 1;
-            int paramRow = includeDeviceIdRow ? 2 : 1;
-
-            // «Шаг»/«Время» всегда в строке параметров (paramRow); при ID-строке сверху — пустые ячейки.
-            WriteFixedColumn(ws, col, "Шаг", paramRow, headerRows);
-            WriteFixedColumn(ws, col + 1, "Время", paramRow, headerRows);
-
-            col += 2;
-
-            foreach (var device in devices)
-            {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn) continue;
-
-                var activeParams = GetActiveParamHeaders(device, paramEnabled);
-                if (activeParams.Count == 0) continue;
-
-                XLColor bg = DeviceColors[colorIdx % DeviceColors.Length];
-                colorIdx++;
+                var group = columns[g];
+                XLColor bg = DeviceColors[g % DeviceColors.Length];
 
                 if (includeDeviceIdRow)
-                    WriteDeviceIdRow(ws, col, device.ID, activeParams.Count, bg);
+                    WriteDeviceIdRow(ws, col, group.Device.ID, group.ParamIndexes.Length, bg);
 
-                foreach (var header in activeParams)
+                foreach (var header in group.Headers)
                 {
                     var cell = ws.Cell(paramRow, col++);
                     cell.Value = header;
@@ -80,40 +60,26 @@ namespace logReader
             return headerRows + 1;
         }
 
-        // Time-series: у каждого устройства «Время» + параметры; includeDevice отсекает пустые блоки.
-        public static int BuildTimeSeriesHeaders(
-            IXLWorksheet ws,
-            List<Device> devices,
-            Func<Device, bool> includeDevice,
-            Dictionary<string, bool>? deviceEnabled,
-            Dictionary<string, bool[]>? paramEnabled,
-            bool includeDeviceIdRow = false)
+        // Time-series: у каждого устройства «Время» + параметры.
+        public static int BuildTimeSeriesHeaders(IXLWorksheet ws, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow)
         {
+            int headerRows = HeaderRowCount(includeDeviceIdRow);
+            int paramRow = headerRows;
+
             int col = 1;
-            int colorIdx = 0;
-            int headerRows = includeDeviceIdRow ? 2 : 1;
-            int paramRow = includeDeviceIdRow ? 2 : 1;
-
-            foreach (var device in devices)
+            for (int g = 0; g < columns.Count; g++)
             {
-                bool devOn = deviceEnabled == null || deviceEnabled.GetValueOrDefault(device.ID, true);
-                if (!devOn || !includeDevice(device)) continue;
+                var group = columns[g];
+                XLColor bg = DeviceColors[g % DeviceColors.Length];
 
-                var activeParams = GetActiveParamHeaders(device, paramEnabled);
-                if (activeParams.Count == 0) continue;
-
-                XLColor bg = DeviceColors[colorIdx % DeviceColors.Length];
-                colorIdx++;
-
-                int blockCols = 1 + activeParams.Count;
                 if (includeDeviceIdRow)
-                    WriteDeviceIdRow(ws, col, device.ID, blockCols, bg);
+                    WriteDeviceIdRow(ws, col, group.Device.ID, 1 + group.ParamIndexes.Length, bg);
 
                 ApplyParamHeaderStyle(ws.Cell(paramRow, col), bg);
                 ws.Cell(paramRow, col).Value = "Время";
                 col++;
 
-                foreach (var header in activeParams)
+                foreach (var header in group.Headers)
                 {
                     var cell = ws.Cell(paramRow, col++);
                     cell.Value = header;
@@ -123,6 +89,20 @@ namespace logReader
 
             ws.SheetView.FreezeRows(headerRows);
             return headerRows + 1;
+        }
+
+        public static void AutoFitColumns(IXLWorksheet ws)
+        {
+            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+            ws.Columns().AdjustToContents(1, Math.Min(lastRow, AutoFitSampleRows));
+        }
+
+        public static void SetCellValue(IXLCell cell, Device device, int paramIndex)
+        {
+            if (device.FieldErrors[paramIndex])
+                cell.Value = "ERR";
+            else if (!double.IsNaN(device.Values[paramIndex]))
+                cell.Value = device.Values[paramIndex];
         }
 
         private static void WriteFixedColumn(IXLWorksheet ws, int col, string title, int titleRow, int headerRows)
@@ -136,15 +116,9 @@ namespace logReader
         private static void WriteDeviceIdRow(IXLWorksheet ws, int startCol, string deviceId, int blockCols, XLColor bg)
         {
             int devEndCol = startCol + blockCols - 1;
-
-            if (startCol == devEndCol)
-                ws.Cell(1, startCol).Value = deviceId;
-            else
-            {
+            if (startCol != devEndCol)
                 ws.Range(1, startCol, 1, devEndCol).Merge();
-                ws.Cell(1, startCol).Value = deviceId;
-            }
-
+            ws.Cell(1, startCol).Value = deviceId;
             ApplyDeviceIdHeaderStyle(ws.Cell(1, startCol), bg);
         }
 

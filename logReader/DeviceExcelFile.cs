@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using ClosedXML.Excel;
 using static logReader.XlsxCellReader;
 
@@ -103,15 +103,15 @@ namespace logReader
 
                 string messageName = row.Cell(2).GetString().Trim();
                 bool extended = ParseBool01(row.Cell(3), defaultValue: true);
-                int dlc = (int)(GetNumber(row.Cell(4)) ?? 8);
-                dlc = Math.Clamp(dlc, 1, 8);
+                int dlc = GetInt(row.Cell(4)) ?? 8;
+                dlc = Math.Clamp(dlc, 0, Device.MaxDataLength);
 
                 string header = row.Cell(6).GetString().Trim();
                 string type = row.Cell(7).GetString().Trim().ToUpperInvariant();
                 if (string.IsNullOrWhiteSpace(type)) type = "NUM";
 
-                int startBit = (int)(GetNumber(row.Cell(8)) ?? 0);
-                int length = (int)(GetNumber(row.Cell(9)) ?? 0);
+                int startBit = GetInt(row.Cell(8)) ?? 0;
+                int length = GetInt(row.Cell(9)) ?? 0;
                 bool littleEndian = ParseByteOrder(row.Cell(10));
                 bool signedRaw = ParseSigned(row.Cell(11));
                 double scale = GetNumber(row.Cell(12)) ?? 1.0;
@@ -120,9 +120,9 @@ namespace logReader
                 if (string.IsNullOrEmpty(unit)) unit = null;
                 double? minP = GetNumber(row.Cell(15));
                 double? maxP = GetNumber(row.Cell(16));
-                int? bitStart = GetNumber(row.Cell(17)) is double b ? (int)b : null;
+                int? bitStart = GetInt(row.Cell(17));
 
-                int fieldIndex = (int)(GetNumber(row.Cell(5)) ?? 0);
+                int fieldIndex = GetInt(row.Cell(5)) ?? 0;
 
                 var field = new DeviceFieldRow(
                     FieldIndex: fieldIndex,
@@ -177,14 +177,10 @@ namespace logReader
 
         public static void WriteAllDevices(string path, IReadOnlyList<DeviceDefinition> devices)
         {
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
             SafeFileWriter.Write(path, tmp =>
             {
-                using var workbook = new XLWorkbook();
-                var ws = workbook.Worksheets.Add("Devices");
+                using var rewriter = XlsxSheetRewriter.Open(path, "Devices", ColCount, RowKey);
+                var ws = rewriter.Sheet;
                 WriteHeader(ws);
 
                 int row = 2;
@@ -194,43 +190,27 @@ namespace logReader
                     foreach (var f in dev.Rows)
                     {
                         WriteRow(ws, row, dev, fieldIndex, f);
+                        rewriter.RestoreExtras(row, Key(dev.DeviceId, f.Header));
                         fieldIndex++;
                         row++;
                     }
                 }
+                rewriter.AppendNoteRows(row);
 
                 ws.SheetView.FreezeRows(1);
-                ws.Columns().AdjustToContents();
-                workbook.SaveAs(tmp);
-            });
+                ExcelLayoutBuilder.AutoFitColumns(ws);
+                rewriter.Workbook.SaveAs(tmp);
+            }, keepBackup: true);
         }
 
-        public static void AppendDeviceFields(string path, string deviceId, IReadOnlyList<DeviceFieldRow> rows, DeviceDefinition? messageMeta = null)
+        private static string? RowKey(IXLRow row)
         {
-            if (string.IsNullOrWhiteSpace(deviceId))
-                throw new ArgumentException("DeviceID не задан.", nameof(deviceId));
-            if (rows == null) throw new ArgumentNullException(nameof(rows));
-            if (!File.Exists(path))
-                throw new FileNotFoundException($"Файл не найден: {path}");
-
-            var all = ReadAllDevices(path);
-            var existing = all.FirstOrDefault(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
-            if (existing == null)
-            {
-                existing = messageMeta ?? new DeviceDefinition
-                {
-                    DeviceId = deviceId,
-                    MessageName = "",
-                    Extended = true,
-                    Dlc = 8
-                };
-                existing.DeviceId = deviceId;
-                all.Add(existing);
-            }
-            foreach (var r in rows) existing.Rows.Add(r);
-
-            WriteAllDevices(path, all);
+            string id = row.Cell(1).GetString().Trim();
+            return id.Length == 0 ? null : Key(id, row.Cell(6).GetString().Trim());
         }
+
+        private static string Key(string deviceId, string? header)
+            => CanId.NormalizeOrUpper(deviceId) + "|" + (header ?? "").Trim();
 
         private static void WriteRow(IXLWorksheet ws, int row, DeviceDefinition dev, int fieldIndex, DeviceFieldRow r)
         {
@@ -243,27 +223,26 @@ namespace logReader
             ws.Cell(row, 5).Value = fieldIndex;
             ws.Cell(row, 6).Value = r.Header ?? "";
             ws.Cell(row, 7).Value = r.Type;
+            ws.Cell(row, 8).Value = r.StartBit;
+            ws.Cell(row, 9).Value = r.Length;
+            ws.Cell(row, 14).Value = r.Unit ?? "";
 
+            // BIN — байт и маска: порядок байт, знак и масштаб к нему не относятся.
             string type = (r.Type ?? "").Trim().ToUpperInvariant();
-            if (type == "NUM")
+            if (type == "BIN")
             {
-                ws.Cell(row, 8).Value = r.StartBit;
-                ws.Cell(row, 9).Value = r.Length;
-                ws.Cell(row, 10).Value = r.IsLittleEndian ? "Intel" : "Motorola";
-                ws.Cell(row, 11).Value = r.SignedRaw ? "-" : "+";
-                ws.Cell(row, 12).Value = r.Scale;
-                ws.Cell(row, 13).Value = r.Offset;
-                ws.Cell(row, 14).Value = r.Unit ?? "";
-                if (r.MinPhys.HasValue) ws.Cell(row, 15).Value = r.MinPhys.Value;
-                if (r.MaxPhys.HasValue) ws.Cell(row, 16).Value = r.MaxPhys.Value;
-            }
-            else if (type == "BIN")
-            {
-                ws.Cell(row, 8).Value = r.StartBit;
-                ws.Cell(row, 9).Value = r.Length;
                 if (r.BitStart.HasValue)
                     ws.Cell(row, 17).Value = r.BitStart.Value;
+                return;
             }
+
+            ws.Cell(row, 10).Value = r.IsLittleEndian ? "Intel" : "Motorola";
+            ws.Cell(row, 11).Value = r.SignedRaw ? "-" : "+";
+            ws.Cell(row, 12).Value = r.Scale;
+            ws.Cell(row, 13).Value = r.Offset;
+            if (r.MinPhys.HasValue) ws.Cell(row, 15).Value = r.MinPhys.Value;
+            if (r.MaxPhys.HasValue) ws.Cell(row, 16).Value = r.MaxPhys.Value;
+            if (r.BitStart.HasValue) ws.Cell(row, 17).Value = r.BitStart.Value;
         }
 
         private static void WriteHeader(IXLWorksheet ws)
@@ -282,10 +261,11 @@ namespace logReader
         private static bool ParseByteOrder(IXLCell cell)
         {
             var s = cell.GetString().Trim();
-            if (s.Length == 0) return true;
-            if (s.Equals("Motorola", StringComparison.OrdinalIgnoreCase) || s.Equals("0", StringComparison.Ordinal))
-                return false;
-            return true;
+            return !(s.Equals("Motorola", StringComparison.OrdinalIgnoreCase)
+                     || s.Equals("0", StringComparison.Ordinal)
+                     || s.Equals("BigEndian", StringComparison.OrdinalIgnoreCase)
+                     || s.Equals("Big", StringComparison.OrdinalIgnoreCase)
+                     || s.Equals("MSB", StringComparison.OrdinalIgnoreCase));
         }
     }
 }

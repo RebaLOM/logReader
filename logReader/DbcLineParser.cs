@@ -9,16 +9,21 @@ namespace logReader
         internal const uint ExtendedIdFlag = 0x80000000u;
         internal const uint IdMask = 0x1FFFFFFFu;
 
+        private const string Number = @"[-+]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:[eE][-+]?\d+)?";
+
         private static readonly Regex MessageRegex = new(
-            @"^BO_\s+(?<id>\d+)\s+(?<name>\S+)\s*:\s*(?<dlc>\d+)\s+(?<tx>\S+)",
+            @"^BO_\s+(?<id>\d+)\s+(?<name>[^\s:]+)\s*:\s*(?<dlc>\d+)\s+(?<tx>\S+)",
             RegexOptions.Compiled);
 
         private static readonly Regex SignalRegexFull = new(
-            @"^SG_\s+(?<name>\S+)\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s+\((?<factor>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?),(?<offset>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\)\s*\[(?<min>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\|(?<max>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\]\s*""(?<unit>[^""]*)""\s+(?<rx>\S+)",
+            @"^SG_\s+(?<name>[^\s:]+)(?:\s+(?<mux>M|m\d+M?))?\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s*" +
+            $@"\(\s*(?<factor>{Number})\s*,\s*(?<offset>{Number})\s*\)\s*\[\s*(?<min>{Number})\s*\|\s*(?<max>{Number})\s*\]\s*" +
+            @"""(?<unit>[^""]*)""\s*(?<rx>.*?)\s*$",
             RegexOptions.Compiled);
 
         private static readonly Regex SignalRegexShort = new(
-            @"^SG_\s+(?<name>\S+)\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s+\((?<factor>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?),(?<offset>[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?)\)",
+            @"^SG_\s+(?<name>[^\s:]+)(?:\s+(?<mux>M|m\d+M?))?\s*:\s*(?<start>\d+)\|(?<length>\d+)@(?<order>[01])(?<sign>[+-])\s*" +
+            $@"\(\s*(?<factor>{Number})\s*,\s*(?<offset>{Number})\s*\)",
             RegexOptions.Compiled);
 
         public readonly struct MessageHeader
@@ -37,12 +42,17 @@ namespace logReader
             var m = MessageRegex.Match(line);
             if (!m.Success) return false;
 
-            uint raw = uint.Parse(m.Groups["id"].Value, CultureInfo.InvariantCulture);
+            // Переполнение uint/int в «BO_ 99999999999 …» — строка не посылка, а не падение всего файла.
+            if (!uint.TryParse(m.Groups["id"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint raw))
+                return false;
+            if (!int.TryParse(m.Groups["dlc"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc))
+                return false;
+
             header = new MessageHeader
             {
                 RawId = raw,
                 Name = m.Groups["name"].Value,
-                Dlc = int.Parse(m.Groups["dlc"].Value, CultureInfo.InvariantCulture),
+                Dlc = dlc,
                 Transmitter = m.Groups["tx"].Value
             };
             return true;
@@ -57,21 +67,53 @@ namespace logReader
             if (!hasFullForm) match = SignalRegexShort.Match(line);
             if (!match.Success) return false;
 
+            if (!int.TryParse(match.Groups["start"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int start)
+                || !int.TryParse(match.Groups["length"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int length)
+                || !TryParseNumber(match.Groups["factor"].Value, out double factor)
+                || !TryParseNumber(match.Groups["offset"].Value, out double offset))
+                return false;
+
+            double min = 0, max = 0;
+            if (hasFullForm
+                && (!TryParseNumber(match.Groups["min"].Value, out min) || !TryParseNumber(match.Groups["max"].Value, out max)))
+                return false;
+
+            string receiver = hasFullForm ? match.Groups["rx"].Value.Trim() : "";
             signal = new DbcSignal
             {
                 Name = match.Groups["name"].Value,
-                StartBit = int.Parse(match.Groups["start"].Value, CultureInfo.InvariantCulture),
-                Length = int.Parse(match.Groups["length"].Value, CultureInfo.InvariantCulture),
+                StartBit = start,
+                Length = length,
                 IsLittleEndian = match.Groups["order"].Value == "1",
                 IsSigned = match.Groups["sign"].Value == "-",
-                Factor = NumberParseHelper.ParseDoubleInvariant(match.Groups["factor"].Value),
-                Offset = NumberParseHelper.ParseDoubleInvariant(match.Groups["offset"].Value),
-                Min = hasFullForm ? NumberParseHelper.ParseDoubleInvariant(match.Groups["min"].Value) : 0,
-                Max = hasFullForm ? NumberParseHelper.ParseDoubleInvariant(match.Groups["max"].Value) : 0,
+                Factor = factor,
+                Offset = offset,
+                Min = min,
+                Max = max,
                 Unit = hasFullForm ? match.Groups["unit"].Value : "",
-                Receiver = hasFullForm ? match.Groups["rx"].Value : "Vector__XXX"
+                Receiver = receiver.Length > 0 ? receiver : "Vector__XXX",
+                MultiplexIndicator = match.Groups["mux"].Value,
             };
+            signal.OriginName = signal.Name;
             return true;
+        }
+
+        private static bool TryParseNumber(string text, out double value)
+        {
+            value = 0;
+            try
+            {
+                value = NumberParseHelper.ParseDoubleInvariant(text);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+            catch (OverflowException)
+            {
+                return false;
+            }
         }
 
         public static bool IsValidSymbolName(string? name)

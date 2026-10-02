@@ -35,8 +35,6 @@ namespace logReader.UI
             MaximizeBox = false;
             ShowInTaskbar = false;
             ClientSize = new Size(680, 472);
-            MinimumSize = Size;
-            MaximumSize = Size;
 
             var labelFormat = new Label
             {
@@ -168,7 +166,11 @@ namespace logReader.UI
                 Size = new Size(75, 26)
             };
             buttonOk.Click += buttonOk_Click;
-            _formatsList.ItemCheck += (_, _) => UpdateOkEnabledState(buttonOk);
+            // ItemCheck приходит до смены флажка: состояние «OK» пересчитывается уже после неё.
+            _formatsList.ItemCheck += (_, _) =>
+            {
+                if (IsHandleCreated) BeginInvoke(() => UpdateOkEnabledState(buttonOk));
+            };
 
             var buttonCancel = new Button
             {
@@ -211,6 +213,7 @@ namespace logReader.UI
             BuildFormatsList(logFolderPath);
             UpdateDstPanelVisibility();
             UpdateOkEnabledState(buttonOk);
+            UiScaling.Apply(this);
         }
 
         private void UpdateDstPanelVisibility()

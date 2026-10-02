@@ -11,4 +11,9 @@
     <PackageReference Include="ClosedXML" Version="0.105.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LOGER" />
+    <InternalsVisibleTo Include="logReader.Tests" />
+  </ItemGroup>
+
 </Project>

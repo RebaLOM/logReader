@@ -30,8 +30,6 @@ namespace logReader.UI
             MaximizeBox = false;
             ShowInTaskbar = false;
             ClientSize = new Size(560, 230);
-            MinimumSize = Size;
-            MaximumSize = Size;
 
             var inputPathLabel = new Label
             {
@@ -157,6 +155,7 @@ namespace logReader.UI
 
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
+            UiScaling.Apply(this);
         }
 
         private async void convertButton_Click(object? sender, EventArgs e)
@@ -310,35 +309,14 @@ namespace logReader.UI
 
         private bool RunConversion(string inputPath, string outPath, FormatConversionPair pair)
         {
-            bool hadError = false;
-            void LogWrap(string message)
+            var context = new ProcessingContext(_log);
+            ProcessingResult result = pair.Id switch
             {
-                if (message.StartsWith("Ошибка:", StringComparison.Ordinal))
-                    hadError = true;
-                _log(message);
-            }
-
-            if (pair.Id == "trc_to_asc")
-            {
-                new TrcToAscConverter().Convert(inputPath, outPath, LogWrap);
-            }
-            else if (pair.Id == "csv_to_asc")
-            {
-                if (!MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, LogFileEncoding.Detect(inputPath)))
-                {
-                    LogWrap($"Ошибка: для конвертации нужен {LogFormatUiNames.Csv}, не {LogFormatUiNames.LegacyCsv}.");
-                    return false;
-                }
-
-                new MatrixCsvToAscConverter().Convert(inputPath, outPath, LogWrap);
-            }
-            else
-            {
-                LogWrap($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.");
-                return false;
-            }
-
-            return File.Exists(outPath) && !hadError;
+                "trc_to_asc" => new TrcToAscConverter().Convert(inputPath, outPath, context),
+                "csv_to_asc" => new MatrixCsvToAscConverter().Convert(inputPath, outPath, context),
+                _ => context.Fail($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.")
+            };
+            return result.Success;
         }
 
         private void SetUiBusy(bool busy)

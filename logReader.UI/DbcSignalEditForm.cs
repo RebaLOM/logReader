@@ -44,14 +44,13 @@ namespace logReader.UI
                 : Array.Empty<string>();
             _siblingSignals = siblingSignals?.ToList() ?? new List<DbcSignal>();
             _currentSignalName = currentSignalName ?? initial?.Name;
-            Signal = initial != null ? Clone(initial) : new DbcSignal();
+            Signal = initial != null ? initial.Clone() : new DbcSignal();
 
             Text = "Signal Details";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(540, 560);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
@@ -62,6 +61,7 @@ namespace logReader.UI
 
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
+            UiScaling.Apply(this);
         }
 
         private void WireGridSync()
@@ -339,7 +339,11 @@ namespace logReader.UI
                 Factor = factor == 0 ? 1.0 : factor,
                 Offset = offset,
                 Unit = _txtUnit.Text.Trim(),
-                Receiver = Signal.Receiver ?? "Vector__XXX"
+                Receiver = Signal.Receiver ?? "Vector__XXX",
+                MultiplexIndicator = Signal.MultiplexIndicator,
+                ValueType = Signal.ValueType,
+                OriginName = Signal.OriginName,
+                TrailingLines = Signal.TrailingLines,
             };
 
             ComputeRawRange(Signal.Length, Signal.IsSigned, out long rawMin, out long rawMax);
@@ -350,19 +354,5 @@ namespace logReader.UI
             Close();
         }
 
-        private static DbcSignal Clone(DbcSignal s) => new()
-        {
-            Name = s.Name,
-            StartBit = s.StartBit,
-            Length = s.Length,
-            IsLittleEndian = s.IsLittleEndian,
-            IsSigned = s.IsSigned,
-            Factor = s.Factor,
-            Offset = s.Offset,
-            Min = s.Min,
-            Max = s.Max,
-            Unit = s.Unit,
-            Receiver = s.Receiver
-        };
     }
 }
