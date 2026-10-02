@@ -24,6 +24,11 @@ namespace logReader.Processing
             out int parsedByteCount)
             => TryParseTrcFrameLine(line, out _, out timeMs, out direction, out id, out dlc, bytes, out parsedByteCount);
 
+        // Раскладка строки определяется по самой строке, поэтому заголовок $COLUMNS не обязателен:
+        //  1.0: «N) O ID L D…»;              1.1: «N) O Rx ID L D…»;
+        //  1.2: «N) O Bus Rx ID L D…»;       1.3: «N) O Bus Rx ID - L D…»;
+        //  2.0: «N O T ID Rx l D…» (l — длина данных); 2.1: «N O T Bus ID Rx - L D…» (L — код DLC).
+        // dlc на выходе — длина данных в байтах.
         internal static bool TryParseTrcFrameLine(
             string line,
             out int messageIndex,
@@ -45,43 +50,111 @@ namespace logReader.Processing
                 return false;
 
             string trimmed = line.TrimStart();
-            if (trimmed.StartsWith(";"))
+            if (trimmed.StartsWith(';'))
                 return false;
 
             var tokens = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length < 5)
+            if (tokens.Length < 4)
                 return false;
 
+            bool versionOne = tokens[0].EndsWith(')');
             if (!TryParseFrameIndex(tokens[0], out messageIndex))
                 return false;
-
             if (!TryParseMilliseconds(tokens[1], out timeMs))
                 return false;
 
-            if (!TryParseDirection(tokens[2], out direction))
-                return false;
+            int idIndex;
+            int lengthIndex;
+            bool lengthIsDlcCode = false;
+            bool isFd = false;
+            direction = "Rx";
 
-            if (!CanToken.TryNormalizeId(tokens[3], out id))
-                return false;
-
-            if (!int.TryParse(tokens[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out dlc))
-                return false;
-            if (dlc < 0)
-                return false;
-
-            for (int i = 5; i < tokens.Length && parsedByteCount < bytes.Length; i++)
+            if (versionOne)
             {
-                if (!CanToken.TryParseHexByte(tokens[i], out int value))
-                    break;
+                if (IsStatusType(tokens[2]))
+                    return false;
+                if (TryParseDirection(tokens[2], out direction))
+                {
+                    idIndex = 3;
+                    lengthIndex = 4;
+                }
+                else if (IsBusNumber(tokens[2]) && tokens.Length > 4 && TryParseDirection(tokens[3], out direction))
+                {
+                    idIndex = 4;
+                    lengthIndex = tokens.Length > 5 && tokens[5] == "-" ? 6 : 5;
+                }
+                else
+                {
+                    direction = "Rx";
+                    idIndex = 2;
+                    lengthIndex = 3;
+                }
+            }
+            else
+            {
+                if (!TryParseFrameType(tokens[2], out isFd))
+                    return false;
+                if (tokens.Length > 4 && TryParseDirection(tokens[4], out direction))
+                {
+                    idIndex = 3;
+                    lengthIndex = 5;
+                }
+                else if (tokens.Length > 5 && IsBusNumber(tokens[3]) && TryParseDirection(tokens[5], out direction))
+                {
+                    idIndex = 4;
+                    lengthIndex = tokens.Length > 6 && tokens[6] == "-" ? 7 : 6;
+                    lengthIsDlcCode = true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
 
+            if (lengthIndex >= tokens.Length || !CanToken.TryNormalizeId(tokens[idIndex], out id))
+                return false;
+            if (!int.TryParse(tokens[lengthIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out int lengthField) || lengthField < 0)
+                return false;
+
+            dlc = lengthIsDlcCode && isFd ? VectorCanFdAscWriter.LengthForDlc(lengthField) : lengthField;
+
+            // RTR и прочие кадры без данных («RTR» вместо байтов) пропускаются.
+            int expected = Math.Min(dlc, bytes.Length);
+            int dataStart = lengthIndex + 1;
+            for (int i = 0; i < expected; i++)
+            {
+                if (dataStart + i >= tokens.Length || !CanToken.TryParseHexByte(tokens[dataStart + i], out int value))
+                    return false;
                 bytes[parsedByteCount++] = value;
             }
 
-            int expectedByteCount = Math.Min(dlc, bytes.Length);
-            if (expectedByteCount > 0 && parsedByteCount < expectedByteCount)
-                return false;
+            return dataStart >= tokens.Length || !tokens[dataStart].Equals("RTR", StringComparison.OrdinalIgnoreCase);
+        }
 
-            return true;
+        private static bool IsBusNumber(string token)
+            => int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out int bus) && bus is >= 0 and < 100;
+
+        private static bool IsStatusType(string token)
+            => token.Equals("Warng", StringComparison.OrdinalIgnoreCase)
+               || token.Equals("Error", StringComparison.OrdinalIgnoreCase);
+
+        // Типы записей TRC 2.x: DT — CAN, FD/FB/FE/BI — CAN FD; RR (remote), ST/EC/ER/EV (статус, ошибки, события) — без данных.
+        private static bool TryParseFrameType(string token, out bool isFd)
+        {
+            isFd = false;
+            switch (token.ToUpperInvariant())
+            {
+                case "DT":
+                    return true;
+                case "FD":
+                case "FB":
+                case "FE":
+                case "BI":
+                    isFd = true;
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         internal static DateTime? ParseStartTime(string path, System.Text.Encoding encoding)
