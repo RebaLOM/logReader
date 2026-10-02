@@ -46,7 +46,8 @@ namespace logReader
 
         public static List<CompositeSignal> ReadAll(string path) => ReadAll(path, null);
 
-        public static List<CompositeSignal> ReadAll(string path, Action<string>? log)
+        // skippedRows — номера строк, отброшенных как некорректные (редактор предупреждает о них до сохранения).
+        public static List<CompositeSignal> ReadAll(string path, Action<string>? log, List<int>? skippedRows = null)
         {
             var logger = log ?? (_ => { });
 
@@ -77,6 +78,7 @@ namespace logReader
                 if (string.IsNullOrWhiteSpace(sourceId))
                 {
                     logger($"Составные: строка {rowNum}: пустой SourceID — пропуск.");
+                    skippedRows?.Add(rowNum);
                     continue;
                 }
 
@@ -92,21 +94,25 @@ namespace logReader
                 if (byteIdx < 0 || byteIdx > 7)
                 {
                     logger($"Составные: строка {rowNum} ('{param}'): Byte должен быть 0..7 — пропуск куска.");
+                    skippedRows?.Add(rowNum);
                     continue;
                 }
                 if (bitStart < 0 || bitStart > 7)
                 {
                     logger($"Составные: строка {rowNum} ('{param}'): BitStart должен быть 0..7 — пропуск куска.");
+                    skippedRows?.Add(rowNum);
                     continue;
                 }
                 if (bitLen < 1 || bitLen > 8)
                 {
                     logger($"Составные: строка {rowNum} ('{param}'): BitLen должен быть 1..8 — пропуск куска.");
+                    skippedRows?.Add(rowNum);
                     continue;
                 }
                 if (bitStart + bitLen > 8)
                 {
                     logger($"Составные: строка {rowNum} ('{param}'): BitStart+BitLen не должны превышать 8 — пропуск куска.");
+                    skippedRows?.Add(rowNum);
                     continue;
                 }
 
@@ -166,14 +172,10 @@ namespace logReader
 
         public static void WriteAll(string path, IReadOnlyList<CompositeSignal> signals)
         {
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
             SafeFileWriter.Write(path, tmp =>
             {
-                using var workbook = new XLWorkbook();
-                var ws = workbook.Worksheets.Add("Composites");
+                using var rewriter = XlsxSheetRewriter.Open(path, "Composites", ColCount, RowKey);
+                var ws = rewriter.Sheet;
                 WriteHeader(ws);
 
                 int row = 2;
@@ -214,15 +216,29 @@ namespace logReader
                             if (sig.Max.HasValue) ws.Cell(row, 14).Value = sig.Max.Value;
                         }
 
+                        rewriter.RestoreExtras(row, Key(sig.Block, sig.Param, i));
                         row++;
                     }
                 }
+                rewriter.AppendNoteRows(row);
 
                 ws.SheetView.FreezeRows(1);
-                ws.Columns().AdjustToContents();
-                workbook.SaveAs(tmp);
+                ExcelLayoutBuilder.AutoFitColumns(ws);
+                rewriter.Workbook.SaveAs(tmp);
             }, keepBackup: true);
         }
+
+        private static string? RowKey(IXLRow row)
+        {
+            string param = row.Cell(2).GetString().Trim();
+            if (param.Length == 0) return null;
+            string block = row.Cell(1).GetString().Trim();
+            int piece = GetInt(row.Cell(3)) ?? 0;
+            return Key(block.Length == 0 ? CompositeDefaults.BlockName : block, param, piece);
+        }
+
+        private static string Key(string block, string param, int piece)
+            => block + "|" + param + "|" + piece.ToString(CultureInfo.InvariantCulture);
 
         private static int LastIndexOfSource(CompositeSignal sig, string sourceId)
         {
