@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Логи CANfox/PCAN-View: Date и Len в файле есть, для декодирования используем Time и Data.
     internal static class CanfoxLogParser

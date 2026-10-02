@@ -1,7 +1,7 @@
 using System.Text;
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal sealed class DstConnectTrcProcessor
     {

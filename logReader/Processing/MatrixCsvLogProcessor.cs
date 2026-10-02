@@ -3,7 +3,7 @@ using System.Text;
 using ClosedXML.Excel;
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal sealed class MatrixCsvLogProcessor
     {

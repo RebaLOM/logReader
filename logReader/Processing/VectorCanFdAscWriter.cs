@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Запись Vector ASC в формате CAN FD — тот же, что читает AscLogParser.
     internal static class VectorCanFdAscWriter

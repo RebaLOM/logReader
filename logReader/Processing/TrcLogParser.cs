@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal static class TrcLogParser
     {

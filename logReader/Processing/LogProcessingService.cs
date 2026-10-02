@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Linq;
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Оркестрация обработки логов без WinForms — вынесено из MainForm для тестируемости.
     internal sealed class LogProcessingService

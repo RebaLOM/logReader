@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal static class LogFileEncoding
     {

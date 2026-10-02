@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal class TrcToAscConverter
     {

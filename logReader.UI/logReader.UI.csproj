@@ -20,4 +20,8 @@
 		<ProjectReference Include="..\logReader\logReader.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Using Include="logReader.Processing" />
+	</ItemGroup>
+
 </Project>

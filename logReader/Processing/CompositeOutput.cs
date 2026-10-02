@@ -1,6 +1,6 @@
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Встраивание составных параметров в процессоры с отдельными рядами deviceData.
     internal static class CompositeOutput

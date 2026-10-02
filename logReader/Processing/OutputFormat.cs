@@ -1,4 +1,4 @@
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal enum OutputFormat
     {

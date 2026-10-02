@@ -1,4 +1,4 @@
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Режим пакетной обработки папки с логами.
     internal enum BatchOutputMode

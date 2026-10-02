@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal static class AscLogParser
     {

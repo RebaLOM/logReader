@@ -3,7 +3,7 @@ using System.Text;
 using ClosedXML.Excel;
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Единый вывод time-series в Excel/CSV для всех процессоров с форматом deviceData.
     internal static class TimeSeriesOutputWriter

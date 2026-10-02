@@ -1,7 +1,7 @@
 using System.Globalization;
 using logReader;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     // Общий разбор hex-токенов логов; расхождения между парсерами вынесены в параметры.
     internal static class CanToken

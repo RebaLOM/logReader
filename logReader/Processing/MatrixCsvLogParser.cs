@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace logReader.UI
+namespace logReader.Processing
 {
     internal readonly record struct MatrixCsvColumn(int ColumnIndex, string Id);
 
