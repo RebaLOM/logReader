@@ -114,9 +114,8 @@ namespace logReader.Processing
                     }
                     else // step-csv
                     {
-                        var parts = line.Split(';', 5);
-                        if (parts.Length >= 4 && int.TryParse(parts[3], out int pri) && pri == 1)
-                            id = parts[2].Trim();
+                        if (StepCsvLogParser.TryParseAcceptedId(line, out string parsedId))
+                            id = parsedId;
                     }
 
                     if (!string.IsNullOrEmpty(id))

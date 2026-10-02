@@ -148,8 +148,13 @@ namespace logReader
                 if (sig.Pieces.Count == 0 || string.IsNullOrWhiteSpace(sig.Param))
                     continue;
 
-                if (string.IsNullOrWhiteSpace(sig.TriggerId))
-                    sig.TriggerId = sig.ResolveDefaultTriggerId();
+                // ID лога нормализованы (CanId), поэтому «CFF0008» и «0x0CFF0008» приводим к тому же виду.
+                sig.Pieces = sig.Pieces
+                    .Select(p => p with { SourceId = CanId.NormalizeOrUpper(p.SourceId) })
+                    .ToList();
+                sig.TriggerId = string.IsNullOrWhiteSpace(sig.TriggerId)
+                    ? sig.ResolveDefaultTriggerId()
+                    : CanId.NormalizeOrUpper(sig.TriggerId);
 
                 string block = string.IsNullOrWhiteSpace(sig.Block) ? CompositeDefaults.BlockName : sig.Block;
 

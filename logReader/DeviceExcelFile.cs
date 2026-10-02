@@ -103,15 +103,15 @@ namespace logReader
 
                 string messageName = row.Cell(2).GetString().Trim();
                 bool extended = ParseBool01(row.Cell(3), defaultValue: true);
-                int dlc = (int)(GetNumber(row.Cell(4)) ?? 8);
+                int dlc = GetInt(row.Cell(4)) ?? 8;
                 dlc = Math.Clamp(dlc, 1, 8);
 
                 string header = row.Cell(6).GetString().Trim();
                 string type = row.Cell(7).GetString().Trim().ToUpperInvariant();
                 if (string.IsNullOrWhiteSpace(type)) type = "NUM";
 
-                int startBit = (int)(GetNumber(row.Cell(8)) ?? 0);
-                int length = (int)(GetNumber(row.Cell(9)) ?? 0);
+                int startBit = GetInt(row.Cell(8)) ?? 0;
+                int length = GetInt(row.Cell(9)) ?? 0;
                 bool littleEndian = ParseByteOrder(row.Cell(10));
                 bool signedRaw = ParseSigned(row.Cell(11));
                 double scale = GetNumber(row.Cell(12)) ?? 1.0;
@@ -120,9 +120,9 @@ namespace logReader
                 if (string.IsNullOrEmpty(unit)) unit = null;
                 double? minP = GetNumber(row.Cell(15));
                 double? maxP = GetNumber(row.Cell(16));
-                int? bitStart = GetNumber(row.Cell(17)) is double b ? (int)b : null;
+                int? bitStart = GetInt(row.Cell(17));
 
-                int fieldIndex = (int)(GetNumber(row.Cell(5)) ?? 0);
+                int fieldIndex = GetInt(row.Cell(5)) ?? 0;
 
                 var field = new DeviceFieldRow(
                     FieldIndex: fieldIndex,

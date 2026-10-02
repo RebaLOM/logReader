@@ -53,17 +53,11 @@ namespace logReader.Processing
             {
                 foreach (string line in File.ReadLines(csvPath, encoding))
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    var p = line.Split(';', 5);
-                    if (p.Length < 4) continue;
-                    if (int.TryParse(p[3], out int pri) && pri == 1)
-                    {
-                        string id = p[2].Trim();
-                        if (deviceByID.ContainsKey(id))
-                            seenIDs.Add(id);
-                        if (hasComposites && composites!.IsSourceId(id))
-                            seenSourceIDs.Add(id);
-                    }
+                    if (!StepCsvLogParser.TryParseAcceptedId(line, out string id)) continue;
+                    if (deviceByID.ContainsKey(id))
+                        seenIDs.Add(id);
+                    if (hasComposites && composites!.IsSourceId(id))
+                        seenSourceIDs.Add(id);
                 }
             }
             catch (Exception ex) { log($"Ошибка чтения файла: {ex.Message}"); return; }
@@ -155,7 +149,7 @@ namespace logReader.Processing
                 int priority = 0;
                 if (parts.Length > 3) int.TryParse(parts[3], out priority);
 
-                string id = parts[2].Trim();
+                if (!CanId.TryNormalize(parts[2], out string id)) continue;
                 if (priority == 1 && parts.Length >= 12)
                 {
                     bool valid = true;

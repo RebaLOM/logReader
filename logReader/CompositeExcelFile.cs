@@ -73,7 +73,7 @@ namespace logReader
                 string param = row.Cell(2).GetString().Trim();
                 if (string.IsNullOrWhiteSpace(param)) continue;
 
-                string sourceId = row.Cell(4).GetString().Trim().ToUpperInvariant();
+                string sourceId = CanId.NormalizeOrUpper(row.Cell(4).GetString());
                 if (string.IsNullOrWhiteSpace(sourceId))
                 {
                     logger($"Составные: строка {rowNum}: пустой SourceID — пропуск.");
@@ -83,10 +83,10 @@ namespace logReader
                 string block = row.Cell(1).GetString().Trim();
                 if (string.IsNullOrWhiteSpace(block)) block = CompositeDefaults.BlockName;
 
-                int pieceIdx = (int)(GetNumber(row.Cell(3)) ?? (pieceOrder.TryGetValue(block + "|" + param, out var pl) ? pl.Count : 0));
-                int byteIdx = (int)(GetNumber(row.Cell(5)) ?? -1);
-                int bitStart = (int)(GetNumber(row.Cell(6)) ?? 0);
-                int bitLen = (int)(GetNumber(row.Cell(7)) ?? 8);
+                int pieceIdx = GetInt(row.Cell(3)) ?? (pieceOrder.TryGetValue(block + "|" + param, out var pl) ? pl.Count : 0);
+                int byteIdx = GetInt(row.Cell(5)) ?? -1;
+                int bitStart = GetInt(row.Cell(6)) ?? 0;
+                int bitLen = GetInt(row.Cell(7)) ?? 8;
                 bool isTrigger = ParseBool01(row.Cell(8));
 
                 if (byteIdx < 0 || byteIdx > 7)

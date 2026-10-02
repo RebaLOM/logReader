@@ -133,13 +133,9 @@ namespace logReader.UI
                 }
                 else
                 {
-                    // Как в CanLogProcessor: только priority==1 (заголовок и дубли — иначе).
-                    var parts = line.Split(';');
-                    if (parts.Length < 4)
+                    // Как в CanLogProcessor: только принятые кадры (признак = 1).
+                    if (!StepCsvLogParser.TryParseAcceptedId(line, out id))
                         continue;
-                    if (!int.TryParse(parts[3], out int pri) || pri != 1)
-                        continue;
-                    id = parts[2].Trim();
                 }
 
                 if (string.IsNullOrWhiteSpace(id))
