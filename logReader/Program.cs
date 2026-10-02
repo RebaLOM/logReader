@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -13,17 +13,9 @@ namespace logReader
         public string ID;
         public string Name = "Unknown";
         public int DLC = 8;
-        public bool IsExtendedId = false;
         public string[] headers;
         public int[] RawBytes = new int[8];
-        public string[] RawBinaries = new string[8];
         public string[] ProcessedData;
-
-        public void ToBinaries(int index)
-        {
-            if (index < 0 || index >= RawBytes.Length) return;
-            RawBinaries[index] = Convert.ToString(RawBytes[index], 2).PadLeft(8, '0');
-        }
 
         public Device(string ID, int headersCount)
         {
@@ -232,267 +224,14 @@ namespace logReader
         }
     }
 
-    // Жёстко закодированные устройства (legacy CSV-описания).
-    internal class Device_180128D0 : Device
-    {
-        public Device_180128D0() : base("180128D0", 2)
-        {
-            headers[0] = "Текущий максимальный предел крутящего момента";
-            headers[1] = "Целевая скорость";
-        }
-        public override void Decode()
-        {
-            int rawTorque = (RawBytes[3] * 256) + RawBytes[2];
-            ProcessedData[0] = (rawTorque - 10000).ToString(CultureInfo.InvariantCulture);
-            int rawSpeed = (RawBytes[5] * 256) + RawBytes[4];
-            ProcessedData[1] = ((rawSpeed * 0.5) - 15000).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_1801D0EF : Device
-    {
-        public Device_1801D0EF() : base("1801D0EF", 4)
-        {
-            headers[0] = "Напряжение шины";
-            headers[1] = "Температура контроллера мотора";
-            headers[2] = "Температура мотора";
-            headers[3] = "Ток шины";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = ((RawBytes[3] * 256) + RawBytes[2]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (RawBytes[4] - 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = (RawBytes[5] - 40).ToString(CultureInfo.InvariantCulture);
-            double busCurrent = ((RawBytes[7] * 256) + RawBytes[6]) * 0.1 - 20000;
-            ProcessedData[3] = busCurrent.ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_1802D0EF : Device
-    {
-        public Device_1802D0EF() : base("1802D0EF", 4)
-        {
-            headers[0] = "Трехфазный выходной ток";
-            headers[1] = "Текущий крутящий момент двигателя";
-            headers[2] = "Фактический крутящий момент";
-            headers[3] = "Верхний предел крутящего момента";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.1).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = ((RawBytes[3] * 256) + RawBytes[2] - 30000).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = ((RawBytes[5] * 256) + RawBytes[4] - 10000).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[3] = ((RawBytes[7] * 256) + RawBytes[6] - 10000).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF0101 : Device
-    {
-        public Device_18FF0101() : base("18FF0101", 2)
-        {
-            headers[0] = "Команда управления скоростью";
-            headers[1] = "Команда управления крутящим моментом";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF0201 : Device
-    {
-        public Device_18FF0201() : base("18FF0201", 2)
-        {
-            headers[0] = "Команда управления скоростью";
-            headers[1] = "Команда управления крутящим моментом";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF31F1 : Device
-    {
-        public Device_18FF31F1() : base("18FF31F1", 3)
-        {
-            headers[0] = "Фактическая скорость вращения двигателя";
-            headers[1] = "Фактический крутящий момент двигателя";
-            headers[2] = "Максимальный выходной крутящий момент двигателя";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = (RawBytes[4] * 0.5).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF32F1 : Device
-    {
-        public Device_18FF32F1() : base("18FF32F1", 4)
-        {
-            headers[0] = "Напряжение шины постоянного тока";
-            headers[1] = "Ток шины постоянного тока";
-            headers[2] = "Температура двигателя";
-            headers[3] = "Температура преобразователя";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.2).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (((RawBytes[4] * 256) + RawBytes[3]) * 0.4 - 800).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = (RawBytes[6] - 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[3] = (RawBytes[7] - 40).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF35F1 : Device
-    {
-        public Device_18FF35F1() : base("18FF35F1", 1)
-        {
-            headers[0] = "Сбои СУ двигателя";
-        }
-        public override void Decode()
-        {
-            ToBinaries(1);
-            string bin = RawBinaries[1] ?? "00000000";
-            if (bin.Length >= 6)
-                ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString(CultureInfo.InvariantCulture);
-            else
-                ProcessedData[0] = "0";
-        }
-    }
-
-    internal class Device_18FF41F1 : Device
-    {
-        public Device_18FF41F1() : base("18FF41F1", 3)
-        {
-            headers[0] = "Фактическая скорость вращения двигателя";
-            headers[1] = "Фактический крутящий момент двигателя";
-            headers[2] = "Максимальный выходной крутящий момент двигателя";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.5 - 15000).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (((RawBytes[3] * 256) + RawBytes[2]) * 0.1 - 3200).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = (RawBytes[4] * 0.5).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF42F1 : Device
-    {
-        public Device_18FF42F1() : base("18FF42F1", 4)
-        {
-            headers[0] = "Напряжение шины постоянного тока";
-            headers[1] = "Ток шины постоянного тока";
-            headers[2] = "Температура двигателя";
-            headers[3] = "Температура преобразователя";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = (((RawBytes[1] * 256) + RawBytes[0]) * 0.2).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (((RawBytes[4] * 256) + RawBytes[3]) * 0.4 - 800).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = (RawBytes[6] - 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[3] = (RawBytes[7] - 40).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_18FF45F1 : Device
-    {
-        public Device_18FF45F1() : base("18FF45F1", 1)
-        {
-            headers[0] = "Сбои СУ двигателя";
-        }
-        public override void Decode()
-        {
-            ToBinaries(1);
-            string bin = RawBinaries[1] ?? "00000000";
-            if (bin.Length >= 6)
-                ProcessedData[0] = Convert.ToInt32(bin.Substring(0, 6), 2).ToString(CultureInfo.InvariantCulture);
-            else
-                ProcessedData[0] = "0";
-        }
-    }
-
-    internal class Device_1FEEFF85 : Device
-    {
-        public Device_1FEEFF85() : base("1FEEFF85", 5)
-        {
-            headers[0] = "Минимальное напряжение на блоке, мВ";
-            headers[1] = "Максимальное напряжение на блоке, мВ";
-            headers[2] = "Минимальная температура ячейки";
-            headers[3] = "Максимальная температура ячейки";
-            headers[4] = "Состояние заряда SOC, %";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = ((RawBytes[0] * 256) + RawBytes[1]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = ((RawBytes[2] * 256) + RawBytes[3]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = (RawBytes[4] - 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[3] = (RawBytes[5] - 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[4] = RawBytes[6].ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_1FEEFF87 : Device
-    {
-        public Device_1FEEFF87() : base("1FEEFF87", 4)
-        {
-            headers[0] = "Напряжение на входе контакторов, В";
-            headers[1] = "Напряжение на выходе контакторов, В";
-            headers[2] = "Напряжение батареи, В";
-            headers[3] = "Дисбаланс батареи, мВ";
-        }
-        public override void Decode()
-        {
-            ProcessedData[0] = ((RawBytes[1] * 256) + RawBytes[0]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = ((RawBytes[3] * 256) + RawBytes[2]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = ((RawBytes[5] * 256) + RawBytes[4]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[3] = ((RawBytes[7] * 256) + RawBytes[6]).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    internal class Device_1FEEFF88 : Device
-    {
-        public Device_1FEEFF88() : base("1FEEFF88", 5)
-        {
-            headers[0] = "Температура охлаждающей жидкости на входе";
-            headers[1] = "Температура охлаждающей жидкости на выходе";
-            headers[2] = "Сопротивление изоляции (текущее)";
-            headers[3] = "Сопротивление изоляции (выключено)";
-            headers[4] = "Счетчик измерений сопротивления изоляции";
-        }
-        public override void Decode()
-        {
-            
-            ProcessedData[0] = (RawBytes[0] + 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[1] = (RawBytes[1] + 40).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[2] = ((RawBytes[3] * 256) + RawBytes[2]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[3] = ((RawBytes[5] * 256) + RawBytes[4]).ToString(CultureInfo.InvariantCulture);
-            ProcessedData[4] = ((RawBytes[7] * 256) + RawBytes[6]).ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
     public class Program
     {
-        public static readonly XLColor[] DeviceColors = ExcelLayoutBuilder.DeviceColors;
-
-        public static int BuildExcelHeaders(
-            IXLWorksheet ws, List<Device> devices)
-            => BuildExcelHeaders(ws, devices, null, null, includeDeviceIdRow: false);
-
         public static int BuildExcelHeaders(
             IXLWorksheet ws, List<Device> devices,
             Dictionary<string, bool>? deviceEnabled,
             Dictionary<string, bool[]>? paramEnabled,
             bool includeDeviceIdRow = false)
             => ExcelLayoutBuilder.BuildStepLogHeaders(ws, devices, deviceEnabled, paramEnabled, includeDeviceIdRow);
-
-        public static int BuildExcelRow(
-            IXLWorksheet ws, int excelRow, int step, string time, List<Device> devices)
-            => BuildExcelRow(ws, excelRow, step, time, devices, null, null);
 
         public static int BuildExcelRow(
             IXLWorksheet ws, int excelRow, int step, string time,
@@ -686,12 +425,6 @@ namespace logReader
                 {
                     for (int i = 0; i < d.RawBytes.Length; i++)
                         d.RawBytes[i] = 0;
-                }
-
-                if (d.RawBinaries != null)
-                {
-                    for (int i = 0; i < d.RawBinaries.Length; i++)
-                        d.RawBinaries[i] = "";
                 }
 
                 if (d.ProcessedData != null)

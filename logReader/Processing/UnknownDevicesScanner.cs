@@ -60,9 +60,6 @@ namespace logReader.Processing
             };
         }
 
-        public static List<string> ScanForUnknownDevices(string logPath, List<Device> knownDevices, Action<string>? log = null)
-            => ScanLogDevices(logPath, knownDevices, log).MissingInDevices;
-
         private static void ScanFile(string filePath, HashSet<string> logIds, Action<string>? log = null)
         {
             try

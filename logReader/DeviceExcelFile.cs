@@ -205,33 +205,6 @@ namespace logReader
             });
         }
 
-        public static void AppendDeviceFields(string path, string deviceId, IReadOnlyList<DeviceFieldRow> rows, DeviceDefinition? messageMeta = null)
-        {
-            if (string.IsNullOrWhiteSpace(deviceId))
-                throw new ArgumentException("DeviceID не задан.", nameof(deviceId));
-            if (rows == null) throw new ArgumentNullException(nameof(rows));
-            if (!File.Exists(path))
-                throw new FileNotFoundException($"Файл не найден: {path}");
-
-            var all = ReadAllDevices(path);
-            var existing = all.FirstOrDefault(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
-            if (existing == null)
-            {
-                existing = messageMeta ?? new DeviceDefinition
-                {
-                    DeviceId = deviceId,
-                    MessageName = "",
-                    Extended = true,
-                    Dlc = 8
-                };
-                existing.DeviceId = deviceId;
-                all.Add(existing);
-            }
-            foreach (var r in rows) existing.Rows.Add(r);
-
-            WriteAllDevices(path, all);
-        }
-
         private static void WriteRow(IXLWorksheet ws, int row, DeviceDefinition dev, int fieldIndex, DeviceFieldRow r)
         {
             ws.Cell(row, 1).Value = CanId.TryNormalize(dev.DeviceId, out string normalizedId)
