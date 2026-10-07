@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using logReader.Processing;
 
 namespace logReader.Tests;
@@ -42,7 +43,8 @@ public class DstConnectProcessorTests
 
         Assert.True(result.Success);
         Assert.DoesNotContain(log, l => l.Contains("запасной детект", StringComparison.Ordinal));
-        Assert.Contains(log, l => l.Contains("покрытие 1.00", StringComparison.Ordinal));
+        // :F2 в логе зависит от локали (1.00 / 1,00).
+        Assert.Contains(log, l => Regex.IsMatch(l, @"покрытие 1[.,]00\b"));
         Assert.InRange(result.RowsWritten, 98, 101);
     }
 
