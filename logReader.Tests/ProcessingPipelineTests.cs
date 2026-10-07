@@ -110,22 +110,75 @@ public class ProcessingPipelineTests
     }
 
     [Fact]
-    public void Xlsx_output_over_excel_row_limit_fails_before_writing()
+    public void Xlsx_time_series_over_sheet_row_limit_continues_on_next_sheet()
     {
-        using var dir = new TempDir();
-        var devices = Devices(dir);
-        var collector = new TimeSeriesCollector(devices, OutputFilter.All, TimeAxisKind.Milliseconds);
-        devices[0].SetPayload(new int[8]);
-        devices[0].Decode();
-        for (int i = 0; i < ExcelLayoutBuilder.MaxRows; i++)
-            collector.Record(devices[0], i);
-        string output = dir.File("big.xlsx");
+        int previous = ExcelLayoutBuilder.RowsPerSheet;
+        try
+        {
+            // Шапка = 1 строка → на лист помещается 4 строки данных.
+            ExcelLayoutBuilder.RowsPerSheet = 5;
+            using var dir = new TempDir();
+            var devices = Devices(dir);
+            var collector = new TimeSeriesCollector(devices, OutputFilter.All, TimeAxisKind.Milliseconds);
+            devices[0].SetPayload(new int[8]);
+            devices[0].Decode();
+            for (int i = 0; i < 10; i++)
+                collector.Record(devices[0], i);
+            string output = dir.File("big.xlsx");
 
-        var result = TimeSeriesOutputWriter.Write(collector, output, Settings(OutputFormat.Xlsx), "Log", new ProcessingContext());
+            var result = TimeSeriesOutputWriter.Write(collector, output, Settings(OutputFormat.Xlsx), "Log", new ProcessingContext());
 
-        Assert.False(result.Success);
-        Assert.Contains("CSV", result.Error);
-        Assert.False(File.Exists(output));
+            Assert.True(result.Success);
+            using var wb = new XLWorkbook(output);
+            Assert.Equal(3, wb.Worksheets.Count);
+            Assert.Equal("Log", wb.Worksheet(1).Name);
+            Assert.Equal("Log_2", wb.Worksheet(2).Name);
+            Assert.Equal("Log_3", wb.Worksheet(3).Name);
+            Assert.Equal(0, wb.Worksheet(1).Cell(2, 1).GetDouble());
+            Assert.Equal(4, wb.Worksheet(2).Cell(2, 1).GetDouble());
+            Assert.Equal(8, wb.Worksheet(3).Cell(2, 1).GetDouble());
+            Assert.Equal("Время", wb.Worksheet(2).Cell(1, 1).GetString());
+        }
+        finally
+        {
+            ExcelLayoutBuilder.RowsPerSheet = previous;
+        }
+    }
+
+    [Fact]
+    public void Xlsx_step_output_over_sheet_row_limit_continues_on_next_sheet()
+    {
+        int previous = ExcelLayoutBuilder.RowsPerSheet;
+        try
+        {
+            ExcelLayoutBuilder.RowsPerSheet = 5;
+            using var dir = new TempDir();
+            var devices = Devices(dir);
+            devices[0].SetPayload(new[] { 0x11, 0, 0, 0, 0, 0, 0, 0 });
+            devices[0].Decode();
+            var columns = new[] { new OutputColumnGroup(devices[0], new[] { 0 }) };
+            string output = dir.File("steps.xlsx");
+
+            using (var writer = new StepOutputWriter(output, OutputFormat.Xlsx, columns, includeDeviceIdRow: false))
+            {
+                for (int i = 1; i <= 10; i++)
+                    writer.WriteRow(i, $"t{i}");
+                writer.Complete();
+                Assert.Equal(3, writer.SheetCount);
+            }
+
+            using var wb = new XLWorkbook(output);
+            Assert.Equal(3, wb.Worksheets.Count);
+            Assert.Equal(1, wb.Worksheet(1).Cell(2, 1).GetDouble());
+            Assert.Equal(5, wb.Worksheet(2).Cell(2, 1).GetDouble());
+            Assert.Equal(9, wb.Worksheet(3).Cell(2, 1).GetDouble());
+            Assert.Equal("Шаг", wb.Worksheet(2).Cell(1, 1).GetString());
+            Assert.Equal("Время", wb.Worksheet(2).Cell(1, 2).GetString());
+        }
+        finally
+        {
+            ExcelLayoutBuilder.RowsPerSheet = previous;
+        }
     }
 
     [Fact]

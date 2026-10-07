@@ -140,16 +140,9 @@ namespace logReader.Processing
             try
             {
                 if (settings.Format == OutputFormat.Xlsx)
-                {
-                    int headerRows = ExcelLayoutBuilder.HeaderRowCount(settings.IncludeDeviceIdHeaderRow);
-                    if (maxRows + headerRows > ExcelLayoutBuilder.MaxRows)
-                        return context.Fail(new ExcelRowLimitException().Message);
                     WriteExcel(columns, data.TimeKind, outputPath, sheetName, settings.IncludeDeviceIdHeaderRow, context);
-                }
                 else
-                {
                     WriteCsv(columns, data.TimeKind, outputPath, settings.IncludeDeviceIdHeaderRow, context);
-                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -168,33 +161,51 @@ namespace logReader.Processing
             bool includeDeviceIdRow,
             ProcessingContext context)
         {
-            using var workbook = new XLWorkbook();
-            var ws = workbook.Worksheets.Add(sheetName);
-            int firstDataRow = ExcelLayoutBuilder.BuildTimeSeriesHeaders(ws, columns.Select(c => c.Group).ToList(), includeDeviceIdRow);
+            int headerRows = ExcelLayoutBuilder.HeaderRowCount(includeDeviceIdRow);
+            int dataCapacity = Math.Max(1, ExcelLayoutBuilder.RowsPerSheet - headerRows);
+            int maxRows = columns.Max(c => c.Series.Times.Count);
+            int sheetCount = Math.Max(1, (maxRows + dataCapacity - 1) / dataCapacity);
+            var groups = columns.Select(c => c.Group).ToList();
             string? timeFormat = TimeAxisFormat.ExcelNumberFormat(timeKind);
 
-            int col = 1;
-            foreach (var (group, series) in columns)
+            using var workbook = new XLWorkbook();
+            for (int part = 0; part < sheetCount; part++)
             {
                 context.ThrowIfCancellationRequested();
-                for (int r = 0; r < series.Times.Count; r++)
+                int dataStart = part * dataCapacity;
+                int dataEnd = Math.Min(maxRows, dataStart + dataCapacity);
+
+                var ws = workbook.Worksheets.Add(ExcelLayoutBuilder.SheetNameForPart(sheetName, part + 1));
+                int firstDataRow = ExcelLayoutBuilder.BuildTimeSeriesHeaders(ws, groups, includeDeviceIdRow);
+
+                int col = 1;
+                foreach (var (group, series) in columns)
                 {
-                    int excelRow = firstDataRow + r;
-                    ws.Cell(excelRow, col).Value = series.Times[r];
-                    double[] values = series.Rows[r];
-                    for (int i = 0; i < values.Length; i++)
-                        SetValue(ws.Cell(excelRow, col + 1 + i), values[i]);
+                    int written = 0;
+                    for (int r = dataStart; r < dataEnd && r < series.Times.Count; r++)
+                    {
+                        int excelRow = firstDataRow + (r - dataStart);
+                        ws.Cell(excelRow, col).Value = series.Times[r];
+                        double[] values = series.Rows[r];
+                        for (int i = 0; i < values.Length; i++)
+                            SetValue(ws.Cell(excelRow, col + 1 + i), values[i]);
+                        written++;
+                    }
+
+                    if (timeFormat != null && written > 0)
+                        ws.Range(firstDataRow, col, firstDataRow + written - 1, col).Style.NumberFormat.Format = timeFormat;
+
+                    col += 1 + group.ParamIndexes.Length;
                 }
-
-                if (timeFormat != null && series.Times.Count > 0)
-                    ws.Range(firstDataRow, col, firstDataRow + series.Times.Count - 1, col).Style.NumberFormat.Format = timeFormat;
-
-                col += 1 + group.ParamIndexes.Length;
             }
+
+            if (sheetCount > 1)
+                context.Log($"XLSX: данные разбиты на {sheetCount} лист(а/ов) (лимит {ExcelLayoutBuilder.RowsPerSheet:N0} строк на лист).");
 
             SafeFileWriter.Write(outputPath, tmp =>
             {
-                ExcelLayoutBuilder.AutoFitColumns(ws);
+                foreach (var ws in workbook.Worksheets)
+                    ExcelLayoutBuilder.AutoFitColumns(ws);
                 workbook.SaveAs(tmp);
             });
         }

@@ -7,9 +7,33 @@ namespace logReader
     {
         public const int MaxRows = 1_048_576;
 
+        // Лимит строк на лист (включая шапку). В тестах можно временно уменьшить.
+        internal static int RowsPerSheet { get; set; } = MaxRows;
+
         // Ширина колонок подбирается по первым строкам: полный AdjustToContents на сотнях тысяч
         // строк занимает больше времени, чем вся обработка лога.
         public const int AutoFitSampleRows = 300;
+
+        // Имя листа Excel ≤ 31 символ; продолжения — base_2, base_3, …
+        public static string SheetNameForPart(string baseName, int partIndex1Based)
+        {
+            string root = string.IsNullOrWhiteSpace(baseName) ? "Log" : baseName.Trim();
+            if (partIndex1Based <= 1)
+                return TruncateSheetName(root, 31);
+
+            string suffix = "_" + partIndex1Based.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return TruncateSheetName(root, 31 - suffix.Length) + suffix;
+        }
+
+        private static string TruncateSheetName(string name, int maxLen)
+        {
+            if (maxLen < 1) maxLen = 1;
+            // Запрещённые в имени листа символы Excel.
+            foreach (char c in new[] { '\\', '/', '?', '*', '[', ']' })
+                name = name.Replace(c, '_');
+            if (name.Length <= maxLen) return name;
+            return name[..maxLen];
+        }
 
         public static readonly XLColor[] DeviceColors =
         {

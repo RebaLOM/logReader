@@ -131,10 +131,8 @@ namespace logReader.Processing
                     return context.Fail("Ошибка: в файлах нет строк данных.");
 
                 writer.Complete();
-            }
-            catch (ExcelRowLimitException ex)
-            {
-                return context.Fail("Ошибка: " + ex.Message);
+                if (writer.SheetCount > 1)
+                    context.Log($"XLSX: данные разбиты на {writer.SheetCount} лист(а/ов) (лимит {ExcelLayoutBuilder.RowsPerSheet:N0} строк на лист).");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

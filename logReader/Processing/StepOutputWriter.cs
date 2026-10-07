@@ -4,29 +4,34 @@ namespace logReader.Processing
 {
     // Step-таблица («Шаг», «Время», параметры устройств) с построчной записью в CSV или XLSX.
     // До Complete() результат пишется во временный файл; Dispose без Complete удаляет его.
+    // При заполнении листа Excel создаётся следующий (Log, Log_2, …) с той же шапкой.
     internal sealed class StepOutputWriter : IDisposable
     {
         private readonly string _outputPath;
         private readonly IReadOnlyList<OutputColumnGroup> _columns;
+        private readonly bool _includeDeviceIdRow;
         private readonly List<string> _row = new();
         private string? _csvTempPath;
         private StreamWriter? _csv;
         private XLWorkbook? _workbook;
         private IXLWorksheet? _sheet;
         private int _excelRow;
+        private int _sheetPart = 1;
+        private readonly string _sheetBaseName = "Log";
 
         public long RowsWritten { get; private set; }
+        public int SheetCount { get; private set; }
 
         public StepOutputWriter(string outputPath, OutputFormat format, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow)
         {
             _outputPath = outputPath;
             _columns = columns;
+            _includeDeviceIdRow = includeDeviceIdRow;
 
             if (format == OutputFormat.Xlsx)
             {
                 _workbook = new XLWorkbook();
-                _sheet = _workbook.Worksheets.Add("Log");
-                _excelRow = ExcelLayoutBuilder.BuildStepLogHeaders(_sheet, columns, includeDeviceIdRow);
+                StartNewSheet();
                 return;
             }
 
@@ -39,8 +44,8 @@ namespace logReader.Processing
         {
             if (_sheet != null)
             {
-                if (_excelRow > ExcelLayoutBuilder.MaxRows)
-                    throw new ExcelRowLimitException();
+                if (_excelRow > ExcelLayoutBuilder.RowsPerSheet)
+                    StartNewSheet();
 
                 _sheet.Cell(_excelRow, 1).Value = step;
                 _sheet.Cell(_excelRow, 2).Value = time;
@@ -70,7 +75,8 @@ namespace logReader.Processing
             {
                 SafeFileWriter.Write(_outputPath, tmp =>
                 {
-                    ExcelLayoutBuilder.AutoFitColumns(_sheet!);
+                    foreach (var ws in _workbook.Worksheets)
+                        ExcelLayoutBuilder.AutoFitColumns(ws);
                     _workbook.SaveAs(tmp);
                 });
                 return;
@@ -87,6 +93,15 @@ namespace logReader.Processing
             _csv?.Dispose();
             SafeFileWriter.TryDelete(_csvTempPath);
             _workbook?.Dispose();
+        }
+
+        private void StartNewSheet()
+        {
+            string name = ExcelLayoutBuilder.SheetNameForPart(_sheetBaseName, _sheetPart);
+            _sheet = _workbook!.Worksheets.Add(name);
+            _excelRow = ExcelLayoutBuilder.BuildStepLogHeaders(_sheet, _columns, _includeDeviceIdRow);
+            SheetCount = _sheetPart;
+            _sheetPart++;
         }
 
         private void WriteCsvHeaders(bool includeDeviceIdRow)
@@ -108,14 +123,6 @@ namespace logReader.Processing
             foreach (var group in _columns)
                 headerRow.AddRange(group.Headers.Select(CsvOutput.Text));
             CsvOutput.WriteRow(_csv!, headerRow);
-        }
-    }
-
-    internal sealed class ExcelRowLimitException : Exception
-    {
-        public ExcelRowLimitException()
-            : base($"Результат не помещается в лист Excel ({ExcelLayoutBuilder.MaxRows:N0} строк). Выберите формат CSV или уменьшите объём данных фильтрами.")
-        {
         }
     }
 }
