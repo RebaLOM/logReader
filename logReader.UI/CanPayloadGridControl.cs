@@ -24,14 +24,12 @@ namespace logReader.UI
 
     internal sealed class CanPayloadGridControl : UserControl
     {
-        // Размеры заданы для 96 DPI и пересчитываются в пиксели устройства.
-        private int CellSize => LogicalToDeviceUnits(24);
-        private int LabelColWidth => LogicalToDeviceUnits(34);
-        private int HeaderRowHeight => LogicalToDeviceUnits(22);
-        private int LegendRowHeight => LogicalToDeviceUnits(18);
-
-        private static readonly Color EmptyCell = Color.FromArgb(240, 242, 245);
-        private static readonly Color ConflictColor = Color.FromArgb(220, 53, 69);
+        private int CellSize => UiScale.Px(this, 28);
+        private int LabelColWidth => UiScale.Px(this, 40);
+        private int HeaderRowHeight => UiScale.Px(this, 28);
+        private int LegendRowHeight => UiScale.Px(this, 24);
+        private Color EmptyCell => AppTheme.SurfaceSecondary;
+        private Color ConflictColor => AppTheme.Error;
 
         private int _dlc = 8;
         private CanPayloadGridMode _mode = CanPayloadGridMode.View;
@@ -47,13 +45,21 @@ namespace logReader.UI
         private List<SignalOverlay> _overlays = new();
         private int? _dragAnchorBit;
         private int? _dragHoverBit;
+        private int? _hoverBit;
+        private readonly ToolTip _toolTip = new() { InitialDelay = 350, ReshowDelay = 100, AutoPopDelay = 8000 };
 
         public CanPayloadGridControl()
         {
             DoubleBuffered = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
-            BackColor = Color.White;
-            TabStop = false;
+            BackColor = AppTheme.Surface;
+            ForeColor = AppTheme.TextPrimary;
+            Font = Typography.Mono;
+            TabStop = true;
+            AccessibleRole = AccessibleRole.Graphic;
+            AccessibleName = "Карта битов CAN";
+            AccessibleDescription = "В редакторе выберите биты мышью. Стрелки перемещают начало, Shift и стрелки изменяют длину.";
+            RebuildSelectionBits();
             UpdatePreferredSize();
         }
 
@@ -120,7 +126,7 @@ namespace logReader.UI
             get => _binByteIndex;
             set
             {
-                int v = Math.Clamp(value, 0, _dlc - 1);
+                int v = Math.Clamp(value, 0, 7);
                 if (_binByteIndex == v) return;
                 _binByteIndex = v;
                 Invalidate();
@@ -136,6 +142,7 @@ namespace logReader.UI
             {
                 if (_littleEndian == value) return;
                 _littleEndian = value;
+                RebuildSelectionBits();
                 Invalidate();
             }
         }
@@ -198,7 +205,7 @@ namespace logReader.UI
 
         public void SetSelectionFromFields(int byteIndex, int bitInByte, int length, bool littleEndian, bool fireEvent = true)
         {
-            _littleEndian = littleEndian;
+            IsLittleEndian = littleEndian;
             int start = BitMath.CellToGlobalBit(byteIndex, bitInByte);
             SetSelection(start, length, fireEvent);
         }
@@ -221,6 +228,25 @@ namespace logReader.UI
             UpdatePreferredSize();
         }
 
+        private void UpdatePreferredSize()
+        {
+            int gridH = HeaderRowHeight + _dlc * CellSize + UiScale.Px(this, 8);
+            int legendH = _showLegend && _overlays.Count > 0 ? UiScale.Px(this, 8) + _overlays.DistinctBy(o => o.Name).Count() * LegendRowHeight : 0;
+            int w = LabelColWidth + 8 * CellSize + UiScale.Px(this, 16);
+            int h = gridH + legendH + UiScale.Px(this, 4);
+            MinimumSize = new Size(w, h);
+            Size = new Size(w, h);
+        }
+
+        public override Size GetPreferredSize(Size proposedSize)
+            => MinimumSize;
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            UpdatePreferredSize();
+        }
+
         protected override void OnDpiChangedAfterParent(EventArgs e)
         {
             base.OnDpiChangedAfterParent(e);
@@ -228,14 +254,16 @@ namespace logReader.UI
             Invalidate();
         }
 
-        private void UpdatePreferredSize()
+        protected override void OnGotFocus(EventArgs e)
         {
-            int gridH = HeaderRowHeight + _dlc * CellSize + LogicalToDeviceUnits(8);
-            int legendH = _showLegend && _overlays.Count > 0 ? LogicalToDeviceUnits(6) + _overlays.Count * LegendRowHeight : 0;
-            int w = LabelColWidth + 8 * CellSize + LogicalToDeviceUnits(16);
-            int h = gridH + legendH + LogicalToDeviceUnits(4);
-            MinimumSize = new Size(w, h);
-            Size = new Size(w, h);
+            base.OnGotFocus(e);
+            Invalidate();
+        }
+
+        protected override void OnLostFocus(EventArgs e)
+        {
+            base.OnLostFocus(e);
+            Invalidate();
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -262,24 +290,26 @@ namespace logReader.UI
                     }
                 }
             }
+            var occupiedByOther = new HashSet<int>();
+            if (_mode == CanPayloadGridMode.Edit)
+                foreach (var overlay in _overlays.Where(o => !o.IsCurrent))
+                    foreach (int bit in BitMath.EnumerateSignalBits(overlay.StartBit, overlay.Length, overlay.IsLittleEndian))
+                        if (bit >= 0 && bit < payloadBits) occupiedByOther.Add(bit);
+            HashSet<int>? dragPreview = null;
+            if (_dragAnchorBit is int dragAnchor && _dragHoverBit is int dragHover
+                && TryPreviewBits(dragAnchor, dragHover, payloadBits, out var previewBits))
+                dragPreview = previewBits;
 
-            using var gridPen = new Pen(Color.FromArgb(180, 180, 190));
-            using var selectionPen = new Pen(Color.FromArgb(30, 60, 120), Math.Max(2, LogicalToDeviceUnits(2)));
-            using var previewBrush = new SolidBrush(Color.FromArgb(90, 100, 149, 237));
-            HashSet<int>? preview = null;
-            if (_dragAnchorBit is int anchor && _dragHoverBit is int hover
-                && TryPreviewBits(anchor, hover, payloadBits, out var previewBits))
-                preview = previewBits;
+            using var gridPen = new Pen(AppTheme.Border);
+            using var selectionPen = new Pen(AppTheme.Primary, UiScale.Px(this, 2));
+            using var previewBrush = new SolidBrush(Color.FromArgb(90, AppTheme.Primary));
 
             for (int row = 0; row < _dlc; row++)
             {
-                if (_binByteMode && row != _binByteIndex)
-                    continue;
-
                 int y = HeaderRowHeight + row * CellSize;
                 string rowLabel = $"B{row}";
                 TextRenderer.DrawText(g, rowLabel, Font, new Rectangle(0, y, LabelColWidth - 4, CellSize),
-                    ForeColor, TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
+                    _binByteMode && row != _binByteIndex ? AppTheme.TextMuted : ForeColor, TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
 
                 for (int col = 0; col < 8; col++)
                 {
@@ -292,25 +322,33 @@ namespace logReader.UI
                         (_mode == CanPayloadGridMode.Edit && !owners[global]!.IsCurrent)
                         || (viewHighlightActive && !owners[global]!.IsCurrent));
 
+                    bool inactiveByte = _binByteMode && row != _binByteIndex;
+                    bool selected = _mode == CanPayloadGridMode.Edit && _selectionBits.Contains(global) && !inactiveByte;
                     Color fill = EmptyCell;
                     var owner = owners[global];
                     if (owner != null)
-                        fill = dimmed ? Blend(owner.Color, EmptyCell, 0.55f) : owner.Color;
+                        fill = Blend(owner.Color, EmptyCell, dimmed ? 0.18f : 0.42f);
 
-                    if (overlapCount[global] > 1)
-                        fill = Blend(ConflictColor, fill, 0.45f);
+                    if (overlapCount[global] > 1 || (selected && occupiedByOther.Contains(global)))
+                        fill = Blend(ConflictColor, fill, 0.28f);
+                    if (selected && owner == null)
+                        fill = AppTheme.PrimarySoft;
+                    if (inactiveByte)
+                        fill = Blend(fill, AppTheme.Surface, 0.18f);
+                    if (_hoverBit == global && !inactiveByte)
+                        fill = Blend(AppTheme.PrimarySoft, fill, 0.5f);
 
                     using var brush = new SolidBrush(fill);
                     g.FillRectangle(brush, rect);
                     g.DrawRectangle(gridPen, rect);
-
-                    bool selected = (_mode == CanPayloadGridMode.Edit && _selectionBits.Contains(global))
-                                    || (viewHighlightActive && currentOverlayBits.Contains(global));
-                    if (selected)
+                    if (selected || (viewHighlightActive && currentOverlayBits.Contains(global)))
                         g.DrawRectangle(selectionPen, Rectangle.Inflate(rect, -1, -1));
 
-                    if (preview != null && preview.Contains(global))
+                    if (dragPreview?.Contains(global) == true)
                         g.FillRectangle(previewBrush, rect);
+                    TextRenderer.DrawText(g, global.ToString(), Font, rect,
+                        inactiveByte ? AppTheme.TextMuted : AppTheme.TextSecondary,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
                 }
             }
 
@@ -320,26 +358,35 @@ namespace logReader.UI
                 int x = LabelColWidth + col * CellSize;
                 TextRenderer.DrawText(g, bitInByte.ToString(System.Globalization.CultureInfo.InvariantCulture), Font,
                     new Rectangle(x, 2, CellSize, HeaderRowHeight - 2),
-                    Color.DimGray, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    AppTheme.TextMuted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
+
+            TextRenderer.DrawText(g, "Байт", Typography.Caption, new Rectangle(0, 0, LabelColWidth, HeaderRowHeight),
+                AppTheme.TextMuted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
 
             if (_showLegend && _overlays.Count > 0)
                 PaintLegend(g);
+            if (Focused)
+            {
+                using var focus = new Pen(AppTheme.Primary, UiScale.Px(this, 1));
+                g.DrawRectangle(focus, 0, 0, Width - 1, Height - 1);
+            }
         }
 
         private void PaintLegend(Graphics g)
         {
-            int y = HeaderRowHeight + _dlc * CellSize + LogicalToDeviceUnits(8);
-            int swatchSize = LogicalToDeviceUnits(12);
-            int textLeft = LogicalToDeviceUnits(22);
+            int y = HeaderRowHeight + _dlc * CellSize + UiScale.Px(this, 8);
+            int swatchSize = UiScale.Px(this, 12);
+            int textLeft = UiScale.Px(this, 24);
             foreach (var ov in _overlays.DistinctBy(o => o.Name))
             {
-                var swatch = new Rectangle(LogicalToDeviceUnits(4), y + (LegendRowHeight - swatchSize) / 2, swatchSize, swatchSize);
+                var swatch = new Rectangle(UiScale.Px(this, 4), y + (LegendRowHeight - swatchSize) / 2, swatchSize, swatchSize);
                 using var brush = new SolidBrush(ov.Color);
                 g.FillRectangle(brush, swatch);
-                g.DrawRectangle(Pens.Gray, swatch);
-                TextRenderer.DrawText(g, ov.Name, Font, new Rectangle(textLeft, y, Width - textLeft - 2, LegendRowHeight),
-                    ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                using var border = new Pen(AppTheme.Border);
+                g.DrawRectangle(border, swatch);
+                TextRenderer.DrawText(g, ov.Name, Typography.Secondary, new Rectangle(textLeft, y, Width - textLeft - UiScale.Px(this, 4), LegendRowHeight),
+                    ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 y += LegendRowHeight;
             }
         }
@@ -373,6 +420,7 @@ namespace logReader.UI
         {
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
+            Focus();
 
             if (_mode == CanPayloadGridMode.View)
             {
@@ -408,10 +456,114 @@ namespace logReader.UI
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            int? hovered = TryHitTest(e.Location, out int hit) ? hit : null;
+            if (_hoverBit != hovered)
+            {
+                _hoverBit = hovered;
+                _toolTip.SetToolTip(this, hovered.HasValue ? DescribeBit(hovered.Value) : null);
+                Cursor = hovered.HasValue ? Cursors.Hand : Cursors.Default;
+                Invalidate();
+            }
             if (_dragAnchorBit is not int anchor) return;
             if (!TryHitTest(e.Location, out int bit)) return;
             _dragHoverBit = bit;
             Invalidate();
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            _hoverBit = null;
+            _toolTip.SetToolTip(this, null);
+            Invalidate();
+        }
+
+        private string DescribeBit(int bit)
+        {
+            var names = _overlays
+                .Where(o => BitMath.EnumerateSignalBits(o.StartBit, o.Length, o.IsLittleEndian).Contains(bit))
+                .Select(o => o.Name)
+                .Distinct()
+                .ToList();
+            string ownership = names.Count == 0 ? "Свободный бит" : string.Join(", ", names);
+            string conflict = names.Count > 1 ? "\nВ этом бите пересекаются сигналы." : "";
+            return $"Байт {bit / 8} · бит {bit % 8} · общий бит {bit}\n{ownership}{conflict}";
+        }
+
+        protected override bool IsInputKey(Keys keyData)
+            => (keyData & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down or Keys.Home or Keys.End
+                || (_mode == CanPayloadGridMode.View && (keyData & Keys.KeyCode) == Keys.Enter)
+                || base.IsInputKey(keyData);
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            int bit = _mode == CanPayloadGridMode.Edit ? _selectionStartBit : _hoverBit ?? 0;
+            int row = Math.Clamp(bit / 8, 0, _dlc - 1);
+            int bitInByte = Math.Clamp(bit % 8, 0, 7);
+            int length = _selectionLength;
+            if (_mode == CanPayloadGridMode.View && e.KeyCode is Keys.Enter or Keys.Space)
+            {
+                HandleViewModeClick(CellRect(row, 7 - bitInByte).Location + new Size(2, 2));
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Shift && _mode == CanPayloadGridMode.Edit)
+            {
+                if (e.KeyCode is Keys.Right or Keys.Down) length++;
+                else if (e.KeyCode is Keys.Left or Keys.Up) length--;
+                else return;
+            }
+            else
+            {
+                switch (e.KeyCode)
+                {
+                    case Keys.Left: bitInByte++; break;
+                    case Keys.Right: bitInByte--; break;
+                    case Keys.Up: row--; break;
+                    case Keys.Down: row++; break;
+                    case Keys.Home: bitInByte = 7; break;
+                    case Keys.End: bitInByte = 0; break;
+                    default: return;
+                }
+            }
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            if (row < 0 || row >= _dlc || bitInByte < 0 || bitInByte > 7 || length < 1) return;
+            if (_binByteMode && (row != _binByteIndex || bitInByte + length > 8)) return;
+            int start = BitMath.CellToGlobalBit(row, bitInByte);
+            if (_mode == CanPayloadGridMode.Edit)
+            {
+                if (BitMath.SignalFitsInDlc(start, length, _littleEndian, _dlc * 8))
+                    SetSelection(start, length);
+            }
+            else
+            {
+                _hoverBit = start;
+                Invalidate();
+            }
+        }
+
+        protected override void OnMouseCaptureChanged(EventArgs e)
+        {
+            base.OnMouseCaptureChanged(e);
+            if (Capture) return;
+            // OnMouseUp consumes the anchor after releasing capture, so defer cleanup there.
+            if ((Control.MouseButtons & MouseButtons.Left) != MouseButtons.None)
+            {
+                _dragAnchorBit = null;
+                _dragHoverBit = null;
+                Invalidate();
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _toolTip.Dispose();
+            base.Dispose(disposing);
         }
 
         protected override void OnMouseUp(MouseEventArgs e)
@@ -498,25 +650,7 @@ namespace logReader.UI
 
     internal static class CanPayloadGridPalette
     {
-        private static readonly Color[] Colors =
-        {
-            Color.FromArgb(91, 141, 239),
-            Color.FromArgb(246, 153, 63),
-            Color.FromArgb(87, 187, 138),
-            Color.FromArgb(214, 96, 150),
-            Color.FromArgb(168, 118, 220),
-            Color.FromArgb(60, 170, 193),
-            Color.FromArgb(220, 176, 74),
-            Color.FromArgb(140, 150, 165),
-            Color.FromArgb(111, 183, 128),
-            Color.FromArgb(196, 120, 90),
-            Color.FromArgb(120, 145, 210),
-            Color.FromArgb(175, 130, 190),
-            Color.FromArgb(100, 175, 160),
-            Color.FromArgb(210, 140, 120),
-            Color.FromArgb(130, 160, 100),
-            Color.FromArgb(170, 110, 110),
-        };
+        private static IReadOnlyList<Color> Colors => AppTheme.PayloadColors;
 
         public static Color ColorForName(string name)
         {
@@ -545,9 +679,9 @@ namespace logReader.UI
         {
             if (!used.Contains(preferred))
                 return preferred;
-            for (int offset = 1; offset < Colors.Length; offset++)
+            for (int offset = 1; offset < Colors.Count; offset++)
             {
-                int idx = (preferred + offset) % Colors.Length;
+                int idx = (preferred + offset) % Colors.Count;
                 if (!used.Contains(idx))
                     return idx;
             }
@@ -555,7 +689,7 @@ namespace logReader.UI
         }
 
         // Math.Abs(int.MinValue) бросает OverflowException — берём хеш без знакового бита.
-        private static int PaletteIndex(string name) => (StableHash(name) & int.MaxValue) % Colors.Length;
+        private static int PaletteIndex(string name) => (StableHash(name) & int.MaxValue) % Colors.Count;
 
         private static int StableHash(string s)
         {
@@ -567,5 +701,6 @@ namespace logReader.UI
                 return h;
             }
         }
+
     }
 }

@@ -6,29 +6,40 @@ namespace logReader.UI
 {
     internal sealed class CompositeParamEditForm : Form
     {
-        private readonly TextBox _txtBlock = new();
-        private readonly TextBox _txtParam = new();
-        private readonly TextBox _txtScale = new();
-        private readonly TextBox _txtOffset = new();
+        private readonly ModernTextBox _txtBlock = new();
+        private readonly ModernTextBox _txtParam = new();
+        private readonly ModernTextBox _txtScale = new();
+        private readonly ModernTextBox _txtOffset = new();
         private readonly CheckBox _chkSigned = new();
-        private readonly TextBox _txtUnit = new();
-        private readonly TextBox _txtMin = new();
-        private readonly TextBox _txtMax = new();
+        private readonly ModernTextBox _txtUnit = new();
+        private readonly ModernTextBox _txtMin = new();
+        private readonly ModernTextBox _txtMax = new();
 
         private readonly DataGridView _grid = new();
+        private readonly InlineNotice _validation = new() { Visible = false, Tone = StatusTone.Error };
+        private readonly ModernButton _btnDeletePiece = new();
+        private readonly ModernButton _btnUp = new();
+        private readonly ModernButton _btnDown = new();
+        private readonly Label _pieceCount = new() { AutoSize = true };
 
         public CompositeSignal Signal { get; private set; } = new();
 
         public CompositeParamEditForm(CompositeSignal? existing)
         {
+            SuspendLayout();
             Text = existing == null ? "Новый составной параметр" : "Изменить составной параметр";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.Sizable;
-            MinimumSize = new Size(640, 560);
-            ClientSize = new Size(640, 560);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96, 96);
+            MinimumSize = new Size(760, 520);
+            ClientSize = new Size(960, 780);
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             BuildLayout();
+            ResumeLayout(true);
+            AppTheme.StyleGrid(_grid, "Добавьте фрагмент, чтобы собрать составной параметр.");
+            AppTheme.Apply(this);
 
             if (existing != null)
                 LoadFrom(existing);
@@ -38,67 +49,61 @@ namespace logReader.UI
                 _txtScale.Text = "1";
                 _txtOffset.Text = "0";
             }
-            UiScaling.Apply(this);
+            UpdatePieceActions();
         }
 
         private void BuildLayout()
         {
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 1, RowCount = 4 };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.Controls.Add(UiFactory.Header("Составной параметр", "Соберите одно значение из битов разных CAN-сообщений.", IconKind.Sliders), 0, 0);
+            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Margin = Padding.Empty };
+            var content = new TableLayoutPanel { Dock = DockStyle.Top, Height = 540, ColumnCount = 1, RowCount = 2 };
+            scroll.ClientSizeChanged += (_, _) => content.Height = Math.Max(UiScale.Px(scroll, 540), scroll.ClientSize.Height);
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var detailsCard = new ModernCard { AutoSize = true, Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 16) };
             var top = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                ColumnCount = 4,
-                AutoSize = true,
-                Padding = new Padding(12, 12, 12, 6)
+                ColumnCount = 3,
+                AutoSize = true
             };
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-
-            top.Controls.Add(new Label { Text = "Блок", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 0, 0);
-            _txtBlock.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtBlock, 1, 0);
-
-            top.Controls.Add(new Label { Text = "Параметр", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 2, 0);
-            _txtParam.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtParam, 3, 0);
-
-            top.Controls.Add(new Label { Text = "Scale", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 0, 1);
-            _txtScale.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtScale, 1, 1);
-
-            top.Controls.Add(new Label { Text = "Offset", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 2, 1);
-            _txtOffset.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtOffset, 3, 1);
-
-            top.Controls.Add(new Label { Text = "Unit", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 0, 2);
-            _txtUnit.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtUnit, 1, 2);
-
-            _chkSigned.Text = "Знаковый (signed)";
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
+            _txtParam.PlaceholderText = "Имя в результирующей таблице";
+            _txtUnit.PlaceholderText = "Например, °C";
+            _txtMin.PlaceholderText = "Без ограничения";
+            _txtMax.PlaceholderText = "Без ограничения";
+            AddField("Блок", _txtBlock, 0, 0);
+            AddField("Имя параметра", _txtParam, 1, 0);
+            AddField("Единица измерения", _txtUnit, 2, 0);
+            AddField("Множитель (Scale)", _txtScale, 0, 1);
+            AddField("Смещение (Offset)", _txtOffset, 1, 1);
+            _chkSigned.Text = "Знаковое исходное значение";
             _chkSigned.AutoSize = true;
             _chkSigned.Anchor = AnchorStyles.Left;
-            _chkSigned.Margin = new Padding(3, 6, 3, 3);
-            top.Controls.Add(_chkSigned, 3, 2);
+            top.Controls.Add(UiFactory.Field("Представление", _chkSigned), 2, 1);
+            AddField("Минимум", _txtMin, 0, 2);
+            AddField("Максимум", _txtMax, 1, 2);
+            top.Controls.Add(new Label { Text = "Значение = raw × Scale + Offset", AutoSize = true, Anchor = AnchorStyles.Left, Font = Typography.Caption, ForeColor = AppTheme.TextSecondary, Margin = new Padding(0, 20, 0, 0) }, 2, 2);
+            detailsCard.Controls.Add(top);
+            content.Controls.Add(detailsCard, 0, 0);
 
-            top.Controls.Add(new Label { Text = "Min", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 0, 3);
-            _txtMin.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtMin, 1, 3);
-
-            top.Controls.Add(new Label { Text = "Max", Anchor = AnchorStyles.Left, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 2, 3);
-            _txtMax.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtMax, 3, 3);
-
-            var info = new Label
+            void AddField(string label, Control input, int column, int row)
             {
-                Dock = DockStyle.Top,
-                AutoSize = false,
-                Height = 36,
-                Padding = new Padding(12, 4, 12, 0),
-                ForeColor = Color.DimGray,
-                Text = "Куски идут от старших бит к младшим (строка 1 = старшие). "
-                     + "Триггер = посылка, по приходу которой формируется значение."
-            };
+                var field = UiFactory.Field(label, input);
+                field.Dock = DockStyle.Fill;
+                field.Margin = new Padding(0, 0, column == 2 ? 0 : 12, 8);
+                top.Controls.Add(field, column, row);
+            }
 
             _grid.Dock = DockStyle.Fill;
             _grid.AllowUserToAddRows = false;
@@ -109,11 +114,11 @@ namespace logReader.UI
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.EditMode = DataGridViewEditMode.EditOnEnter;
 
-            var colSource = new DataGridViewTextBoxColumn { Name = "SourceID", HeaderText = "SourceID (hex)", FillWeight = 40 };
-            var colByte = new DataGridViewTextBoxColumn { Name = "Byte", HeaderText = "Byte (0-7)", FillWeight = 15 };
-            var colBitStart = new DataGridViewTextBoxColumn { Name = "BitStart", HeaderText = "BitStart (0-7)", FillWeight = 17 };
-            var colBitLen = new DataGridViewTextBoxColumn { Name = "BitLen", HeaderText = "BitLen (1-8)", FillWeight = 16 };
-            var colTrigger = new DataGridViewCheckBoxColumn { Name = "Trigger", HeaderText = "Триггер", FillWeight = 12 };
+            var colSource = new DataGridViewTextBoxColumn { Name = "SourceID", HeaderText = "CAN ID (hex)", FillWeight = 32, MinimumWidth = 120 };
+            var colByte = new DataGridViewTextBoxColumn { Name = "Byte", HeaderText = "Байт · 0–7", FillWeight = 17, MinimumWidth = 100 };
+            var colBitStart = new DataGridViewTextBoxColumn { Name = "BitStart", HeaderText = "Первый бит · 0–7", FillWeight = 20, MinimumWidth = 136 };
+            var colBitLen = new DataGridViewTextBoxColumn { Name = "BitLen", HeaderText = "Бит · 1–8", FillWeight = 17, MinimumWidth = 100 };
+            var colTrigger = new DataGridViewCheckBoxColumn { Name = "Trigger", HeaderText = "Триггер", FillWeight = 14, MinimumWidth = 90 };
             _grid.Columns.AddRange(colSource, colByte, colBitStart, colBitLen, colTrigger);
 
             // Один триггер на параметр — иначе момент формирования значения неоднозначен.
@@ -134,48 +139,79 @@ namespace logReader.UI
                     _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
             };
 
-            var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
-            gridHost.Controls.Add(_grid);
+            var piecesCard = new ModernCard { Dock = DockStyle.Fill, Margin = Padding.Empty };
+            var piecesLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
+            piecesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            piecesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            piecesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            piecesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var pieceBtns = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
-                Padding = new Padding(12, 0, 12, 0),
-                WrapContents = false
+                Padding = Padding.Empty,
+                WrapContents = true,
+                Margin = new Padding(0, 0, 0, 8)
             };
-            var btnAddPiece = new Button { Text = "Добавить кусок", AutoSize = true };
-            btnAddPiece.Click += (_, _) => _grid.Rows.Add("", "0", "0", "8", false);
-            var btnDelPiece = new Button { Text = "Удалить кусок", AutoSize = true };
-            btnDelPiece.Click += (_, _) => { if (_grid.CurrentRow != null) _grid.Rows.Remove(_grid.CurrentRow); };
-            var btnUp = new Button { Text = "Вверх", AutoSize = true };
-            btnUp.Click += (_, _) => MoveRow(-1);
-            var btnDown = new Button { Text = "Вниз", AutoSize = true };
-            btnDown.Click += (_, _) => MoveRow(+1);
-            pieceBtns.Controls.AddRange(new Control[] { btnAddPiece, btnDelPiece, btnUp, btnDown });
-
-            var bottom = new FlowLayoutPanel
+            var btnAddPiece = new ModernButton { Text = "Добавить фрагмент", AutoSize = true, Variant = ButtonVariant.Secondary, Icon = IconKind.Plus };
+            btnAddPiece.Click += (_, _) =>
             {
-                Dock = DockStyle.Bottom,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(12),
-                Height = 54,
-                WrapContents = false
+                int row = _grid.Rows.Add("", "0", "0", "8", false);
+                _grid.CurrentCell = _grid.Rows[row].Cells[0];
+                _grid.BeginEdit(true);
             };
-            var btnOk = new Button { Text = "OK", Width = 100, DialogResult = DialogResult.None };
-            btnOk.Click += BtnOk_Click;
-            var btnCancel = new Button { Text = "Отмена", Width = 100, DialogResult = DialogResult.Cancel };
-            bottom.Controls.Add(btnOk);
-            bottom.Controls.Add(btnCancel);
+            _btnDeletePiece.Text = "Удалить";
+            _btnDeletePiece.AutoSize = true;
+            _btnDeletePiece.Variant = ButtonVariant.Danger;
+            _btnDeletePiece.Icon = IconKind.Trash;
+            _btnDeletePiece.Click += (_, _) => { if (_grid.CurrentRow != null) _grid.Rows.Remove(_grid.CurrentRow); };
+            _btnUp.Text = "Вверх";
+            _btnUp.AutoSize = true;
+            _btnUp.Variant = ButtonVariant.Ghost;
+            _btnUp.Icon = IconKind.ArrowUp;
+            _btnUp.Click += (_, _) => MoveRow(-1);
+            _btnDown.Text = "Вниз";
+            _btnDown.AutoSize = true;
+            _btnDown.Variant = ButtonVariant.Ghost;
+            _btnDown.Icon = IconKind.ArrowDown;
+            _btnDown.Click += (_, _) => MoveRow(+1);
+            _pieceCount.Font = Typography.Secondary;
+            _pieceCount.ForeColor = AppTheme.TextSecondary;
+            _pieceCount.Margin = new Padding(16, 12, 0, 0);
+            pieceBtns.Controls.AddRange(new Control[] { btnAddPiece, _btnDeletePiece, _btnUp, _btnDown, _pieceCount });
+            var info = new Label { AutoSize = true, Dock = DockStyle.Top, Font = Typography.Caption, ForeColor = AppTheme.TextSecondary, Margin = new Padding(0, 0, 0, 12), Text = "Сверху — старшие биты, снизу — младшие. Триггер задаёт сообщение, при получении которого рассчитывается значение." };
+            piecesLayout.Controls.Add(pieceBtns, 0, 0);
+            piecesLayout.Controls.Add(info, 0, 1);
+            piecesLayout.Controls.Add(_grid, 0, 2);
+            piecesCard.Controls.Add(piecesLayout);
+            content.Controls.Add(piecesCard, 0, 1);
+            _grid.SelectionChanged += (_, _) => UpdatePieceActions();
+            _grid.RowsAdded += (_, _) => UpdatePieceActions();
+            _grid.RowsRemoved += (_, _) => UpdatePieceActions();
+            scroll.Controls.Add(content);
+            root.Controls.Add(scroll, 0, 1);
+            _validation.Dock = DockStyle.Top;
+            _validation.Margin = new Padding(0, 12, 0, 0);
+            root.Controls.Add(_validation, 0, 2);
 
-            Controls.Add(gridHost);
-            Controls.Add(pieceBtns);
-            Controls.Add(info);
-            Controls.Add(top);
-            Controls.Add(bottom);
+            var btnOk = new ModernButton { Text = "Сохранить параметр", AutoSize = true, Variant = ButtonVariant.Primary, Icon = IconKind.Check, DialogResult = DialogResult.None };
+            btnOk.Click += BtnOk_Click;
+            var btnCancel = new ModernButton { Text = "Отмена", AutoSize = true, Variant = ButtonVariant.Secondary, DialogResult = DialogResult.Cancel };
+            root.Controls.Add(UiFactory.Footer(btnOk, btnCancel), 0, 3);
+            Controls.Add(root);
 
             AcceptButton = btnOk;
             CancelButton = btnCancel;
+        }
+
+        private void UpdatePieceActions()
+        {
+            int index = _grid.CurrentRow?.Index ?? -1;
+            _btnDeletePiece.Enabled = index >= 0;
+            _btnUp.Enabled = index > 0;
+            _btnDown.Enabled = index >= 0 && index < _grid.Rows.Count - 1;
+            _pieceCount.Text = $"Фрагментов: {_grid.Rows.Count}";
         }
 
         private void MoveRow(int delta)
@@ -228,25 +264,27 @@ namespace logReader.UI
 
         private void BtnOk_Click(object? sender, EventArgs e)
         {
+            _validation.Visible = false;
+            foreach (var field in new[] { _txtParam, _txtScale, _txtOffset, _txtMin, _txtMax }) field.HasError = false;
             _grid.EndEdit();
 
             string param = _txtParam.Text.Trim();
             if (string.IsNullOrWhiteSpace(param))
             {
-                Warn("Укажите имя параметра.");
+                Warn("Укажите имя параметра.", _txtParam);
                 return;
             }
 
             string block = _txtBlock.Text.Trim();
             if (string.IsNullOrWhiteSpace(block)) block = CompositeDefaults.BlockName;
 
-            if (!NumberParseHelper.TryParseOrDefault(_txtScale.Text, 1.0, out double scale)) { Warn("Некорректное значение Scale."); return; }
-            if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset)) { Warn("Некорректное значение Offset."); return; }
+            if (!NumberParseHelper.TryParseOrDefault(_txtScale.Text, 1.0, out double scale)) { Warn("Некорректное значение множителя (Scale).", _txtScale); return; }
+            if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset)) { Warn("Некорректное значение смещения (Offset).", _txtOffset); return; }
 
-            if (!TryParseOptional(_txtMin.Text, out double? min)) { Warn("Некорректное значение Min."); return; }
-            if (!TryParseOptional(_txtMax.Text, out double? max)) { Warn("Некорректное значение Max."); return; }
+            if (!TryParseOptional(_txtMin.Text, out double? min)) { Warn("Некорректное значение минимума.", _txtMin); return; }
+            if (!TryParseOptional(_txtMax.Text, out double? max)) { Warn("Некорректное значение максимума.", _txtMax); return; }
             if (min.HasValue && max.HasValue && min.Value > max.Value)
-            { Warn("Min не может быть больше Max."); return; }
+            { Warn("Минимум не может быть больше максимума.", _txtMin); return; }
 
             var pieces = new List<CompositePiece>();
             string? triggerId = null;
@@ -258,16 +296,16 @@ namespace logReader.UI
                 string rawSrc = (row.Cells["SourceID"].Value?.ToString() ?? "").Trim();
                 if (string.IsNullOrWhiteSpace(rawSrc)) continue;
                 if (!CanId.TryNormalize(rawSrc, out string src))
-                { Warn($"Кусок '{rawSrc}': SourceID должен быть CAN ID в hex (до 1FFFFFFF)."); return; }
+                { WarnCell(row, "SourceID", $"Фрагмент '{rawSrc}': CAN ID должен быть hex-числом от 0 до 1FFFFFFF."); return; }
 
                 if (!TryParseInt(row.Cells["Byte"].Value, out int b) || b < 0 || b > 7)
-                { Warn($"Кусок '{src}': Byte должен быть 0..7."); return; }
+                { WarnCell(row, "Byte", $"Фрагмент '{src}': номер байта должен быть от 0 до 7."); return; }
                 if (!TryParseInt(row.Cells["BitStart"].Value, out int bs) || bs < 0 || bs > 7)
-                { Warn($"Кусок '{src}': BitStart должен быть 0..7."); return; }
+                { WarnCell(row, "BitStart", $"Фрагмент '{src}': начальный бит должен быть от 0 до 7."); return; }
                 if (!TryParseInt(row.Cells["BitLen"].Value, out int bl) || bl < 1 || bl > 8)
-                { Warn($"Кусок '{src}': BitLen должен быть 1..8."); return; }
+                { WarnCell(row, "BitLen", $"Фрагмент '{src}': длина должна быть от 1 до 8 бит."); return; }
                 if (bs + bl > 8)
-                { Warn($"Кусок '{src}': BitStart+BitLen не должны превышать 8."); return; }
+                { WarnCell(row, "BitLen", $"Фрагмент '{src}': начальный бит + длина не должны превышать 8."); return; }
 
                 pieces.Add(new CompositePiece(src, b, bs, bl));
 
@@ -277,7 +315,7 @@ namespace logReader.UI
 
             if (pieces.Count == 0)
             {
-                Warn("Добавьте хотя бы один кусок.");
+                Warn("Добавьте хотя бы один фрагмент с CAN ID.", _grid);
                 return;
             }
 
@@ -299,8 +337,21 @@ namespace logReader.UI
             Close();
         }
 
-        private void Warn(string msg)
-            => MessageBox.Show(this, msg, "Проверка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        private void Warn(string msg, Control? input = null)
+        {
+            _validation.Text = msg;
+            _validation.Visible = true;
+            if (input is ModernTextBox modern) modern.HasError = true;
+            input?.Focus();
+            if (input is TextBox textBox) textBox.SelectAll();
+        }
+
+        private void WarnCell(DataGridViewRow row, string column, string message)
+        {
+            _grid.CurrentCell = row.Cells[column];
+            Warn(message, _grid);
+            _grid.BeginEdit(true);
+        }
 
         private static bool TryParseInt(object? value, out int result)
         {

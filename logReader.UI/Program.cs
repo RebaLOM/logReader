@@ -6,6 +6,7 @@ namespace logReader.UI
         static void Main()
         {
             ApplicationConfiguration.Initialize();
+            AppTheme.Initialize();
             Application.Run(new MainForm());
         }
     }

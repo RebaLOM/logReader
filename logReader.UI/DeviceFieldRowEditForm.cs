@@ -10,29 +10,32 @@ namespace logReader.UI
         private readonly RadioButton _rbKindNum = new();
         private readonly RadioButton _rbKindBin = new();
 
-        private readonly TextBox _txtName = new();
-        private readonly ComboBox _cmbRawType = new();
-        private readonly NumericUpDown _numByteIndex = new();
-        private readonly NumericUpDown _numStartBitInByte = new();
-        private readonly NumericUpDown _numLength = new();
-        private readonly TextBox _txtMinHex = new();
-        private readonly TextBox _txtMaxHex = new();
-        private readonly TextBox _txtOffset = new();
-        private readonly TextBox _txtFactor = new();
-        private readonly TextBox _txtUnit = new();
+        private readonly ModernTextBox _txtName = new();
+        private readonly ModernComboBox _cmbRawType = new();
+        private readonly ModernNumericUpDown _numByteIndex = new();
+        private readonly ModernNumericUpDown _numStartBitInByte = new();
+        private readonly ModernNumericUpDown _numLength = new();
+        private readonly ModernTextBox _txtMinHex = new();
+        private readonly ModernTextBox _txtMaxHex = new();
+        private readonly ModernTextBox _txtOffset = new();
+        private readonly ModernTextBox _txtFactor = new();
+        private readonly ModernTextBox _txtUnit = new();
         private readonly RadioButton _rbIntel = new();
         private readonly RadioButton _rbMotorola = new();
 
-        private readonly TextBox _txtBinName = new();
-        private readonly NumericUpDown _numBinByte = new();
-        private readonly NumericUpDown _numBinBitStart = new();
-        private readonly NumericUpDown _numBinLength = new();
+        private readonly ModernTextBox _txtBinName = new();
+        private readonly ModernNumericUpDown _numBinByte = new();
+        private readonly ModernNumericUpDown _numBinBitStart = new();
+        private readonly ModernNumericUpDown _numBinLength = new();
 
         private readonly Panel _panelNum = new();
         private readonly Panel _panelBin = new();
-        private readonly Button _btnOk = new();
-        private readonly Button _btnCancel = new();
+        private readonly ModernButton _btnOk = new();
+        private readonly ModernButton _btnCancel = new();
         private readonly CanPayloadGridControl _payloadGrid = new();
+        private readonly InlineNotice _validation = new() { Visible = false, Tone = StatusTone.Error };
+        private readonly Label _selectionSummary = new() { AutoSize = true };
+        private ModernCard _numericPhysicalCard = null!;
 
         private readonly int _fieldIndex;
         private readonly int _dlc;
@@ -49,23 +52,29 @@ namespace logReader.UI
             IEnumerable<DeviceFieldRow>? siblingRows = null,
             string? currentHeader = null)
         {
+            SuspendLayout();
             _dlc = Math.Clamp(dlc, 1, 8);
             _fieldIndex = fieldIndex;
             _siblingRows = siblingRows?.ToList() ?? new List<DeviceFieldRow>();
             _currentHeader = currentHeader ?? initial?.Header;
 
-            Text = initial == null ? "Signal Details" : "Signal Details (изменение)";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            Text = initial == null ? "Новый параметр XLSX" : "Редактирование параметра XLSX";
+            FormBorderStyle = FormBorderStyle.Sizable;
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(540, 580);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96, 96);
+            MinimumSize = new Size(860, 520);
+            ClientSize = new Size(960, 800);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             Row = initial ?? CreateDefaultNumRow();
 
             BuildLayout();
+            ResumeLayout(true);
+            AppTheme.Apply(this);
             LoadFromRow(Row);
             WireGridSync();
 
@@ -75,7 +84,6 @@ namespace logReader.UI
 
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
-            UiScaling.Apply(this);
         }
 
         private static DeviceFieldRow CreateDefaultNumRow() => new(
@@ -95,60 +103,81 @@ namespace logReader.UI
 
         private void BuildLayout()
         {
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 1, RowCount = 4 };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.Controls.Add(UiFactory.Header("Параметр XLSX", "Определите тип параметра, расположение битов и единицу измерения.", IconKind.Signal), 0, 0);
+
             var topKind = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 36,
-                Padding = new Padding(12, 8, 12, 4),
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0, 0, 0, 12),
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
+                WrapContents = true
             };
-            _rbKindNum.Text = "NUM";
+            _rbKindNum.Text = "Числовой · NUM";
             _rbKindNum.AutoSize = true;
-            _rbKindNum.Margin = new Padding(0, 4, 20, 0);
-            _rbKindBin.Text = "BIN";
+            _rbKindNum.Margin = new Padding(0, 4, 24, 4);
+            _rbKindBin.Text = "Битовый · BIN";
             _rbKindBin.AutoSize = true;
-            _rbKindBin.Margin = new Padding(0, 4, 0, 0);
+            _rbKindBin.Margin = new Padding(0, 4, 0, 4);
             topKind.Controls.Add(_rbKindNum);
             topKind.Controls.Add(_rbKindBin);
 
-            _panelNum.Dock = DockStyle.Fill;
-            _panelBin.Dock = DockStyle.Fill;
+            _panelNum.Dock = DockStyle.Top;
+            _panelNum.AutoSize = true;
+            _panelBin.Dock = DockStyle.Top;
+            _panelBin.AutoSize = true;
             _panelBin.Visible = false;
-
             BuildPanelNum();
             BuildPanelBin();
 
-            var host = new Panel { Dock = DockStyle.Top, Height = 220 };
-            host.Controls.Add(_panelBin);
-            host.Controls.Add(_panelNum);
+            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(0, 0, 0, 16), Margin = Padding.Empty };
+            var content = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2 };
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 340));
+            var editor = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Top, ColumnCount = 1, Margin = new Padding(0, 0, 16, 0) };
+            editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            editor.Controls.Add(topKind);
+            editor.Controls.Add(_panelNum);
+            editor.Controls.Add(_panelBin);
 
             _payloadGrid.Mode = CanPayloadGridMode.Edit;
             _payloadGrid.ShowLegend = false;
             _payloadGrid.Dlc = _dlc;
-            _payloadGrid.Dock = DockStyle.Top;
-            _payloadGrid.Margin = new Padding(8, 4, 8, 4);
+            _payloadGrid.Margin = new Padding(0, 12, 0, 12);
+            _selectionSummary.Font = Typography.Secondary;
+            _selectionSummary.ForeColor = AppTheme.TextSecondary;
+            var guide = new Label { AutoSize = true, MaximumSize = new Size(300, 0), Font = Typography.Caption, ForeColor = AppTheme.TextSecondary, Text = "Выделите диапазон мышью или используйте поля слева." };
+            var payloadCard = BuildCard($"Карта битов · DLC {_dlc}", _payloadGrid, _selectionSummary, guide);
+            var preview = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Top, ColumnCount = 1, Margin = Padding.Empty };
+            preview.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            preview.Controls.Add(payloadCard);
+            preview.Controls.Add(_numericPhysicalCard);
+            content.Controls.Add(editor, 0, 0);
+            content.Controls.Add(preview, 1, 0);
+            scroll.Controls.Add(content);
+            root.Controls.Add(scroll, 0, 1);
+            _validation.Dock = DockStyle.Top;
+            _validation.Margin = new Padding(0, 12, 0, 0);
+            root.Controls.Add(_validation, 0, 2);
 
-            var bottom = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(12),
-                Height = 50
-            };
-            _btnOk.Text = "OK";
-            _btnOk.Width = 90;
+            _btnOk.Text = "Сохранить параметр";
+            _btnOk.AutoSize = true;
+            _btnOk.Variant = ButtonVariant.Primary;
+            _btnOk.Icon = IconKind.Check;
             _btnOk.Click += (_, _) => OnOk();
             _btnCancel.Text = "Отмена";
-            _btnCancel.Width = 90;
+            _btnCancel.AutoSize = true;
+            _btnCancel.Variant = ButtonVariant.Secondary;
             _btnCancel.DialogResult = DialogResult.Cancel;
-            bottom.Controls.Add(_btnOk);
-            bottom.Controls.Add(_btnCancel);
-
-            Controls.Add(bottom);
-            Controls.Add(_payloadGrid);
-            Controls.Add(host);
-            Controls.Add(topKind);
+            root.Controls.Add(UiFactory.Footer(_btnOk, _btnCancel), 0, 3);
+            Controls.Add(root);
         }
 
         private void WireGridSync()
@@ -168,6 +197,7 @@ namespace logReader.UI
         {
             if (_syncingFromGrid || _rbKindBin.Checked) return;
             _payloadGrid.IsLittleEndian = _rbIntel.Checked;
+            UpdateSelectionSummary();
         }
 
         private void RefreshGridMode()
@@ -176,7 +206,6 @@ namespace logReader.UI
             _payloadGrid.BinByteMode = bin;
             if (bin)
             {
-                _numBinByte.Maximum = _dlc - 1;
                 _payloadGrid.BinByteIndex = (int)_numBinByte.Value;
             }
             RefreshPayloadOverlays();
@@ -198,6 +227,7 @@ namespace logReader.UI
                 _payloadGrid.IsLittleEndian = true;
                 int global = BitMath.CellToGlobalBit((int)_numBinByte.Value, (int)_numBinBitStart.Value);
                 _payloadGrid.SetSelection(global, (int)_numBinLength.Value, fireEvent: false);
+                UpdateSelectionSummary();
                 return;
             }
 
@@ -209,6 +239,7 @@ namespace logReader.UI
                 (int)_numLength.Value,
                 _rbIntel.Checked,
                 fireEvent: false);
+            UpdateSelectionSummary();
         }
 
         private void SyncFieldsFromGrid()
@@ -229,130 +260,107 @@ namespace logReader.UI
                 RecalcHexBounds();
             }
             _syncingFromGrid = false;
+            UpdateSelectionSummary();
         }
 
         private void BuildPanelNum()
         {
-            void Lbl(string t, int x, int y) => _panelNum.Controls.Add(new Label { Text = t, Location = new Point(x, y + 3), AutoSize = true });
-            void Add(Control c, int x, int y) { c.Location = new Point(x, y); _panelNum.Controls.Add(c); }
-
-            int y = 10;
-
-            Lbl("Name:", 12, y);
-            _txtName.Size = new Size(440, 23);
-            Add(_txtName, 70, y);
-            y += 32;
-
-            Lbl("Type:", 12, y);
+            var stack = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Margin = Padding.Empty };
+            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _txtName.PlaceholderText = "Например, EngineSpeed";
             _cmbRawType.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbRawType.Items.AddRange(new object[] { "int (знаковый)", "uint (беззнаковый)" });
-            _cmbRawType.Size = new Size(170, 23);
-            Add(_cmbRawType, 70, y);
-
-            Lbl("Byte Index:", 260, y);
+            stack.Controls.Add(BuildCard("Идентификация", UiFactory.Field("Имя параметра", _txtName, "Без пробелов. Это имя появится в результирующей таблице."), UiFactory.Field("Тип исходного значения", _cmbRawType)));
             _numByteIndex.Minimum = 0;
             _numByteIndex.Maximum = _dlc - 1;
-            _numByteIndex.Size = new Size(55, 23);
-            Add(_numByteIndex, 340, y);
-
-            Lbl("Start Bit:", 405, y);
             _numStartBitInByte.Minimum = 0;
             _numStartBitInByte.Maximum = 7;
-            _numStartBitInByte.Size = new Size(50, 23);
-            Add(_numStartBitInByte, 470, y);
-            y += 32;
-
-            Lbl("Length:", 12, y);
             _numLength.Minimum = 1;
             _numLength.Maximum = 64;
             _numLength.Value = 8;
-            _numLength.Size = new Size(55, 23);
-            Add(_numLength, 70, y);
-            Lbl("Bits", 130, y);
-
-            Lbl("Min Val:", 175, y);
             _txtMinHex.ReadOnly = true;
-            _txtMinHex.Size = new Size(75, 23);
-            Add(_txtMinHex, 254, y);
-            Lbl("Max Val:", 345, y);
             _txtMaxHex.ReadOnly = true;
-            _txtMaxHex.Size = new Size(75, 23);
-            Add(_txtMaxHex, 425, y);
-            y += 32;
-
-            Lbl("Offset:", 12, y);
-            _txtOffset.Size = new Size(85, 23);
-            Add(_txtOffset, 70, y);
-
-            Lbl("Factor:", 175, y);
-            _txtFactor.Size = new Size(85, 23);
-            Add(_txtFactor, 230, y);
-
-            Lbl("Unit:", 345, y);
-            _txtUnit.Size = new Size(130, 23);
-            Add(_txtUnit, 390, y);
-            y += 38;
-
-            Lbl("Byte Order:", 12, y);
-            y += 22;
             _rbIntel.Text = "Intel — little-endian";
             _rbIntel.AutoSize = true;
-            _rbIntel.Location = new Point(12, y);
-            _panelNum.Controls.Add(_rbIntel);
-            y += 24;
             _rbMotorola.Text = "Motorola — big-endian";
             _rbMotorola.AutoSize = true;
-            _rbMotorola.Location = new Point(12, y);
-            _panelNum.Controls.Add(_rbMotorola);
+            var order = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+            order.Controls.AddRange(new Control[] { _rbIntel, _rbMotorola });
+            stack.Controls.Add(BuildCard("Расположение в сообщении",
+                BuildColumns(UiFactory.Field("Байт", _numByteIndex, $"0–{_dlc - 1}"), UiFactory.Field("Начальный бит", _numStartBitInByte, "0–7"), UiFactory.Field("Длина, бит", _numLength, "1–64")),
+                UiFactory.Field("Порядок байтов", order),
+                BuildColumns(UiFactory.Field("Минимум raw", _txtMinHex), UiFactory.Field("Максимум raw", _txtMaxHex))));
+            _txtUnit.PlaceholderText = "Например, rpm";
+            _numericPhysicalCard = BuildCard("Физическое значение",
+                BuildColumns(UiFactory.Field("Множитель", _txtFactor), UiFactory.Field("Смещение", _txtOffset), UiFactory.Field("Единица", _txtUnit)),
+                new Label { Text = "Значение = raw × Factor + Offset", Font = Typography.Caption, ForeColor = AppTheme.TextSecondary, AutoSize = true });
+            _panelNum.Controls.Add(stack);
         }
 
         private void BuildPanelBin()
         {
-            var t = new TableLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                ColumnCount = 2,
-                Padding = new Padding(12)
-            };
-            t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-
-            int r = 0;
-            void AddRow(string label, Control c)
-            {
-                t.Controls.Add(new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(3, 8, 3, 0) }, 0, r);
-                c.Dock = DockStyle.Fill;
-                c.Margin = new Padding(3, 4, 3, 4);
-                t.Controls.Add(c, 1, r);
-                r++;
-            }
-
             _numBinByte.Minimum = 0;
-            _numBinByte.Maximum = _dlc - 1;
+            _numBinByte.Maximum = 7;
             _numBinBitStart.Minimum = 0;
             _numBinBitStart.Maximum = 7;
             _numBinLength.Minimum = 1;
             _numBinLength.Maximum = 8;
             _numBinLength.Value = 1;
+            _txtBinName.PlaceholderText = "Например, StatusFlags";
+            var hint = new InlineNotice { Text = "BIN объединяет последовательные биты одного байта. Результат — целое число без множителя и смещения.", Tone = StatusTone.Info };
+            _panelBin.Controls.Add(BuildCard("Битовый параметр",
+                UiFactory.Field("Имя параметра", _txtBinName),
+                BuildColumns(UiFactory.Field("Байт", _numBinByte, $"DLC: 0–{_dlc - 1}"), UiFactory.Field("Начальный бит", _numBinBitStart, "0–7"), UiFactory.Field("Длина, бит", _numBinLength, "1–8")),
+                hint));
+        }
 
-            AddRow("Name:", _txtBinName);
-            AddRow("Байт (0–7):", _numBinByte);
-            AddRow("BitStart (0–7):", _numBinBitStart);
-            AddRow("Length (1–8):", _numBinLength);
-
-            var hint = new Label
+        private static ModernCard BuildCard(string title, params Control[] controls)
+        {
+            var card = new ModernCard { Dock = DockStyle.Top, AutoSize = true, Margin = new Padding(0, 0, 0, 12) };
+            var stack = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Margin = Padding.Empty };
+            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            stack.Controls.Add(new Label { Text = title, Font = Typography.CardTitle, ForeColor = AppTheme.TextPrimary, AutoSize = true, Margin = new Padding(0, 0, 0, 12) });
+            foreach (var control in controls)
             {
-                Text = "Режим BIN: параметр = подряд идущие биты внутри ОДНОГО байта. " +
-                       "Выводится как целое число (без scale/offset).",
-                Dock = DockStyle.Bottom,
-                Height = 40,
-                Padding = new Padding(12, 4, 12, 8),
-                ForeColor = Color.DimGray
-            };
+                control.Dock = DockStyle.Top;
+                control.Margin = new Padding(0, 0, 0, 8);
+                stack.Controls.Add(control);
+            }
+            card.Controls.Add(stack);
+            return card;
+        }
 
-            _panelBin.Controls.Add(hint);
-            _panelBin.Controls.Add(t);
+        private static Control BuildColumns(params Control[] controls)
+        {
+            var columns = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Top, ColumnCount = controls.Length, Margin = Padding.Empty };
+            foreach (var control in controls)
+            {
+                columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / controls.Length));
+                control.Dock = DockStyle.Fill;
+                control.Margin = new Padding(0, 0, columns.Controls.Count == controls.Length - 1 ? 0 : 8, 0);
+                columns.Controls.Add(control);
+            }
+            return columns;
+        }
+
+        private void UpdateSelectionSummary()
+        {
+            bool fits = _rbKindBin.Checked
+                ? _numBinByte.Value < _dlc && _numBinBitStart.Value + _numBinLength.Value <= 8
+                : SignalFitsInDlc((int)_numByteIndex.Value * 8 + (int)_numStartBitInByte.Value, (int)_numLength.Value, _rbIntel.Checked, _dlc * 8);
+            _selectionSummary.Text = (_rbKindBin.Checked
+                ? $"BIN · байт {_numBinByte.Value} · бит {_numBinBitStart.Value} · {_numBinLength.Value} бит"
+                : $"Байт {_numByteIndex.Value} · бит {_numStartBitInByte.Value} · {_numLength.Value} бит · {(_rbIntel.Checked ? "Intel" : "Motorola")}") + (fits ? "" : "\nДиапазон выходит за пределы.");
+            _selectionSummary.ForeColor = fits ? AppTheme.TextSecondary : AppTheme.Warning;
+        }
+
+        private void ShowValidation(string message, Control? field = null)
+        {
+            _validation.Text = message;
+            _validation.Visible = true;
+            if (field is ModernTextBox modern) modern.HasError = true;
+            field?.Focus();
+            if (field is TextBox textBox) textBox.SelectAll();
         }
 
         private void SwitchPanels()
@@ -360,6 +368,7 @@ namespace logReader.UI
             bool bin = _rbKindBin.Checked;
             _panelNum.Visible = !bin;
             _panelBin.Visible = bin;
+            _numericPhysicalCard.Visible = !bin;
         }
 
         private void LoadFromRow(DeviceFieldRow row)
@@ -411,22 +420,28 @@ namespace logReader.UI
 
         private void OnOk()
         {
+            _validation.Visible = false;
+            foreach (var field in new[] { _txtName, _txtBinName, _txtFactor, _txtOffset }) field.HasError = false;
             if (_rbKindBin.Checked)
             {
                 string header = _txtBinName.Text.Trim();
                 if (string.IsNullOrWhiteSpace(header))
                 {
-                    MessageBox.Show(this, "Введите Name.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    _txtBinName.Focus();
+                    ShowValidation("Введите имя параметра.", _txtBinName);
                     return;
                 }
 
                 int low = (int)_numBinByte.Value;
                 int bitStart = (int)_numBinBitStart.Value;
                 int len = (int)_numBinLength.Value;
+                if (low >= _dlc)
+                {
+                    ShowValidation($"Байт {low} находится за пределами DLC ({_dlc} байт). Укажите байт от 0 до {_dlc - 1}.", _numBinByte);
+                    return;
+                }
                 if (bitStart + len > 8)
                 {
-                    MessageBox.Show(this, "BitStart + Length не должны превышать 8.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowValidation("Начальный бит + длина не должны превышать 8: BIN располагается внутри одного байта.", _numBinLength);
                     return;
                 }
 
@@ -453,14 +468,12 @@ namespace logReader.UI
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Введите Name.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _txtName.Focus();
+                ShowValidation("Введите имя параметра.", _txtName);
                 return;
             }
             if (name.Any(char.IsWhiteSpace))
             {
-                MessageBox.Show(this, "Имя не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _txtName.Focus();
+                ShowValidation("Имя не должно содержать пробелов.", _txtName);
                 return;
             }
 
@@ -473,22 +486,20 @@ namespace logReader.UI
             // Motorola: start+length не описывает раскладку по байтам.
             if (!SignalFitsInDlc(globalStartBit, length, littleEndian, _dlc * 8))
             {
-                MessageBox.Show(this, $"Сигнал выходит за пределы DLC ({_dlc} байт).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowValidation($"Параметр выходит за пределы DLC ({_dlc} байт). Измените начало или длину.", _numLength);
                 return;
             }
 
             if (!NumberParseHelper.TryParseOrDefault(_txtFactor.Text, 1.0, out double factor))
             {
-                MessageBox.Show(this, "Factor: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _txtFactor.Focus();
+                ShowValidation("Множитель: неверный формат числа.", _txtFactor);
                 return;
             }
             if (factor == 0) factor = 1;
 
             if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset))
             {
-                MessageBox.Show(this, "Offset: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _txtOffset.Focus();
+                ShowValidation("Смещение: неверный формат числа.", _txtOffset);
                 return;
             }
 

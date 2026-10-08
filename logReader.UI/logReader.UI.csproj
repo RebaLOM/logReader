@@ -7,6 +7,7 @@
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
 		<ApplicationIcon>Resources\logger.ico</ApplicationIcon>
 		<Win32Icon>Resources\logger.ico</Win32Icon>
 	</PropertyGroup>
@@ -17,6 +18,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\logReader\logReader.csproj" />
+		<InternalsVisibleTo Include="logReader.UI.Tests" />
 	</ItemGroup>
 
 	<ItemGroup>

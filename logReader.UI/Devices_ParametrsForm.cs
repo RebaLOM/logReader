@@ -1,9 +1,9 @@
 using System.Linq;
+using logReader;
 
 namespace logReader.UI
 {
-    // Фильтры устройств и параметров: дерево с флажками (один оконный контрол вместо трёх на параметр).
-    // Правки делаются на копии и применяются только по «OK».
+    // A single tree keeps large descriptions responsive. Edits are committed only by OK.
     public partial class Devices_ParametrsForm : Form
     {
         private readonly List<Device> _devices;
@@ -26,53 +26,48 @@ namespace logReader.UI
             _devices = devices;
             _targetDeviceEnabled = deviceEnabled;
             _targetParamEnabled = paramEnabled;
-            _missingDevices = missingDevices ?? new List<string>();
-            _matchedDevices = matchedDevices ?? new List<string>();
-
+            _missingDevices = missingDevices ?? new();
+            _matchedDevices = matchedDevices ?? new();
             foreach (var device in _devices)
             {
                 _deviceEnabled[device.ID] = deviceEnabled.GetValueOrDefault(device.ID, true);
-                var source = paramEnabled.GetValueOrDefault(device.ID);
-                var arr = new bool[device.Headers.Length];
-                for (int i = 0; i < arr.Length; i++)
-                    arr[i] = source == null || i >= source.Length || source[i];
-                _paramEnabled[device.ID] = arr;
+                var previous = paramEnabled.GetValueOrDefault(device.ID);
+                var selected = Enumerable.Repeat(true, device.Headers.Length).ToArray();
+                if (previous != null)
+                    Array.Copy(previous, selected, Math.Min(previous.Length, selected.Length));
+                _paramEnabled[device.ID] = selected;
             }
-
-            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             _tree.Dock = DockStyle.Fill;
             _tree.CheckBoxes = true;
             _tree.HideSelection = false;
+            _tree.ShowLines = false;
+            _tree.ShowRootLines = false;
+            _tree.ShowPlusMinus = true;
+            _tree.BorderStyle = BorderStyle.None;
+            _tree.Font = Typography.Body;
+            _tree.ForeColor = AppTheme.TextPrimary;
+            _tree.BackColor = AppTheme.Surface;
+            _tree.ItemHeight = UiScale.Px(this, 32);
+            _tree.Indent = UiScale.Px(this, 24);
+            _tree.AccessibleName = "Выбор устройств и параметров";
             _tree.AfterCheck += Tree_AfterCheck;
             scrollPanel.AutoScroll = false;
             scrollPanel.Controls.Add(_tree);
-            textBoxSearch.PlaceholderText = "Поиск по ID устройства или имени параметра...";
-
-            AddDialogButtons();
+            textBoxSearch.PlaceholderText = "Введите CAN ID или имя параметра";
+            AppTheme.Apply(this);
+            Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             RefreshLogDeviceLists("");
             BuildTree("");
-        }
-
-        private void AddDialogButtons()
-        {
-            var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Size = new Size(90, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            var cancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel, Size = new Size(90, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            cancel.Location = new Point(panelButtons.ClientSize.Width - cancel.Width - 12, 10);
-            ok.Location = new Point(cancel.Left - ok.Width - 8, 10);
-            ok.Click += (_, _) => ApplyToTarget();
-            panelButtons.Controls.Add(ok);
-            panelButtons.Controls.Add(cancel);
-            AcceptButton = ok;
-            CancelButton = cancel;
+            Shown += (_, _) => ScaleTree();
         }
 
         private void ApplyToTarget()
         {
-            foreach (var kv in _deviceEnabled)
-                _targetDeviceEnabled[kv.Key] = kv.Value;
-            foreach (var kv in _paramEnabled)
-                _targetParamEnabled[kv.Key] = (bool[])kv.Value.Clone();
+            foreach (var selection in _deviceEnabled)
+                _targetDeviceEnabled[selection.Key] = selection.Value;
+            foreach (var selection in _paramEnabled)
+                _targetParamEnabled[selection.Key] = (bool[])selection.Value.Clone();
         }
 
         private void BuildTree(string query)
@@ -85,16 +80,19 @@ namespace logReader.UI
                 foreach (var device in _devices)
                 {
                     bool idMatches = query.Length == 0 || device.ID.Contains(query, StringComparison.OrdinalIgnoreCase);
-                    var paramIndexes = Enumerable.Range(0, device.Headers.Length)
+                    var parameterIndexes = Enumerable.Range(0, device.Headers.Length)
                         .Where(i => idMatches || device.Headers[i].Contains(query, StringComparison.OrdinalIgnoreCase))
                         .ToList();
-                    if (!idMatches && paramIndexes.Count == 0) continue;
+                    if (!idMatches && parameterIndexes.Count == 0) continue;
 
-                    var deviceNode = new TreeNode(DeviceText(device)) { Tag = device, Checked = _deviceEnabled[device.ID] };
-                    foreach (int i in paramIndexes)
-                        deviceNode.Nodes.Add(new TreeNode(device.Headers[i]) { Tag = (device, i), Checked = _paramEnabled[device.ID][i] });
-                    _tree.Nodes.Add(deviceNode);
-                    if (query.Length > 0) deviceNode.Expand();
+                    var node = new TreeNode(DeviceText(device)) { Tag = device, Checked = _deviceEnabled[device.ID] };
+                    foreach (int index in parameterIndexes)
+                        node.Nodes.Add(new TreeNode(device.Headers[index])
+                        {
+                            Tag = (device, index), Checked = _paramEnabled[device.ID][index]
+                        });
+                    _tree.Nodes.Add(node);
+                    if (query.Length > 0) node.Expand();
                 }
             }
             finally
@@ -102,28 +100,31 @@ namespace logReader.UI
                 _tree.EndUpdate();
                 _updatingChecks = false;
             }
+            bool empty = _tree.Nodes.Count == 0;
+            _tree.Visible = !empty;
+            emptyDevices.Visible = empty;
+            emptyDevices.Title = _devices.Count == 0 ? "Нет устройств" : "Нет совпадений";
+            emptyDevices.Description = _devices.Count == 0
+                ? "Загрузите файл посылок, чтобы выбрать устройства и параметры."
+                : "Попробуйте другой CAN ID, имя параметра или очистите поиск.";
+            UpdateSelectionCount();
         }
 
         private string DeviceText(Device device)
-        {
-            int enabled = _paramEnabled[device.ID].Count(v => v);
-            return $"{device.ID}   ({enabled}/{device.Headers.Length})";
-        }
+            => $"CAN ID {device.ID}  ·  {_paramEnabled[device.ID].Count(selected => selected)}/{device.Headers.Length} параметров";
 
         private void Tree_AfterCheck(object? sender, TreeViewEventArgs e)
         {
             if (_updatingChecks || e.Node == null) return;
-
             if (e.Node.Tag is Device device)
-            {
                 _deviceEnabled[device.ID] = e.Node.Checked;
-            }
-            else if (e.Node.Tag is ValueTuple<Device, int> param)
+            else if (e.Node.Tag is ValueTuple<Device, int> parameter)
             {
-                _paramEnabled[param.Item1.ID][param.Item2] = e.Node.Checked;
+                _paramEnabled[parameter.Item1.ID][parameter.Item2] = e.Node.Checked;
                 if (e.Node.Parent != null)
-                    e.Node.Parent.Text = DeviceText(param.Item1);
+                    e.Node.Parent.Text = DeviceText(parameter.Item1);
             }
+            UpdateSelectionCount();
         }
 
         private void textBoxSearch_TextChanged(object? sender, EventArgs e)
@@ -134,46 +135,78 @@ namespace logReader.UI
 
         private void RefreshLogDeviceLists(string query)
         {
-            FillList(listBoxMissing, _missingDevices, query, "Нет отсутствующих устройств");
-            FillList(listBoxMatched, _matchedDevices, query, "Нет совпадающих устройств");
-        }
-
-        private static void FillList(ListBox list, List<string> ids, string query, string emptyText)
-        {
-            list.BeginUpdate();
-            list.Items.Clear();
-            if (ids.Count == 0)
-            {
-                list.Items.Add(emptyText);
-                list.Items.Add("или лог не выбран.");
-            }
-            else
-            {
-                foreach (string id in ids)
-                    if (query.Length == 0 || id.Contains(query, StringComparison.OrdinalIgnoreCase))
-                        list.Items.Add(id);
-                if (list.Items.Count == 0)
-                    list.Items.Add("Нет совпадений по поиску.");
-            }
-            list.EndUpdate();
+            var missing = _missingDevices.Where(id => id.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+            var matched = _matchedDevices.Where(id => id.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+            listBoxMissing.BeginUpdate();
+            listBoxMatched.BeginUpdate();
+            listBoxMissing.Items.Clear();
+            listBoxMatched.Items.Clear();
+            listBoxMissing.Items.AddRange(missing);
+            listBoxMatched.Items.AddRange(matched);
+            listBoxMissing.EndUpdate();
+            listBoxMatched.EndUpdate();
+            labelMissingTitle.Text = $"Нет в файле посылок · {missing.Length}";
+            labelMatchedTitle.Text = $"Совпадают · {matched.Length}";
+            listBoxMissing.Visible = missing.Length > 0;
+            listBoxMatched.Visible = matched.Length > 0;
+            emptyMissing.Visible = missing.Length == 0;
+            emptyMatched.Visible = matched.Length == 0;
+            emptyMissing.Title = _missingDevices.Count == 0 ? "Нет отсутствующих устройств" : "Нет совпадений";
+            emptyMissing.Description = _missingDevices.Count == 0
+                ? "Все найденные ID описаны или лог ещё не выбран." : "Попробуйте другой ID или очистите поиск.";
+            emptyMatched.Title = _matchedDevices.Count == 0 ? "Нет совпадающих устройств" : "Нет совпадений";
+            emptyMatched.Description = _matchedDevices.Count == 0
+                ? "Совпадений с файлом посылок нет или лог ещё не выбран." : "Попробуйте другой ID или очистите поиск.";
         }
 
         private void SetAll(bool value)
         {
-            // «Включить/выключить всё» — по всей модели, не только по видимым после поиска.
-            foreach (var dev in _devices)
+            // Bulk actions include devices and parameters hidden by the current search.
+            foreach (var device in _devices)
             {
-                _deviceEnabled[dev.ID] = value;
-                Array.Fill(_paramEnabled[dev.ID], value);
+                _deviceEnabled[device.ID] = value;
+                Array.Fill(_paramEnabled[device.ID], value);
             }
             BuildTree(textBoxSearch.Text.Trim());
+        }
+
+        private void UpdateSelectionCount()
+        {
+            int enabledDevices = _devices.Count(d => _deviceEnabled[d.ID]);
+            int totalParameters = _devices.Sum(d => d.Headers.Length);
+            int enabledParameters = _devices.Where(d => _deviceEnabled[d.ID])
+                .Sum(d => _paramEnabled[d.ID].Count(selected => selected));
+            labelSelectionCount.Text = $"Устройства {enabledDevices}/{_devices.Count}  ·  Параметры {enabledParameters}/{totalParameters}";
+        }
+
+        private void ScaleTree()
+        {
+            _tree.ItemHeight = UiScale.Px(this, 32);
+            _tree.Indent = UiScale.Px(this, 24);
+        }
+
+        protected override void OnDpiChanged(DpiChangedEventArgs e)
+        {
+            base.OnDpiChanged(e);
+            ScaleTree();
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F))
+            {
+                var search = tabControlMain.SelectedTab == tabUnknown ? textBoxSearchUnknown : textBoxSearch;
+                search.Focus();
+                search.SelectAll();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void buttonEnableAll_Click(object sender, EventArgs e) => SetAll(true);
         private void buttonDisableAll_Click(object sender, EventArgs e) => SetAll(false);
 
-        // Двойной щелчок по флажку TreeView меняет его вид без второго AfterCheck — состояние
-        // расходится с моделью. Второй щелчок обрабатывается как обычный одиночный.
+        // Suppress the native double-click checkbox visual change without a second AfterCheck.
         private sealed class SingleClickCheckTreeView : TreeView
         {
             private const int WM_LBUTTONDBLCLK = 0x0203;

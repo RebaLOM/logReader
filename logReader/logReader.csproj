@@ -14,6 +14,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="LOGER" />
     <InternalsVisibleTo Include="logReader.Tests" />
+    <InternalsVisibleTo Include="logReader.UI.Tests" />
   </ItemGroup>
 
 </Project>

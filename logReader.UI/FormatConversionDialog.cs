@@ -7,11 +7,21 @@ namespace logReader.UI
         private readonly ComboBox _pairComboBox;
         private readonly Button _convertButton;
         private readonly Button _openButton;
+        private readonly Button _browseInputButton;
+        private readonly Button _browseOutputButton;
+        private readonly Button _closeButton;
+        private readonly Button _stopButton;
+        private readonly InlineNotice _outcome;
+        private readonly ProgressBar _progress;
+        private readonly Label _progressLabel;
+        private readonly TableLayoutPanel _progressPanel;
         private readonly List<FormatConversionPair> _pairs;
         private readonly Action<string> _log;
         private bool _suppressOutputTextChanged;
         private bool _outputEditedByUser;
         private string? _convertedOutputPath;
+        private bool _busy;
+        private CancellationTokenSource? _conversionCancellation;
 
         internal FormatConversionDialog(
             IEnumerable<FormatConversionPair> pairs,
@@ -23,53 +33,48 @@ namespace logReader.UI
             if (_pairs.Count == 0)
                 throw new ArgumentException("Должна быть доступна хотя бы одна пара конвертации.", nameof(pairs));
 
-            Text = "Смена формата";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            SuspendLayout();
+            Text = "Преобразование формата";
+            FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(560, 230);
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(736, 650);
+            MinimumSize = new Size(600, 530);
 
-            var inputPathLabel = new Label
+            _inputPathTextBox = new ModernTextBox
             {
-                AutoSize = true,
-                Location = new Point(12, 12),
-                Text = "Файл для конвертации:"
-            };
-
-            _inputPathTextBox = new TextBox
-            {
-                Location = new Point(12, 32),
-                Size = new Size(456, 23),
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Выберите исходный .trc или CSV файл",
+                AccessibleName = "Исходный файл",
                 Text = initialPath
             };
             _inputPathTextBox.TextChanged += (_, _) =>
             {
+                ResetFieldError(_inputPathTextBox);
                 ClearConversionResult();
                 UpdateDefaultOutputPath();
                 UpdateConvertButtonState();
             };
 
-            var browseInputButton = new Button
+            _browseInputButton = new ModernButton
             {
-                Text = "Обзор",
-                Location = new Point(474, 31),
-                Size = new Size(74, 25)
-            };
-            browseInputButton.Click += (_, _) => BrowseInputFile();
-
-            var pairLabel = new Label
-            {
+                Text = "Выбрать",
+                Icon = IconKind.Folder,
+                Variant = ButtonVariant.Secondary,
+                Dock = DockStyle.Fill,
                 AutoSize = true,
-                Location = new Point(12, 68),
-                Text = "Преобразование:"
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(0, 40)
             };
+            _browseInputButton.Click += (_, _) => BrowseInputFile();
 
-            _pairComboBox = new ComboBox
+            _pairComboBox = new ModernComboBox
             {
-                Location = new Point(12, 88),
-                Size = new Size(536, 23),
+                Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             _pairComboBox.DisplayMember = nameof(FormatConversionPair.DisplayName);
@@ -83,20 +88,15 @@ namespace logReader.UI
                 UpdateConvertButtonState();
             };
 
-            var outputPathLabel = new Label
+            _outputPathTextBox = new ModernTextBox
             {
-                AutoSize = true,
-                Location = new Point(12, 124),
-                Text = "Файл после конвертации:"
-            };
-
-            _outputPathTextBox = new TextBox
-            {
-                Location = new Point(12, 144),
-                Size = new Size(456, 23),
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Путь для сохранения результата",
+                AccessibleName = "Файл результата"
             };
             _outputPathTextBox.TextChanged += (_, _) =>
             {
+                ResetFieldError(_outputPathTextBox);
                 if (!_suppressOutputTextChanged)
                 {
                     _outputEditedByUser = true;
@@ -105,95 +105,274 @@ namespace logReader.UI
                 UpdateConvertButtonState();
             };
 
-            var browseOutputButton = new Button
+            _browseOutputButton = new ModernButton
             {
-                Text = "Обзор",
-                Location = new Point(474, 143),
-                Size = new Size(74, 25)
+                Text = "Выбрать",
+                Icon = IconKind.Folder,
+                Variant = ButtonVariant.Secondary,
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(0, 40)
             };
-            browseOutputButton.Click += (_, _) => BrowseOutputFile();
+            _browseOutputButton.Click += (_, _) => BrowseOutputFile();
 
-            _convertButton = new Button
+            _convertButton = new ModernButton
             {
                 Text = "Преобразовать",
-                Location = new Point(248, 188),
-                Size = new Size(110, 25)
+                Icon = IconKind.Convert,
+                Variant = ButtonVariant.Primary,
+                AutoSize = true,
+                MinimumSize = new Size(168, 40)
             };
             _convertButton.Click += convertButton_Click;
 
-            _openButton = new Button
+            _openButton = new ModernButton
             {
-                Text = "Открыть",
-                Location = new Point(364, 188),
-                Size = new Size(85, 25),
+                Text = "Открыть результат",
+                Icon = IconKind.ExternalLink,
+                Variant = ButtonVariant.Secondary,
+                AutoSize = true,
+                MinimumSize = new Size(168, 40),
                 Enabled = false
             };
             _openButton.Click += openButton_Click;
 
-            var cancelButton = new Button
+            _closeButton = new ModernButton
             {
                 Text = "Закрыть",
+                Variant = ButtonVariant.Ghost,
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(455, 188),
-                Size = new Size(93, 25)
+                AutoSize = true,
+                MinimumSize = new Size(100, 40)
             };
+            _stopButton = new ModernButton
+            {
+                Text = "Остановить",
+                Icon = IconKind.Close,
+                Variant = ButtonVariant.Ghost,
+                AutoSize = true,
+                MinimumSize = new Size(132, 40),
+                Visible = false
+            };
+            _stopButton.Click += (_, _) => StopConversion();
 
-            Controls.Add(inputPathLabel);
-            Controls.Add(_inputPathTextBox);
-            Controls.Add(browseInputButton);
-            Controls.Add(pairLabel);
-            Controls.Add(_pairComboBox);
-            Controls.Add(outputPathLabel);
-            Controls.Add(_outputPathTextBox);
-            Controls.Add(browseOutputButton);
-            Controls.Add(_convertButton);
-            Controls.Add(_openButton);
-            Controls.Add(cancelButton);
+            _outcome = new InlineNotice
+            {
+                Dock = DockStyle.Fill,
+                Tone = StatusTone.Info,
+                Text = "Результат будет сохранён в отдельный файл. Исходный лог останется без изменений.",
+                Margin = new Padding(0, 16, 0, 0),
+                MinimumSize = new Size(0, 64)
+            };
+            _progress = new ProgressBar
+            {
+                Dock = DockStyle.Fill,
+                Height = 8,
+                Style = ProgressBarStyle.Marquee,
+                MarqueeAnimationSpeed = 24,
+                Margin = new Padding(0, 8, 0, 0)
+            };
+            _progressLabel = new Label
+            {
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                Font = Typography.Secondary,
+                ForeColor = AppTheme.TextSecondary,
+                Margin = Padding.Empty
+            };
+            _progressPanel = new TableLayoutPanel
+            {
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Visible = false,
+                Margin = new Padding(0, 16, 0, 0)
+            };
+            _progressPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _progressPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _progressPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 16));
+            _progressPanel.Controls.Add(_progressLabel, 0, 0);
+            _progressPanel.Controls.Add(_progress, 0, 1);
+
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(24),
+                Margin = Padding.Empty
+            };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var header = UiFactory.Header("Преобразование формата",
+                "Переведите лог в формат для следующего этапа работы.", IconKind.Convert);
+            header.Margin = new Padding(0, 0, 0, 20);
+            root.Controls.Add(header, 0, 0);
+
+            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Margin = Padding.Empty };
+            var card = new ModernCard { AutoSize = true, Dock = DockStyle.Top, Margin = Padding.Empty };
+            var fields = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 1,
+                RowCount = 5,
+                Margin = Padding.Empty
+            };
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (int i = 0; i < fields.RowCount; i++)
+                fields.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var inputField = UiFactory.Field("Исходный файл", BuildPathRow(_inputPathTextBox, _browseInputButton),
+                "Формат файла должен соответствовать источнику выбранного преобразования.");
+            inputField.Margin = new Padding(0, 0, 0, 20);
+            fields.Controls.Add(inputField, 0, 0);
+            var pairField = UiFactory.Field("Преобразование", _pairComboBox);
+            pairField.Margin = new Padding(0, 0, 0, 20);
+            fields.Controls.Add(pairField, 0, 1);
+            fields.Controls.Add(UiFactory.Field("Сохранить результат", BuildPathRow(_outputPathTextBox, _browseOutputButton),
+                "Имя предложено автоматически. Вы можете выбрать другую папку или изменить его."), 0, 2);
+            fields.Controls.Add(_outcome, 0, 3);
+            fields.Controls.Add(_progressPanel, 0, 4);
+            card.Controls.Add(fields);
+            scroll.Controls.Add(card);
+            root.Controls.Add(scroll, 0, 1);
+            var footer = UiFactory.Footer(_convertButton, _openButton, _stopButton, _closeButton);
+            footer.Margin = new Padding(0, 20, 0, 0);
+            root.Controls.Add(footer, 0, 2);
+            Controls.Add(root);
 
             AcceptButton = _convertButton;
-            CancelButton = cancelButton;
+            CancelButton = _closeButton;
 
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
-            UiScaling.Apply(this);
+            ResumeLayout(true);
+            AppTheme.Apply(this);
+            Disposed += (_, _) => _conversionCancellation?.Cancel();
+        }
+
+        private static Control BuildPathRow(TextBox input, Button browse)
+        {
+            var row = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = Padding.Empty
+            };
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var inputHost = UiFactory.Input(input);
+            inputHost.Dock = DockStyle.Fill;
+            inputHost.Margin = new Padding(0, 0, 8, 0);
+            browse.Margin = Padding.Empty;
+            browse.AutoSize = true;
+            browse.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.Controls.Add(inputHost, 0, 0);
+            row.Controls.Add(browse, 1, 0);
+            return row;
         }
 
         private async void convertButton_Click(object? sender, EventArgs e)
         {
-            if (!TryPrepareConversion(
-                    out string inputPath,
-                    out string outPath,
-                    out FormatConversionPair pair))
+            if (_busy)
+                return;
+
+            string inputPath;
+            string outPath;
+            FormatConversionPair pair;
+            try
             {
+                if (!TryPrepareConversion(out inputPath, out outPath, out pair))
+                    return;
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                ReportValidation("Ошибка: проверьте путь файла. " + ex.Message);
                 return;
             }
 
             ClearConversionResult();
+            using var cancellation = new CancellationTokenSource();
+            _conversionCancellation = cancellation;
+            var progress = new Progress<ProcessingProgress>(ReportConversionProgress);
+            var context = new ProcessingContext(_log, progress, cancellation.Token);
             SetUiBusy(true);
-            bool success;
+            ProcessingResult? result = null;
+            bool cancelled = false;
             try
             {
-                success = await Task.Run(() => RunConversion(inputPath, outPath, pair));
+                result = await Task.Run(() => RunConversion(inputPath, outPath, pair, context), cancellation.Token);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                cancelled = true;
+                _log("Преобразование остановлено. Файл результата не изменён.");
             }
             catch (Exception ex)
             {
                 _log("Критическая ошибка: " + ex.Message);
-                success = false;
+                result = ProcessingResult.Fail("Не удалось завершить преобразование: " + ex.Message);
             }
             finally
             {
-                SetUiBusy(false);
+                _conversionCancellation = null;
+                if (!IsDisposed && !Disposing) SetUiBusy(false);
             }
 
-            if (success)
-                SetConversionResult(outPath);
+            if (IsDisposed || Disposing) return;
+            if (cancelled)
+                ShowOutcome("Преобразование остановлено. Файл результата не изменён.", StatusTone.Warning);
+            else if (result is { Success: true })
+                SetConversionResult(result.OutputPath ?? outPath);
+            else
+                ShowOutcome(result?.Error ?? "Преобразование не завершено. Подробности доступны в журнале главного окна.", StatusTone.Error);
+        }
+
+        private void StopConversion()
+        {
+            if (!_busy || _conversionCancellation is not { } cancellation) return;
+            _stopButton.Enabled = false;
+            cancellation.Cancel();
+            _progressLabel.Text = "Останавливаем преобразование…";
+            ShowOutcome("Запрошена остановка. Дождитесь завершения текущего чтения файла.", StatusTone.Info);
+        }
+
+        private void ReportConversionProgress(ProcessingProgress progress)
+        {
+            if (!_busy || IsDisposed || Disposing || _conversionCancellation?.IsCancellationRequested == true) return;
+            _progress.Style = ProgressBarStyle.Continuous;
+            int percent = (int)Math.Round(Math.Clamp(progress.Fraction, 0, 1) * 100);
+            _progress.Value = percent;
+            _progressLabel.Text = $"{SelectedPair.DisplayName} · {percent}%";
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (_busy)
+            {
+                e.Cancel = true;
+                ShowOutcome("Дождитесь завершения преобразования или нажмите «Остановить». Файл ещё записывается.", StatusTone.Info);
+                return;
+            }
+            base.OnFormClosing(e);
         }
 
         private void openButton_Click(object? sender, EventArgs e)
         {
+            if (_busy)
+                return;
             if (string.IsNullOrWhiteSpace(_convertedOutputPath))
             {
                 _log("Нет файла для открытия. Сначала выполните преобразование.");
+                ShowOutcome("Сначала выполните преобразование, чтобы открыть результат.", StatusTone.Info);
                 return;
             }
 
@@ -201,6 +380,7 @@ namespace logReader.UI
             {
                 _log("Файл не найден: " + _convertedOutputPath);
                 ClearConversionResult();
+                ShowOutcome("Результирующий файл не найден. Выполните преобразование ещё раз.", StatusTone.Warning);
                 return;
             }
 
@@ -215,6 +395,7 @@ namespace logReader.UI
             catch (Exception ex)
             {
                 _log("Не удалось открыть: " + ex.Message);
+                ShowOutcome("Не удалось открыть файл: " + ex.Message, StatusTone.Error);
             }
         }
 
@@ -222,12 +403,41 @@ namespace logReader.UI
         {
             _convertedOutputPath = Path.GetFullPath(outPath);
             _openButton.Enabled = true;
+            ShowOutcome($"Готово. Файл «{Path.GetFileName(outPath)}» сохранён. Вы можете открыть результат.", StatusTone.Success);
         }
 
         private void ClearConversionResult()
         {
             _convertedOutputPath = null;
             _openButton.Enabled = false;
+            ShowOutcome("Результат будет сохранён в отдельный файл. Исходный лог останется без изменений.", StatusTone.Info);
+        }
+
+        private void ShowOutcome(string message, StatusTone tone)
+        {
+            _outcome.Tone = tone;
+            _outcome.Text = message;
+        }
+
+        private void ReportValidation(string message, TextBox? invalidField = null)
+        {
+            _log(message);
+            ShowOutcome(message, StatusTone.Error);
+            if (invalidField is ModernTextBox field)
+            {
+                field.HasError = true;
+                field.ErrorMessage = message;
+            }
+            invalidField?.Focus();
+        }
+
+        private static void ResetFieldError(TextBox input)
+        {
+            if (input is ModernTextBox field)
+            {
+                field.HasError = false;
+                field.ErrorMessage = null;
+            }
         }
 
         private bool TryPrepareConversion(
@@ -241,30 +451,30 @@ namespace logReader.UI
 
             if (string.IsNullOrWhiteSpace(inputPath))
             {
-                _log("Ошибка: файл лога не найден.");
+                ReportValidation("Ошибка: файл лога не найден.", _inputPathTextBox);
                 return false;
             }
             if (Directory.Exists(inputPath))
             {
-                _log("Ошибка: для конвертации нужно выбрать файл, а не папку.");
+                ReportValidation("Ошибка: для конвертации нужно выбрать файл, а не папку.", _inputPathTextBox);
                 return false;
             }
             if (!File.Exists(inputPath))
             {
-                _log("Ошибка: файл лога не найден.");
+                ReportValidation("Ошибка: файл лога не найден.", _inputPathTextBox);
                 return false;
             }
 
             string inputExt = Path.GetExtension(inputPath);
             if (!inputExt.Equals(pair.SourceExtension, StringComparison.OrdinalIgnoreCase))
             {
-                _log($"Ошибка: выбранный файл не соответствует формату источника ({pair.SourceExtension}).");
+                ReportValidation($"Ошибка: выбранный файл не соответствует формату источника ({pair.SourceExtension}).", _inputPathTextBox);
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(outPath))
             {
-                _log("Ошибка: укажите путь выходного файла.");
+                ReportValidation("Ошибка: укажите путь выходного файла.", _outputPathTextBox);
                 return false;
             }
 
@@ -274,7 +484,7 @@ namespace logReader.UI
             string? outDir = Path.GetDirectoryName(outPath);
             if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
             {
-                _log($"Ошибка: директория для сохранения не существует: {outDir}");
+                ReportValidation($"Ошибка: директория для сохранения не существует: {outDir}", _outputPathTextBox);
                 return false;
             }
 
@@ -282,7 +492,7 @@ namespace logReader.UI
             string inFull = Path.GetFullPath(inputPath);
             if (outFull.Equals(inFull, StringComparison.OrdinalIgnoreCase))
             {
-                _log("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.");
+                ReportValidation("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.", _outputPathTextBox);
                 return false;
             }
 
@@ -291,7 +501,7 @@ namespace logReader.UI
                 try { using var fs = new FileStream(outPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
                 catch
                 {
-                    _log("Ошибка: выходной файл уже открыт в другой программе. Закройте его и попробуйте снова.");
+                    ReportValidation("Ошибка: выходной файл уже открыт в другой программе. Закройте его и попробуйте снова.", _outputPathTextBox);
                     return false;
                 }
             }
@@ -307,41 +517,41 @@ namespace logReader.UI
             return true;
         }
 
-        private bool RunConversion(string inputPath, string outPath, FormatConversionPair pair)
+        private static ProcessingResult RunConversion(string inputPath, string outPath, FormatConversionPair pair, ProcessingContext context)
         {
-            var context = new ProcessingContext(_log);
-            ProcessingResult result = pair.Id switch
+            context.ThrowIfCancellationRequested();
+            return pair.Id switch
             {
                 "trc_to_asc" => new TrcToAscConverter().Convert(inputPath, outPath, context),
                 "csv_to_asc" => new MatrixCsvToAscConverter().Convert(inputPath, outPath, context),
                 _ => context.Fail($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.")
             };
-            return result.Success;
         }
 
         private void SetUiBusy(bool busy)
         {
+            _busy = busy;
             _inputPathTextBox.Enabled = !busy;
             _outputPathTextBox.Enabled = !busy;
             _pairComboBox.Enabled = !busy;
-            foreach (Control control in Controls)
-            {
-                if (control is Button button
-                    && button != _convertButton
-                    && button != _openButton)
-                {
-                    button.Enabled = !busy;
-                }
-            }
-
-            _convertButton.Enabled = !busy
-                && _pairComboBox.SelectedItem != null
-                && !string.IsNullOrWhiteSpace(_inputPathTextBox.Text)
-                && !string.IsNullOrWhiteSpace(_outputPathTextBox.Text);
+            _browseInputButton.Enabled = !busy;
+            _browseOutputButton.Enabled = !busy;
+            _closeButton.Enabled = !busy;
+            _stopButton.Visible = busy;
+            _stopButton.Enabled = busy;
+            _progressPanel.Visible = busy;
+            _progress.Style = ProgressBarStyle.Marquee;
+            _progress.Value = 0;
+            _progress.MarqueeAnimationSpeed = busy ? 24 : 0;
+            UpdateConvertButtonState();
             _convertButton.Text = busy ? "Преобразование..." : "Преобразовать";
 
             if (busy)
+            {
                 _openButton.Enabled = false;
+                _progressLabel.Text = $"{SelectedPair.DisplayName} · запись результата";
+                ShowOutcome("Выполняется преобразование. Для больших логов это может занять некоторое время.", StatusTone.Info);
+            }
             else if (!string.IsNullOrEmpty(_convertedOutputPath))
                 _openButton.Enabled = true;
 
@@ -350,6 +560,7 @@ namespace logReader.UI
 
         private void BrowseInputFile()
         {
+            if (_busy) return;
             var pair = SelectedPair;
             using var ofd = new OpenFileDialog();
             string sourceExt = pair.SourceExtension.TrimStart('.');
@@ -360,6 +571,7 @@ namespace logReader.UI
 
         private void BrowseOutputFile()
         {
+            if (_busy) return;
             var pair = SelectedPair;
             using var sfd = new SaveFileDialog();
             string targetExt = pair.TargetExtension.TrimStart('.');
@@ -401,7 +613,7 @@ namespace logReader.UI
 
         private void UpdateConvertButtonState()
         {
-            _convertButton.Enabled = _pairComboBox.SelectedItem != null
+            _convertButton.Enabled = !_busy && _pairComboBox.SelectedItem != null
                 && !string.IsNullOrWhiteSpace(_inputPathTextBox.Text)
                 && !string.IsNullOrWhiteSpace(_outputPathTextBox.Text);
         }
