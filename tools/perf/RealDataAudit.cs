@@ -9,7 +9,7 @@ using logReader.Processing;
 internal static class RealDataAudit
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
-    public static int Run(string suppliedRoot, string work, string reportPath, string? inputFilter = null)
+    public static int Run(string suppliedRoot, string work, string reportPath, string? inputFilter = null, bool allExports = false)
     {
         string root = Path.GetFullPath(suppliedRoot);
         string prefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
@@ -52,7 +52,14 @@ internal static class RealDataAudit
             catch (Exception ex) { inventory.Add(new { File = Path.GetRelativePath(root, file), Kind = "DETECT ERROR", Error = Unwrap(ex).Message }); failures++; continue; }
             inventory.Add(new { File = Path.GetRelativePath(root, file), Kind = kind });
             if (kind == "None") continue;
-            if (inputFilter != null && !Path.GetRelativePath(root, file).Equals(inputFilter, StringComparison.OrdinalIgnoreCase)) continue;
+            if (inputFilter != null)
+            {
+                string relative = Path.GetRelativePath(root, file);
+                bool selected = inputFilter.EndsWith('*')
+                    ? relative.StartsWith(inputFilter[..^1], StringComparison.OrdinalIgnoreCase)
+                    : relative.Equals(inputFilter, StringComparison.OrdinalIgnoreCase);
+                if (!selected) continue;
+            }
             var ids = SampleIds(file);
             var ranked = configs.Select(c => new { Config = c, Matched = c.Ids.Count(ids.Contains) })
                 .OrderByDescending(c => c.Matched).ThenByDescending(c => c.Config.Parameters).ThenBy(c => c.Config.Path, StringComparer.Ordinal).FirstOrDefault();
@@ -63,8 +70,13 @@ internal static class RealDataAudit
             }
             usable.Add((file, ranked.Config.Path, kind));
             RunCase(file, ranked.Config.Path, OutputFormat.Csv);
+            if (allExports)
+            {
+                RunCase(file, ranked.Config.Path, OutputFormat.Xlsx);
+                if (kind == "Trc") RunCase(file, ranked.Config.Path, OutputFormat.CsvDstConnect);
+            }
         }
-        foreach (string kind in new[] { "Trc", "Asc", "MatrixCsv", "StepCsv" })
+        foreach (string kind in allExports ? Array.Empty<string>() : new[] { "Trc", "Asc", "MatrixCsv", "StepCsv" })
         {
             var sample = usable.Where(p => p.Kind == kind).OrderBy(p => new FileInfo(p.Input).Length).FirstOrDefault();
             if (sample.Input == null) continue;
@@ -101,8 +113,8 @@ internal static class RealDataAudit
         if (!unchanged) failures++;
         File.WriteAllText(reportPath, JsonSerializer.Serialize(new { DataRoot = root, CoreAssemblySha256 = Hash(assembly.Location),
             Passed = passed, Failed = failures, Unmatched = unmatched, InputsUnchanged = unchanged, Inputs = inputs,
-            InputFilter = inputFilter, Descriptions = descriptions, Inventory = inventory, Scenarios = scenarios,
-            Method = "Full supplied logs; CSV for every recognized input with a sampled matching description; representative XLSX/DST and three batch modes. No edits to source fixtures. One run per case, not a performance benchmark." }, Json));
+            InputFilter = inputFilter, AllExports = allExports, Descriptions = descriptions, Inventory = inventory, Scenarios = scenarios,
+            Method = "Full supplied logs; sampled matching supplied descriptions. CSV for every selected recognized input, representative or opt-in all XLSX/DST exports, and three batch modes. No edits to source fixtures. One run per case, not a performance benchmark." }, Json));
         Console.WriteLine($"REAL DATA: {passed} PASS, {failures} FAIL, {unmatched} unmatched; {files.Length} source files unchanged={unchanged}; report={reportPath}");
         return failures == 0 ? 0 : 1;
 

@@ -1,0 +1,58 @@
+﻿{
+    "InputsUnchanged":  true,
+    "BaselineCoreSha256":  "4A1A31733C4D15725FDB0FFA63128A0799C2E630181DB17485E49BD3B14B3351",
+    "Method":  "Exactly nine formerly failed DST inputs become successful; all other statuses, row counts, output hashes and batch results remain equal to bfbea81.",
+    "Unmatched":  5,
+    "FixedDstFiles":  [
+                          {
+                              "Input":  "DST\\trace_2025-10-16T06_45_04_085033.trc",
+                              "Sha256":  "BAFCE9270B833DA8BAB57413F3AFB1D7DBBFBA6AD8E6C10C30D907C04783F729",
+                              "RowsWritten":  1042
+                          },
+                          {
+                              "Input":  "DST\\контрвращение_085008.trc",
+                              "Sha256":  "FEC4F7E3671940C413633BF1F4B591FC77657BEF2099B5FC00CDB6C93E7A23E8",
+                              "RowsWritten":  119
+                          },
+                          {
+                              "Input":  "DST\\мтс15е-1_085623.trc",
+                              "Sha256":  "87F59E90631F0741BE5B07D65EEFCC64C02BBA2ADA0ADCC5F7778DB2454200F9",
+                              "RowsWritten":  588
+                          },
+                          {
+                              "Input":  "DST\\мтс15е-горка-вверх_085611.trc",
+                              "Sha256":  "4239169C4D66FBABB360102FB07FF45B2F305C30E715C17FA0B6F8BAC61AB7C3",
+                              "RowsWritten":  159
+                          },
+                          {
+                              "Input":  "DST\\мтс15е-горка-спуск-торможение_085600.trc",
+                              "Sha256":  "760E1C6C08AED7100A218C9F2659AEA7622F16ABE9336882A87D3EC6E9ADB8E8",
+                              "RowsWritten":  120
+                          },
+                          {
+                              "Input":  "DST\\мтс15е-езда_085258.trc",
+                              "Sha256":  "B6E50AC8AF271B2E9150D0BB12819C730AD26D0D1280ED1B896E184A4BE502B0",
+                              "RowsWritten":  616
+                          },
+                          {
+                              "Input":  "DST\\мтс15е-подъемвгорку_085433.trc",
+                              "Sha256":  "7A6ED896CF10AB7CA94168FABB60412AC4CBB3DF270B03FF3560C7F64E01F3DF",
+                              "RowsWritten":  764
+                          },
+                          {
+                              "Input":  "DST\\мтс15е-спуск-рекуперация_085413.trc",
+                              "Sha256":  "BB0902A93E072B50016DB257306B348EEF4EAE6624CB0577D307487C18C68FBB",
+                              "RowsWritten":  183
+                          },
+                          {
+                              "Input":  "DST\\торможение_085545.trc",
+                              "Sha256":  "5CAAB2DECCBB129610913F19E03CC9F7B4A08D386589E4244363A0A644293F65",
+                              "RowsWritten":  149
+                          }
+                      ],
+    "CurrentPassed":  80,
+    "PreviousSuccessfulCasesPreserved":  71,
+    "CurrentFailed":  0,
+    "PublishedCoreSha256":  "486A910338608378A5F4D1EB9E32C39260DBD916D89EA33D892430A221E5EE1E",
+    "InputsEqual":  true
+}

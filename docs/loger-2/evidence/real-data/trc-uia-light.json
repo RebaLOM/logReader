@@ -1,0 +1,44 @@
+﻿{
+    "appSha256":  "1F3E18FD6D138FEF9C1FDB0E91AC238DBD38BD768C50B0EE1EF5B2FFCA3AC872",
+    "coreAssemblySha256":  "486A910338608378A5F4D1EB9E32C39260DBD916D89EA33D892430A221E5EE1E",
+    "realDescription":  "C:\\Users\\Re\\OneDrive\\Desktop\\DST_LOGER\\LOGER\\locarusBASE_L450E.dbc",
+    "method":  "Windows UI Automation against standalone application process",
+    "uiAssemblySha256":  "7C5B1880EF544E508C23E375197602A2D3A60083BBDBFA5C3BD1A4299FD6C4DB",
+    "expectedCsvSha256":  "FEC4F7E3671940C413633BF1F4B591FC77657BEF2099B5FC00CDB6C93E7A23E8",
+    "theme":  "Light",
+    "app":  "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\release\\win-x64\\LOGER.exe",
+    "limitations":  [
+                        "Native file dialogs, physical keyboard/mouse and sustained scrolling not exercised"
+                    ],
+    "realSource":  "C:\\Users\\Re\\OneDrive\\Desktop\\DST_LOGER\\DST\\контрвращение_085008.trc",
+    "checks":  [
+                   {
+                       "name":  "Actual application launched; UIA connected to its HWND and PID",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA InvokePattern opens decoder page",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA InvokePattern returns to session page",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA theme button changes, persists, and restores both themes",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "Real fixture CSV matches direct published-core SHA256",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "Repeated real processing preserves result and source hashes",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA ValuePattern inputs and InvokePattern processing produce correct decoded CSV",
+                       "status":  "PASS"
+                   }
+               ]
+}

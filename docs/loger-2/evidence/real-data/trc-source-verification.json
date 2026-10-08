@@ -1,0 +1,10 @@
+{
+  "PublishedUiSha256": "7C5B1880EF544E508C23E375197602A2D3A60083BBDBFA5C3BD1A4299FD6C4DB",
+  "Method": "Git diff reports only TrcLogParser.cs; all six inherited correction files and the core project are unchanged.",
+  "SourceCommit": "566fc24",
+  "PublishedCoreSha256": "486A910338608378A5F4D1EB9E32C39260DBD916D89EA33D892430A221E5EE1E",
+  "ChangedFile": "logReader/Processing/TrcLogParser.cs",
+  "Basis": "bfbea81",
+  "CoreFiles": 55,
+  "UnchangedCoreFiles": 54
+}

@@ -19,7 +19,7 @@ var output = Path.GetFullPath(Argument("--output") ?? Path.Combine(repo, "docs/l
 var work = Path.Combine(repo, "artifacts/perf", label);
 if (Argument("--data-root") is { } dataRoot)
 {
-    Environment.ExitCode = RealDataAudit.Run(dataRoot, work, output, Argument("--input-filter"));
+    Environment.ExitCode = RealDataAudit.Run(dataRoot, work, output, Argument("--input-filter"), args.Contains("--all-exports", StringComparer.Ordinal));
     return;
 }
 bool freshOutputs = args.Contains("--fresh-outputs", StringComparer.Ordinal);
