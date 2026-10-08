@@ -15,6 +15,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <Using Include="Xunit" />
+    <Using Include="logReader.Processing" />
     <ProjectReference Include="..\logReader.UI\logReader.UI.csproj" />
   </ItemGroup>
 </Project>

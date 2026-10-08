@@ -12,9 +12,12 @@ namespace logReader.UI
         private ProgressBar _workspaceProgress = null!;
         private EmptyState _journalEmpty = null!;
         private TableLayoutPanel _workflowGrid = null!;
+        private TableLayoutPanel _actionBar = null!, _actionStatus = null!;
+        private FlowLayoutPanel _actionButtons = null!;
         private Control[] _workflowCards = [];
         private ModernButton _devicesShortcut = null!, _compositesShortcut = null!;
-        private bool _compactWorkflow, _workspaceBusy, _runHadError, _hasOperationResult;
+        private bool _compactWorkflow, _workspaceBusy, _runHadError, _hasOperationResult, _operationCancelled;
+        private bool _workspaceLayoutReady, _reflowingWorkflow, _reflowingActionBar, _compactActionBar;
 
         private static ModernButton WorkspaceButton(string text, IconKind icon, ButtonVariant variant = ButtonVariant.Secondary)
             => new() { Text = text, Icon = icon, Variant = variant, AutoSize = true,
@@ -132,11 +135,23 @@ namespace logReader.UI
             _workflowGrid.SizeChanged += (_, _) => ReflowWorkflow();
             _pagesHost.SizeChanged += (_, _) => RefreshWorkspaceSummary();
             textBoxLog.TextChanged += (_, _) => _journalEmpty.Visible = textBoxLog.TextLength == 0;
-            FormClosing += (_, e) =>
+            Shown += (_, _) =>
             {
-                if (!_workspaceBusy) return;
-                e.Cancel = true;
-                ShowWorkspaceNotice("Дождитесь завершения текущей операции перед закрытием окна.", StatusTone.Info);
+                // Initial WinForms autoscaling has completed; all metrics below are
+                // now physical pixels, so no pre-scaled margins enter that pass.
+                _workspaceLayoutReady = true;
+                ReflowWorkflow();
+                ReflowActionBar();
+            };
+            DpiChanged += (_, _) =>
+            {
+                if (!_workspaceLayoutReady || !IsHandleCreated || IsDisposed) return;
+                BeginInvoke((Action)(() =>
+                {
+                    if (IsDisposed || Disposing) return;
+                    ReflowWorkflow();
+                    ReflowActionBar();
+                }));
             };
             RefreshWorkspaceSummary();
         }
@@ -304,27 +319,35 @@ namespace logReader.UI
 
         private Control BuildActionBar()
         {
-            var bar = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2,
+            _actionBar = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1,
                 Padding = new Padding(0, 16, 0, 16), Margin = Padding.Empty };
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            var status = WorkspaceStack();
+            _actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            _actionBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _actionStatus = WorkspaceStack();
             _workspaceStatus = new StatusBadge { Text = "Выберите входные файлы", Tone = StatusTone.Neutral,
                 Height = 28, Width = 200, Margin = Padding.Empty };
             _readinessLabel = new Label { AutoSize = true, Font = Typography.Caption,
                 ForeColor = AppTheme.TextSecondary, Margin = new Padding(0, 8, 8, 0) };
-            _workspaceProgress = new ProgressBar { Dock = DockStyle.Top, Height = 4,
-                Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30, Visible = false, Margin = new Padding(0, 8, 24, 0) };
-            StackAdd(status, _workspaceStatus);
-            StackAdd(status, _readinessLabel);
-            StackAdd(status, _workspaceProgress);
-            bar.Controls.Add(status, 0, 0);
-            var actions = UiFactory.Footer(buttonProcess, buttonOpenOutput);
-            actions.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
-            actions.Padding = Padding.Empty;
-            actions.BackColor = AppTheme.Background;
-            bar.Controls.Add(actions, 1, 0);
-            return bar;
+            _workspaceProgress = progressBarProcess;
+            StackAdd(_actionStatus, _workspaceStatus);
+            StackAdd(_actionStatus, _readinessLabel);
+            StackAdd(_actionStatus, labelProgress);
+            StackAdd(_actionStatus, _workspaceProgress);
+            _actionBar.Controls.Add(_actionStatus, 0, 0);
+            _actionButtons = UiFactory.Footer(buttonProcess, buttonOpenOutput, buttonCancel);
+            _actionButtons.Dock = DockStyle.Top;
+            _actionButtons.Padding = Padding.Empty;
+            _actionButtons.BackColor = AppTheme.Background;
+            _actionButtons.WrapContents = true;
+            _actionBar.Controls.Add(_actionButtons, 1, 0);
+            _actionBar.SizeChanged += (_, _) => ReflowActionBar();
+            foreach (var action in new[] { buttonProcess, buttonOpenOutput, buttonCancel })
+            {
+                action.VisibleChanged += (_, _) => ReflowActionBar();
+                action.TextChanged += (_, _) => ReflowActionBar();
+            }
+            return _actionBar;
         }
 
         private void SelectWorkspacePage(int index)
@@ -346,23 +369,92 @@ namespace logReader.UI
 
         private void ReflowWorkflow()
         {
-            if (_workflowGrid == null || _workflowCards.Length == 0 || _workflowGrid.Width <= 0) return;
+            if (!_workspaceLayoutReady || _reflowingWorkflow || _workflowGrid == null ||
+                _workflowCards.Length == 0 || _workflowGrid.Width <= 0) return;
             bool compact = _workflowGrid.Width < UiScale.Px(this, 760);
-            if (compact == _compactWorkflow && _workflowGrid.RowCount == (compact ? 4 : 2)) return;
-            _compactWorkflow = compact;
+            bool changeMode = compact != _compactWorkflow || _workflowGrid.RowCount != (compact ? 4 : 2);
+            int gap = UiScale.Px(this, 12);
+            bool changeMargins = _workflowCards.Where((card, index) =>
+                card.Margin != new Padding(0, 0, compact || index >= 2 ? 0 : gap, gap)).Any();
+            if (!changeMode && !changeMargins) return;
+            _reflowingWorkflow = true;
             _workflowGrid.SuspendLayout();
-            _workflowGrid.ColumnStyles.Clear();
-            _workflowGrid.RowStyles.Clear();
-            _workflowGrid.ColumnCount = compact ? 1 : 2;
-            _workflowGrid.RowCount = compact ? 4 : 2;
-            for (int c = 0; c < _workflowGrid.ColumnCount; c++) _workflowGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / _workflowGrid.ColumnCount));
-            for (int r = 0; r < _workflowGrid.RowCount; r++) _workflowGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            for (int i = 0; i < _workflowCards.Length; i++)
+            try
             {
-                _workflowGrid.SetCellPosition(_workflowCards[i], compact ? new TableLayoutPanelCellPosition(0, i) : new TableLayoutPanelCellPosition(i / 2, i % 2));
-                _workflowCards[i].Margin = new Padding(0, 0, compact || i >= 2 ? 0 : UiScale.Px(this, 12), UiScale.Px(this, 12));
+                _compactWorkflow = compact;
+                if (changeMode)
+                {
+                    _workflowGrid.ColumnStyles.Clear();
+                    _workflowGrid.RowStyles.Clear();
+                    _workflowGrid.ColumnCount = compact ? 1 : 2;
+                    _workflowGrid.RowCount = compact ? 4 : 2;
+                    for (int c = 0; c < _workflowGrid.ColumnCount; c++) _workflowGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / _workflowGrid.ColumnCount));
+                    for (int r = 0; r < _workflowGrid.RowCount; r++) _workflowGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                }
+                for (int i = 0; i < _workflowCards.Length; i++)
+                {
+                    if (changeMode)
+                        _workflowGrid.SetCellPosition(_workflowCards[i], compact ? new TableLayoutPanelCellPosition(0, i) : new TableLayoutPanelCellPosition(i / 2, i % 2));
+                    _workflowCards[i].Margin = new Padding(0, 0, compact || i >= 2 ? 0 : gap, gap);
+                }
             }
-            _workflowGrid.ResumeLayout(true);
+            finally
+            {
+                _workflowGrid.ResumeLayout(true);
+                _reflowingWorkflow = false;
+            }
+        }
+
+        private void ReflowActionBar()
+        {
+            if (!_workspaceLayoutReady || _reflowingActionBar || _actionBar == null || _actionBar.ClientSize.Width <= 0) return;
+            int available = Math.Max(1, _actionBar.ClientSize.Width - _actionBar.Padding.Horizontal);
+            int naturalActionsWidth = _actionButtons.Controls.Cast<Control>().Where(action => action.Visible)
+                .Sum(action => action.GetPreferredSize(Size.Empty).Width + action.Margin.Horizontal);
+            int gap = UiScale.Px(this, 16);
+            bool compact = available < UiScale.Px(this, 620) || available < naturalActionsWidth + UiScale.Px(this, 240) + gap;
+            int actionsWidth = compact ? available : Math.Min(available, naturalActionsWidth);
+            int statusWidth = compact ? available : Math.Max(1, available - actionsWidth - gap);
+            bool changeMode = compact != _compactActionBar || _actionBar.RowCount != (compact ? 2 : 1);
+            _reflowingActionBar = true;
+            _actionBar.SuspendLayout();
+            try
+            {
+                _compactActionBar = compact;
+                if (changeMode)
+                {
+                    _actionBar.ColumnStyles.Clear();
+                    _actionBar.RowStyles.Clear();
+                    _actionBar.ColumnCount = compact ? 1 : 2;
+                    _actionBar.RowCount = compact ? 2 : 1;
+                    _actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                    if (!compact) _actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, actionsWidth + gap));
+                    for (int row = 0; row < _actionBar.RowCount; row++) _actionBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                    _actionBar.SetCellPosition(_actionStatus, new TableLayoutPanelCellPosition(0, 0));
+                    _actionBar.SetCellPosition(_actionButtons, compact ? new TableLayoutPanelCellPosition(0, 1) : new TableLayoutPanelCellPosition(1, 0));
+                }
+                else if (!compact)
+                {
+                    // The action text/visibility can change while the layout stays wide.
+                    _actionBar.ColumnStyles[1].SizeType = SizeType.Absolute;
+                    _actionBar.ColumnStyles[1].Width = actionsWidth + gap;
+                }
+                _actionButtons.Margin = compact ? new Padding(0, UiScale.Px(this, 12), 0, 0) : new Padding(gap, 0, 0, 0);
+                var actionsMaximum = new Size(Math.Max(1, actionsWidth), 0);
+                if (_actionButtons.MaximumSize != actionsMaximum) _actionButtons.MaximumSize = actionsMaximum;
+                var statusMaximum = new Size(statusWidth, 0);
+                if (_actionStatus.MaximumSize != statusMaximum) _actionStatus.MaximumSize = statusMaximum;
+                int labelWidth = Math.Max(1, statusWidth - _readinessLabel.Margin.Horizontal);
+                var labelMaximum = new Size(labelWidth, 0);
+                if (_readinessLabel.MaximumSize != labelMaximum) _readinessLabel.MaximumSize = labelMaximum;
+                if (labelProgress.MaximumSize != labelMaximum) labelProgress.MaximumSize = labelMaximum;
+                if (_workspaceStatus.MaximumSize != statusMaximum) _workspaceStatus.MaximumSize = statusMaximum;
+            }
+            finally
+            {
+                _actionBar.ResumeLayout(true);
+                _reflowingActionBar = false;
+            }
         }
 
         private void RefreshWorkspaceSummary(bool inputsChanged = false)
@@ -403,6 +495,8 @@ namespace logReader.UI
             foreach (var label in new[] { _devicesLibraryPath, _compositesLibraryPath, _pageDescription })
                 label.MaximumSize = new Size(width, 0);
             _readinessLabel.MaximumSize = new Size(Math.Max(UiScale.Px(this, 140), width - UiScale.Px(this, 380)), 0);
+            labelProgress.MaximumSize = _readinessLabel.MaximumSize;
+            ReflowActionBar();
         }
 
         private void ShowWorkspaceNotice(string text, StatusTone tone)
@@ -439,6 +533,13 @@ namespace logReader.UI
                 _workspaceStatus.Text = scan ? "Анализ устройств" : "Идёт обработка";
                 _workspaceStatus.Tone = StatusTone.Info;
                 _readinessLabel.Text = "Можно следить за ходом операции в журнале.";
+            }
+            else if (_operationCancelled)
+            {
+                _hasOperationResult = true;
+                _workspaceStatus.Text = "Операция отменена";
+                _workspaceStatus.Tone = StatusTone.Neutral;
+                _readinessLabel.Text = "Можно изменить параметры и запустить операцию снова.";
             }
             else if (scan)
             {

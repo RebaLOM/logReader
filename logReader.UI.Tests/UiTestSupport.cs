@@ -95,9 +95,12 @@ internal static class UiThread
         }
     }
 
-    internal static T Field<T>(object target, string name) =>
-        (T)(target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(target)
-            ?? throw new InvalidOperationException($"Missing regression seam: {target.GetType().Name}.{name}"));
+    internal static T Field<T>(object target, string name)
+    {
+        var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException($"Missing regression seam: {target.GetType().Name}.{name}");
+        return (T)field.GetValue(target)!;
+    }
 
     internal static object? Invoke(object target, string name, params object[] args) =>
         (target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)
@@ -129,7 +132,11 @@ internal sealed class UiFixtures : IDisposable
     internal static DbcMessage Message => new() { Name = "Engine", Id = 0x123, IsExtended = false, Dlc = 8, Signals = [Signal] };
     internal static DeviceDefinition Definition => new() { DeviceId = "123", MessageName = "Engine", Extended = false, Dlc = 8, Rows = [FieldRow] };
     internal static CompositeSignal Composite(string name) => new() { Block = "Engine", Param = name, Pieces = [new("123", 0, 0, 8)] };
-    internal static Device Device => new("123", 1) { Name = "Engine", headers = ["Speed"] };
+    internal static Device Device => new DynamicDevice("123", [new()
+    {
+        FieldIndex = 0, Header = "Speed", Type = "NUM", StartBit = 9, LengthBit = 4,
+        IsLittleEndian = true, Scale = 1
+    }]);
 
     internal UiFixtures()
     {

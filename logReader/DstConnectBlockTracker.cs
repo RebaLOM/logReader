@@ -1,9 +1,16 @@
 namespace logReader
 {
+    // Снимок last-known значений на конец блока. Values[i] — колонка i (NaN — значения ещё не было).
     public sealed class DstConnectSnapshotRow
     {
-        public double StepMs { get; init; }
-        public IReadOnlyDictionary<string, string> Values { get; init; } = new Dictionary<string, string>();
+        public DstConnectSnapshotRow(double stepMs, double[] values)
+        {
+            StepMs = stepMs;
+            Values = values;
+        }
+
+        public double StepMs { get; }
+        public double[] Values { get; }
     }
 
     // Last-known по завершённым блокам; одна строка CSV на блок.
@@ -13,8 +20,11 @@ namespace logReader
         private readonly TrcBlockDetectionResult _detection;
         private readonly HashSet<double> _emittedSteps = new();
         private readonly List<DstConnectSnapshotRow> _rows = new();
-        private readonly Dictionary<string, string> _globalState = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, string> _currentBlock = new(StringComparer.Ordinal);
+        private readonly double[] _globalState;
+        private readonly double[] _currentBlock;
+        private readonly bool[] _currentBlockSet;
+        private readonly List<int> _currentBlockColumns = new();
+        private bool _hasGlobalState;
 
         private bool _blockOpen;
         private double _lastBlockStartTimeMs = double.NaN;
@@ -22,10 +32,14 @@ namespace logReader
         private int _framesInCurrentBlock;
         private int _currentBlockSlot = -1;
 
-        public DstConnectBlockTracker(DstConnectOptions options, TrcBlockDetectionResult detection)
+        public DstConnectBlockTracker(DstConnectOptions options, TrcBlockDetectionResult detection, int columnCount)
         {
             _options = options;
             _detection = detection;
+            _globalState = new double[columnCount];
+            _currentBlock = new double[columnCount];
+            _currentBlockSet = new bool[columnCount];
+            Array.Fill(_globalState, double.NaN);
         }
 
         public IReadOnlyList<DstConnectSnapshotRow> Rows => _rows;
@@ -60,12 +74,17 @@ namespace logReader
             _previousTimeMs = timeMs;
         }
 
-        public void UpdateParameter(string key, string value)
+        public void UpdateParameter(int column, double value)
         {
             if (!_blockOpen)
                 return;
 
-            _currentBlock[key] = value;
+            if (!_currentBlockSet[column])
+            {
+                _currentBlockSet[column] = true;
+                _currentBlockColumns.Add(column);
+            }
+            _currentBlock[column] = value;
         }
 
         public void Finish(double lastTimeMs)
@@ -76,29 +95,19 @@ namespace logReader
 
         private void CommitBlock(double blockCompleteTimeMs)
         {
-            foreach (var kv in _currentBlock)
-                _globalState[kv.Key] = kv.Value;
-            _currentBlock.Clear();
-
-            if (_globalState.Count == 0)
-                return;
-
-            TryEmitSnapshot(blockCompleteTimeMs);
-        }
-
-        private void TryEmitSnapshot(double stepMs)
-        {
-            if (_globalState.Count == 0)
-                return;
-
-            if (!_emittedSteps.Add(stepMs))
-                return;
-
-            _rows.Add(new DstConnectSnapshotRow
+            foreach (int column in _currentBlockColumns)
             {
-                StepMs = stepMs,
-                Values = new Dictionary<string, string>(_globalState, StringComparer.Ordinal)
-            });
+                _globalState[column] = _currentBlock[column];
+                _currentBlockSet[column] = false;
+            }
+            if (_currentBlockColumns.Count > 0)
+                _hasGlobalState = true;
+            _currentBlockColumns.Clear();
+
+            if (!_hasGlobalState || !_emittedSteps.Add(blockCompleteTimeMs))
+                return;
+
+            _rows.Add(new DstConnectSnapshotRow(blockCompleteTimeMs, (double[])_globalState.Clone()));
         }
 
         private bool IsBlockStart(int messageIndex, double timeMs, string id)

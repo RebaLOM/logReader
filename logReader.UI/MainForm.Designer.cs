@@ -74,6 +74,25 @@ namespace logReader.UI
             buttonSaveOptions = WorkspaceButton("Параметры сохранения", IconKind.Sliders, ButtonVariant.Ghost);
             buttonSaveOptions.Click += buttonSaveOptions_Click;
 
+            buttonCancel = WorkspaceButton("Отмена", IconKind.Close);
+            buttonCancel.Name = nameof(buttonCancel);
+            buttonCancel.Enabled = false;
+            buttonCancel.Visible = false;
+            buttonCancel.Click += buttonCancel_Click;
+            progressBarProcess = new ProgressBar
+            {
+                Name = nameof(progressBarProcess), Dock = DockStyle.Top, Height = 4,
+                Maximum = 1000, Style = ProgressBarStyle.Continuous, Visible = false,
+                Margin = new Padding(0, 8, 24, 0), TabStop = false
+            };
+            labelProgress = new Label
+            {
+                Name = nameof(labelProgress), AutoSize = true, AutoEllipsis = true,
+                Font = Typography.Caption, ForeColor = AppTheme.TextSecondary,
+                Visible = false, Margin = new Padding(0, 8, 8, 0),
+                AccessibleName = "Ход обработки"
+            };
+
             textBoxDevices.TextChanged += textBoxDevices_TextChanged;
             textBoxComposites.TextChanged += textBoxComposites_TextChanged;
             textBoxOutput.TextChanged += textBoxOutput_TextChanged;
@@ -87,6 +106,8 @@ namespace logReader.UI
         private Button buttonCANlog = null!, buttonViewLog = null!, buttonDevices = null!, buttonComposites = null!;
         private Button buttonCompositesCreateOrAdd = null!, buttonOutput = null!, buttonOpenOutput = null!;
         private Button buttonProcess = null!, buttonHelp = null!, buttonTrcToAsc = null!, buttonDevicesParams = null!;
-        private Button buttonDevicesCreateOrAdd = null!, buttonSaveOptions = null!;
+        private Button buttonDevicesCreateOrAdd = null!, buttonSaveOptions = null!, buttonCancel = null!;
+        private ProgressBar progressBarProcess = null!;
+        private Label labelProgress = null!;
     }
 }

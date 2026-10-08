@@ -87,6 +87,9 @@ namespace logReader
                 return false;
             if (!int.TryParse(parts[7].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int byteOrderFlag))
                 return false;
+            if (!NumberParseHelper.TryParseDouble(parts[8], out double offset)
+                || !NumberParseHelper.TryParseDouble(parts[9], out double scale))
+                return false;
 
             fields = new SignalFields
             {
@@ -98,8 +101,8 @@ namespace logReader
                 RawMax = rawMax,
                 RawMin = rawMin,
                 IsLittleEndian = byteOrderFlag != 0,
-                Offset = NumberParseHelper.ParseDoubleInvariant(parts[8].Trim()),
-                Scale = NumberParseHelper.ParseDoubleInvariant(parts[9].Trim()),
+                Offset = offset,
+                Scale = scale,
                 Unit = parts[10].Trim()
             };
             return true;
@@ -133,7 +136,8 @@ namespace logReader
                 Offset = fields.Offset,
                 Min = physMin,
                 Max = physMax,
-                Unit = fields.Unit ?? ""
+                Unit = fields.Unit ?? "",
+                OriginName = fields.Name
             };
         }
 

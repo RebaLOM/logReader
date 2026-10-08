@@ -139,6 +139,7 @@ public class WorkflowRegressionTests
             foreach (string member in new[] { "_inputPathTextBox", "_outputPathTextBox", "_pairComboBox", "_browseInputButton", "_browseOutputButton", "_closeButton", "_convertButton" })
                 Assert.False(UiThread.Field<Control>(form, member).Enabled);
             Assert.True(UiThread.Field<TableLayoutPanel>(form, "_progressPanel").Visible);
+            Assert.True(UiThread.Field<Button>(form, "_stopButton").Enabled);
             convert.PerformClick();
             form.Close();
             Assert.False(form.IsDisposed);
@@ -155,6 +156,134 @@ public class WorkflowRegressionTests
         Assert.Equal(StatusTone.Success, UiThread.Field<InlineNotice>(form, "_outcome").Tone);
         Assert.True(UiThread.Field<Button>(form, "_openButton").Enabled);
         Assert.True(convert.Enabled);
+    });
+
+    [Fact]
+    public void Cancelling_conversion_keeps_existing_output_and_cleans_temporary_file() => UiThread.Run(() =>
+    {
+        using var fixture = new UiFixtures();
+        // No date header creates a deterministic log callback before output is
+        // written; enough frames exercise cooperative cancellation during reads.
+        File.WriteAllText(fixture.Trc, string.Concat(Enumerable.Repeat("1) 0.000 Rx 123 8 01 02 03 04 05 06 07 08\n", 8192)));
+        string output = Path.ChangeExtension(fixture.Trc, ".asc");
+        string previous = File.ReadAllText(output);
+        using var entered = new ManualResetEventSlim(false);
+        using var release = new ManualResetEventSlim(false);
+        using var form = new FormatConversionDialog([new("trc_to_asc", "TRC → ASC", ".trc", ".asc")], fixture.Trc, message =>
+        {
+            if (!message.StartsWith("Предупреждение: не найдено стартовое время", StringComparison.Ordinal)) return;
+            entered.Set();
+            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException("Cancellation barrier was not released.");
+        });
+        UiThread.Show(form);
+        UiThread.Field<Button>(form, "_convertButton").PerformClick();
+        try
+        {
+            UiThread.Until(() => entered.IsSet);
+            var stop = UiThread.Field<Button>(form, "_stopButton");
+            stop.PerformClick();
+            Assert.False(stop.Enabled);
+            Assert.True(UiThread.Field<bool>(form, "_busy"));
+        }
+        finally
+        {
+            release.Set();
+            UiThread.Until(() => !UiThread.Field<bool>(form, "_busy"));
+        }
+        Assert.Equal(previous, File.ReadAllText(output));
+        Assert.Equal(StatusTone.Warning, UiThread.Field<InlineNotice>(form, "_outcome").Tone);
+        Assert.Contains("остановлено", UiThread.Field<InlineNotice>(form, "_outcome").Text);
+        Assert.False(UiThread.Field<Button>(form, "_openButton").Enabled);
+        Assert.DoesNotContain(Directory.EnumerateFiles(fixture.LogFolder), path => Path.GetFileName(path).Contains(".tmp", StringComparison.Ordinal));
+    });
+
+    [Fact]
+    public void Conversion_failure_uses_core_error_without_overwriting_existing_output() => UiThread.Run(() =>
+    {
+        using var fixture = new UiFixtures();
+        string legacy = Path.Combine(fixture.Root, "legacy.csv");
+        File.WriteAllText(legacy, "Шаг;Время;Speed\n0;12:00:00;1\n");
+        string output = Path.ChangeExtension(legacy, ".asc");
+        File.WriteAllText(output, "Existing output must survive a rejected source.");
+        var messages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        using var form = new FormatConversionDialog([new("csv_to_asc", "CSV → ASC", ".csv", ".asc")], legacy, messages.Enqueue);
+        UiThread.Show(form);
+        UiThread.Field<Button>(form, "_convertButton").PerformClick();
+        UiThread.Until(() => !UiThread.Field<bool>(form, "_busy"));
+        var notice = UiThread.Field<InlineNotice>(form, "_outcome");
+        Assert.Equal(StatusTone.Error, notice.Tone);
+        Assert.Contains("legacy CSV", notice.Text);
+        Assert.Contains(notice.Text, messages);
+        Assert.Equal("Existing output must survive a rejected source.", File.ReadAllText(output));
+        Assert.False(UiThread.Field<Button>(form, "_openButton").Enabled);
+    });
+
+    [Fact]
+    public void Device_selection_is_committed_only_by_confirmation_and_clones_arrays() => UiThread.Run(() =>
+    {
+        var enabled = new Dictionary<string, bool> { ["123"] = true };
+        var parameters = new Dictionary<string, bool[]> { ["123"] = [true] };
+        using (var cancelled = new Devices_ParametrsForm([UiFixtures.Device], enabled, parameters))
+        {
+            UiThread.Show(cancelled);
+            UiThread.Invoke(cancelled, "SetAll", false);
+            Assert.True(enabled["123"]);
+            Assert.True(parameters["123"][0]);
+            cancelled.CancelButton!.PerformClick();
+            Assert.True(enabled["123"]);
+            Assert.True(parameters["123"][0]);
+        }
+        using var confirmed = new Devices_ParametrsForm([UiFixtures.Device], enabled, parameters);
+        UiThread.Show(confirmed);
+        UiThread.Invoke(confirmed, "SetAll", false);
+        bool[] snapshot = UiThread.Field<Dictionary<string, bool[]>>(confirmed, "_paramEnabled")["123"];
+        confirmed.AcceptButton!.PerformClick();
+        Assert.False(enabled["123"]);
+        Assert.False(parameters["123"][0]);
+        Assert.NotSame(snapshot, parameters["123"]);
+    });
+
+    [Fact]
+    public void Editing_filtered_composite_changes_memory_until_explicit_save() => UiThread.Run(() =>
+    {
+        using var fixture = new UiFixtures();
+        using var form = new CompositeEditorForm(fixture.Composites);
+        UiThread.Show(form);
+        UiThread.Field<TextBox>(form, "_txtSearch").Text = "Pressure";
+        var grid = UiThread.Field<DataGridView>(form, "_grid");
+        grid.CurrentCell = grid.Rows[0].Cells[0];
+        grid.Rows[0].Selected = true;
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+        using var editResponder = new System.Windows.Forms.Timer { Interval = 20 };
+        editResponder.Tick += (_, _) =>
+        {
+            var editor = Application.OpenForms.OfType<CompositeParamEditForm>().FirstOrDefault();
+            if (editor == null) return;
+            editResponder.Stop();
+            try
+            {
+                UiThread.Field<TextBox>(editor, "_txtParam").Text = "ChangedPressure";
+                editor.AcceptButton!.PerformClick();
+            }
+            catch (Exception ex)
+            {
+                failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex);
+                editor.DialogResult = DialogResult.Cancel;
+                editor.Close();
+            }
+        };
+        editResponder.Start();
+        UiThread.Field<Button>(form, "_btnEdit").PerformClick();
+        failure?.Throw();
+        Assert.True(UiThread.Field<bool>(form, "_dirty"));
+        Assert.False(form.Modified);
+        Assert.Equal("Pressure", CompositeExcelFile.ReadAll(fixture.Composites)[1].Param);
+        UiThread.Field<Button>(form, "_btnSave").PerformClick();
+        Assert.False(UiThread.Field<bool>(form, "_dirty"));
+        Assert.True(form.Modified);
+        var persisted = CompositeExcelFile.ReadAll(fixture.Composites);
+        Assert.Equal("Temperature", persisted[0].Param);
+        Assert.Equal("ChangedPressure", persisted[1].Param);
     });
 
     [Theory]

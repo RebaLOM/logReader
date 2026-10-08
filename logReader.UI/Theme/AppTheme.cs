@@ -128,11 +128,16 @@ public static class AppTheme
         grid.DefaultCellStyle.Font = Typography.Secondary;
         grid.DefaultCellStyle.Padding = new Padding(UiScale.Px(grid, 10), UiScale.Px(grid, 4), UiScale.Px(grid, 8), UiScale.Px(grid, 4));
         grid.RowTemplate.Height = UiScale.Px(grid, 36);
-        foreach (DataGridViewRow row in grid.Rows)
-            if (!row.IsNewRow) row.Height = UiScale.Px(grid, 36);
+        if (grid.VirtualMode)
+            grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+        else
+            foreach (DataGridViewRow row in grid.Rows)
+                if (!row.IsNewRow) row.Height = UiScale.Px(grid, 36);
         var appearance = GridStates.GetValue(grid, g => new GridAppearance(g));
         if (emptyMessage != "Пока нет данных" || appearance.EmptyMessage == "Пока нет данных")
             appearance.EmptyMessage = emptyMessage;
+        if (grid.VirtualMode && grid.RowCount > 0)
+            grid.UpdateRowHeightInfo(0, true);
         grid.Invalidate();
     }
 
@@ -147,6 +152,10 @@ public static class AppTheme
             grid.CellMouseEnter += (_, e) => SetHover(e.RowIndex);
             grid.MouseLeave += (_, _) => SetHover(-1);
             grid.CellPainting += PaintCell;
+            grid.RowHeightInfoNeeded += (_, e) =>
+            {
+                if (grid.VirtualMode) e.Height = UiScale.Px(grid, 36);
+            };
             grid.Paint += PaintEmpty;
             grid.DpiChangedAfterParent += (_, _) => StyleGrid(grid, EmptyMessage);
             grid.RowsAdded += (_, _) => grid.Invalidate();
@@ -172,7 +181,7 @@ public static class AppTheme
         }
         private void PaintEmpty(object? sender, PaintEventArgs e)
         {
-            if (grid.Rows.Cast<DataGridViewRow>().Any(row => !row.IsNewRow)) return;
+            if (grid.RowCount > (grid.NewRowIndex >= 0 ? 1 : 0)) return;
             Rectangle area = grid.ClientRectangle;
             area.Y += grid.ColumnHeadersVisible ? grid.ColumnHeadersHeight : 0;
             area.Height -= grid.ColumnHeadersVisible ? grid.ColumnHeadersHeight : 0;

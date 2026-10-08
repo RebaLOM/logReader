@@ -14,12 +14,15 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Resources\logger.ico" />
-		<EmbeddedResource Include="Resources\Help.rtf" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\logReader\logReader.csproj" />
 		<InternalsVisibleTo Include="logReader.UI.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="logReader.Processing" />
 	</ItemGroup>
 
 </Project>

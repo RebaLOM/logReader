@@ -293,8 +293,10 @@ namespace logReader.UI
             {
                 if (row.IsNewRow) continue;
 
-                string src = (row.Cells["SourceID"].Value?.ToString() ?? "").Trim().ToUpperInvariant();
-                if (string.IsNullOrWhiteSpace(src)) continue;
+                string rawSrc = (row.Cells["SourceID"].Value?.ToString() ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(rawSrc)) continue;
+                if (!CanId.TryNormalize(rawSrc, out string src))
+                { WarnCell(row, "SourceID", $"Фрагмент '{rawSrc}': CAN ID должен быть hex-числом от 0 до 1FFFFFFF."); return; }
 
                 if (!TryParseInt(row.Cells["Byte"].Value, out int b) || b < 0 || b > 7)
                 { WarnCell(row, "Byte", $"Фрагмент '{src}': номер байта должен быть от 0 до 7."); return; }

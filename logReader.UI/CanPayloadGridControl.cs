@@ -220,6 +220,14 @@ namespace logReader.UI
         public static Color ColorForSignalName(string name) =>
             CanPayloadGridPalette.ColorForName(name);
 
+        // Форма масштабирует размер контрола сама; здесь размер считается от DPI, поэтому
+        // после масштабирования его пересчитываем, а не умножаем повторно.
+        protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+        {
+            base.ScaleControl(factor, specified);
+            UpdatePreferredSize();
+        }
+
         private void UpdatePreferredSize()
         {
             int gridH = HeaderRowHeight + _dlc * CellSize + UiScale.Px(this, 8);
@@ -243,6 +251,7 @@ namespace logReader.UI
         {
             base.OnDpiChangedAfterParent(e);
             UpdatePreferredSize();
+            Invalidate();
         }
 
         protected override void OnGotFocus(EventArgs e)
@@ -291,6 +300,10 @@ namespace logReader.UI
                 && TryPreviewBits(dragAnchor, dragHover, payloadBits, out var previewBits))
                 dragPreview = previewBits;
 
+            using var gridPen = new Pen(AppTheme.Border);
+            using var selectionPen = new Pen(AppTheme.Primary, UiScale.Px(this, 2));
+            using var previewBrush = new SolidBrush(Color.FromArgb(90, AppTheme.Primary));
+
             for (int row = 0; row < _dlc; row++)
             {
                 int y = HeaderRowHeight + row * CellSize;
@@ -327,26 +340,12 @@ namespace logReader.UI
 
                     using var brush = new SolidBrush(fill);
                     g.FillRectangle(brush, rect);
-                    using var pen = new Pen(AppTheme.Border);
-                    g.DrawRectangle(pen, rect);
-
-                    if (selected)
-                    {
-                        using var selPen = new Pen(AppTheme.Primary, UiScale.Px(this, 2));
-                        g.DrawRectangle(selPen, Rectangle.Inflate(rect, -1, -1));
-                    }
-
-                    if (viewHighlightActive && currentOverlayBits.Contains(global))
-                    {
-                        using var selPen = new Pen(AppTheme.Primary, UiScale.Px(this, 2));
-                        g.DrawRectangle(selPen, Rectangle.Inflate(rect, -1, -1));
-                    }
+                    g.DrawRectangle(gridPen, rect);
+                    if (selected || (viewHighlightActive && currentOverlayBits.Contains(global)))
+                        g.DrawRectangle(selectionPen, Rectangle.Inflate(rect, -1, -1));
 
                     if (dragPreview?.Contains(global) == true)
-                    {
-                        using var prevBrush = new SolidBrush(Color.FromArgb(90, AppTheme.Primary));
-                        g.FillRectangle(prevBrush, rect);
-                    }
+                        g.FillRectangle(previewBrush, rect);
                     TextRenderer.DrawText(g, global.ToString(), Font, rect,
                         inactiveByte ? AppTheme.TextMuted : AppTheme.TextSecondary,
                         TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
@@ -357,7 +356,7 @@ namespace logReader.UI
             {
                 int bitInByte = 7 - col;
                 int x = LabelColWidth + col * CellSize;
-                TextRenderer.DrawText(g, bitInByte.ToString(), Font,
+                TextRenderer.DrawText(g, bitInByte.ToString(System.Globalization.CultureInfo.InvariantCulture), Font,
                     new Rectangle(x, 2, CellSize, HeaderRowHeight - 2),
                     AppTheme.TextMuted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
@@ -377,14 +376,16 @@ namespace logReader.UI
         private void PaintLegend(Graphics g)
         {
             int y = HeaderRowHeight + _dlc * CellSize + UiScale.Px(this, 8);
+            int swatchSize = UiScale.Px(this, 12);
+            int textLeft = UiScale.Px(this, 24);
             foreach (var ov in _overlays.DistinctBy(o => o.Name))
             {
-                var swatch = new Rectangle(UiScale.Px(this, 4), y + UiScale.Px(this, 6), UiScale.Px(this, 12), UiScale.Px(this, 12));
+                var swatch = new Rectangle(UiScale.Px(this, 4), y + (LegendRowHeight - swatchSize) / 2, swatchSize, swatchSize);
                 using var brush = new SolidBrush(ov.Color);
                 g.FillRectangle(brush, swatch);
                 using var border = new Pen(AppTheme.Border);
                 g.DrawRectangle(border, swatch);
-                TextRenderer.DrawText(g, ov.Name, Typography.Secondary, new Rectangle(UiScale.Px(this, 24), y, Width - UiScale.Px(this, 28), LegendRowHeight),
+                TextRenderer.DrawText(g, ov.Name, Typography.Secondary, new Rectangle(textLeft, y, Width - textLeft - UiScale.Px(this, 4), LegendRowHeight),
                     ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
                 y += LegendRowHeight;
             }
@@ -654,8 +655,7 @@ namespace logReader.UI
         public static Color ColorForName(string name)
         {
             if (string.IsNullOrEmpty(name)) return Colors[0];
-            int hash = StableHash(name);
-            return Colors[PaletteIndex(hash)];
+            return Colors[PaletteIndex(name)];
         }
 
         public static IReadOnlyDictionary<string, Color> AssignColors(IEnumerable<string> names)
@@ -667,7 +667,7 @@ namespace logReader.UI
                 if (string.IsNullOrEmpty(name) || map.ContainsKey(name))
                     continue;
 
-                int preferred = PaletteIndex(StableHash(name));
+                int preferred = PaletteIndex(name);
                 int idx = FindFreeIndex(preferred, used);
                 used.Add(idx);
                 map[name] = Colors[idx];
@@ -688,6 +688,9 @@ namespace logReader.UI
             return preferred;
         }
 
+        // Math.Abs(int.MinValue) бросает OverflowException — берём хеш без знакового бита.
+        private static int PaletteIndex(string name) => (StableHash(name) & int.MaxValue) % Colors.Count;
+
         private static int StableHash(string s)
         {
             unchecked
@@ -699,7 +702,5 @@ namespace logReader.UI
             }
         }
 
-        private static int PaletteIndex(int hash)
-            => (int)(Math.Abs((long)hash) % Colors.Count);
     }
 }

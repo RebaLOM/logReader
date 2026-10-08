@@ -10,6 +10,7 @@ namespace logReader.UI
         private readonly Button _browseInputButton;
         private readonly Button _browseOutputButton;
         private readonly Button _closeButton;
+        private readonly Button _stopButton;
         private readonly InlineNotice _outcome;
         private readonly ProgressBar _progress;
         private readonly Label _progressLabel;
@@ -20,7 +21,7 @@ namespace logReader.UI
         private bool _outputEditedByUser;
         private string? _convertedOutputPath;
         private bool _busy;
-        private string? _lastConversionError;
+        private CancellationTokenSource? _conversionCancellation;
 
         internal FormatConversionDialog(
             IEnumerable<FormatConversionPair> pairs,
@@ -141,6 +142,16 @@ namespace logReader.UI
                 AutoSize = true,
                 MinimumSize = new Size(100, 40)
             };
+            _stopButton = new ModernButton
+            {
+                Text = "Остановить",
+                Icon = IconKind.Close,
+                Variant = ButtonVariant.Ghost,
+                AutoSize = true,
+                MinimumSize = new Size(132, 40),
+                Visible = false
+            };
+            _stopButton.Click += (_, _) => StopConversion();
 
             _outcome = new InlineNotice
             {
@@ -225,7 +236,7 @@ namespace logReader.UI
             card.Controls.Add(fields);
             scroll.Controls.Add(card);
             root.Controls.Add(scroll, 0, 1);
-            var footer = UiFactory.Footer(_convertButton, _openButton, _closeButton);
+            var footer = UiFactory.Footer(_convertButton, _openButton, _stopButton, _closeButton);
             footer.Margin = new Padding(0, 20, 0, 0);
             root.Controls.Add(footer, 0, 2);
             Controls.Add(root);
@@ -237,6 +248,7 @@ namespace logReader.UI
             UpdateConvertButtonState();
             ResumeLayout(true);
             AppTheme.Apply(this);
+            Disposed += (_, _) => _conversionCancellation?.Cancel();
         }
 
         private static Control BuildPathRow(TextBox input, Button browse)
@@ -282,28 +294,58 @@ namespace logReader.UI
             }
 
             ClearConversionResult();
-            _lastConversionError = null;
+            using var cancellation = new CancellationTokenSource();
+            _conversionCancellation = cancellation;
+            var progress = new Progress<ProcessingProgress>(ReportConversionProgress);
+            var context = new ProcessingContext(_log, progress, cancellation.Token);
             SetUiBusy(true);
-            bool success;
+            ProcessingResult? result = null;
+            bool cancelled = false;
             try
             {
-                success = await Task.Run(() => RunConversion(inputPath, outPath, pair));
+                result = await Task.Run(() => RunConversion(inputPath, outPath, pair, context), cancellation.Token);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                cancelled = true;
+                _log("Преобразование остановлено. Файл результата не изменён.");
             }
             catch (Exception ex)
             {
                 _log("Критическая ошибка: " + ex.Message);
-                _lastConversionError = "Не удалось завершить преобразование: " + ex.Message;
-                success = false;
+                result = ProcessingResult.Fail("Не удалось завершить преобразование: " + ex.Message);
             }
             finally
             {
-                SetUiBusy(false);
+                _conversionCancellation = null;
+                if (!IsDisposed && !Disposing) SetUiBusy(false);
             }
 
-            if (success)
-                SetConversionResult(outPath);
+            if (IsDisposed || Disposing) return;
+            if (cancelled)
+                ShowOutcome("Преобразование остановлено. Файл результата не изменён.", StatusTone.Warning);
+            else if (result is { Success: true })
+                SetConversionResult(result.OutputPath ?? outPath);
             else
-                ShowOutcome(_lastConversionError ?? "Преобразование не завершено. Подробности доступны в журнале главного окна.", StatusTone.Error);
+                ShowOutcome(result?.Error ?? "Преобразование не завершено. Подробности доступны в журнале главного окна.", StatusTone.Error);
+        }
+
+        private void StopConversion()
+        {
+            if (!_busy || _conversionCancellation is not { } cancellation) return;
+            _stopButton.Enabled = false;
+            cancellation.Cancel();
+            _progressLabel.Text = "Останавливаем преобразование…";
+            ShowOutcome("Запрошена остановка. Дождитесь завершения текущего чтения файла.", StatusTone.Info);
+        }
+
+        private void ReportConversionProgress(ProcessingProgress progress)
+        {
+            if (!_busy || IsDisposed || Disposing || _conversionCancellation?.IsCancellationRequested == true) return;
+            _progress.Style = ProgressBarStyle.Continuous;
+            int percent = (int)Math.Round(Math.Clamp(progress.Fraction, 0, 1) * 100);
+            _progress.Value = percent;
+            _progressLabel.Text = $"{SelectedPair.DisplayName} · {percent}%";
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -311,7 +353,7 @@ namespace logReader.UI
             if (_busy)
             {
                 e.Cancel = true;
-                ShowOutcome("Дождитесь завершения преобразования. Файл ещё записывается.", StatusTone.Info);
+                ShowOutcome("Дождитесь завершения преобразования или нажмите «Остановить». Файл ещё записывается.", StatusTone.Info);
                 return;
             }
             base.OnFormClosing(e);
@@ -469,40 +511,15 @@ namespace logReader.UI
             return true;
         }
 
-        private bool RunConversion(string inputPath, string outPath, FormatConversionPair pair)
+        private static ProcessingResult RunConversion(string inputPath, string outPath, FormatConversionPair pair, ProcessingContext context)
         {
-            bool hadError = false;
-            void LogWrap(string message)
+            context.ThrowIfCancellationRequested();
+            return pair.Id switch
             {
-                if (message.StartsWith("Ошибка:", StringComparison.Ordinal))
-                {
-                    hadError = true;
-                    _lastConversionError = message;
-                }
-                _log(message);
-            }
-
-            if (pair.Id == "trc_to_asc")
-            {
-                new TrcToAscConverter().Convert(inputPath, outPath, LogWrap);
-            }
-            else if (pair.Id == "csv_to_asc")
-            {
-                if (!MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, LogFileEncoding.Detect(inputPath)))
-                {
-                    LogWrap($"Ошибка: для конвертации нужен {LogFormatUiNames.Csv}, не {LogFormatUiNames.LegacyCsv}.");
-                    return false;
-                }
-
-                new MatrixCsvToAscConverter().Convert(inputPath, outPath, LogWrap);
-            }
-            else
-            {
-                LogWrap($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.");
-                return false;
-            }
-
-            return File.Exists(outPath) && !hadError;
+                "trc_to_asc" => new TrcToAscConverter().Convert(inputPath, outPath, context),
+                "csv_to_asc" => new MatrixCsvToAscConverter().Convert(inputPath, outPath, context),
+                _ => context.Fail($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.")
+            };
         }
 
         private void SetUiBusy(bool busy)
@@ -514,7 +531,11 @@ namespace logReader.UI
             _browseInputButton.Enabled = !busy;
             _browseOutputButton.Enabled = !busy;
             _closeButton.Enabled = !busy;
+            _stopButton.Visible = busy;
+            _stopButton.Enabled = busy;
             _progressPanel.Visible = busy;
+            _progress.Style = ProgressBarStyle.Marquee;
+            _progress.Value = 0;
             _progress.MarqueeAnimationSpeed = busy ? 24 : 0;
             UpdateConvertButtonState();
             _convertButton.Text = busy ? "Преобразование..." : "Преобразовать";

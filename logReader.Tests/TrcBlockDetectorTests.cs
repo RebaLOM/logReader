@@ -203,32 +203,17 @@ public class TrcBlockDetectorTests
 
     private static List<(int MessageIndex, double TimeMs, string Id)> LoadTrcFrames(string path, int maxFrames)
     {
+        // Тот же разбор, что и в обработке, — тест проверяет реальный путь, а не свою копию парсера.
         var frames = new List<(int, double, string)>();
+        var bytes = new int[Device.MaxDataLength];
         foreach (string line in File.ReadLines(path))
         {
             if (frames.Count >= maxFrames)
                 break;
 
-            if (!line.Contains(")"))
-                continue;
-
-            int paren = line.IndexOf(')');
-            if (paren < 2)
-                continue;
-
-            if (!int.TryParse(line.AsSpan(0, paren), out int msgNum))
-                continue;
-
-            var parts = line[(paren + 1)..].Split(',', StringSplitOptions.TrimEntries);
-            if (parts.Length < 4)
-                continue;
-
-            if (!double.TryParse(parts[0], System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out double timeMs))
-                continue;
-
-            string id = parts[3].Trim();
-            frames.Add((msgNum, timeMs, id));
+            if (logReader.Processing.TrcLogParser.TryParseTrcFrameLine(line, out int msgNum, out decimal timeMs,
+                    out _, out string id, out _, bytes, out _))
+                frames.Add((msgNum, (double)timeMs, id));
         }
 
         return frames;

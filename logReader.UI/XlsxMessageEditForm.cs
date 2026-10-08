@@ -54,8 +54,8 @@ namespace logReader.UI
             SuspendLayout();
             Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(960, 600);
             ClientSize = new Size(1280, 860);
 

@@ -43,15 +43,15 @@ namespace logReader.UI
 
         public DbcMessageEditForm(DbcMessage? initial)
         {
-            Message = initial != null ? Clone(initial) : new DbcMessage();
+            Message = initial != null ? initial.Clone() : new DbcMessage();
             _signals = new List<DbcSignal>(Message.Signals);
 
             _baseTitle = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
             SuspendLayout();
             Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(960, 600);
             ClientSize = new Size(1280, 860);
 
@@ -577,7 +577,9 @@ namespace logReader.UI
                 IsExtended = isExtended,
                 Dlc = dlc,
                 Transmitter = Message.Transmitter ?? "Vector__XXX",
-                Signals = new List<DbcSignal>(_signals)
+                Signals = new List<DbcSignal>(_signals),
+                OriginId = Message.OriginId,
+                ExtraLines = Message.ExtraLines,
             };
 
             return true;
@@ -585,35 +587,5 @@ namespace logReader.UI
 
         private static bool SignalFitsInDlc(DbcSignal s, int dlc)
             => BitMath.SignalFitsInDlc(s.StartBit, s.Length, s.IsLittleEndian, dlc * 8);
-
-        private static DbcMessage Clone(DbcMessage m)
-        {
-            var copy = new DbcMessage
-            {
-                Name = m.Name,
-                Id = m.Id,
-                IsExtended = m.IsExtended,
-                Dlc = m.Dlc,
-                Transmitter = m.Transmitter
-            };
-            foreach (var s in m.Signals)
-            {
-                copy.Signals.Add(new DbcSignal
-                {
-                    Name = s.Name,
-                    StartBit = s.StartBit,
-                    Length = s.Length,
-                    IsLittleEndian = s.IsLittleEndian,
-                    IsSigned = s.IsSigned,
-                    Factor = s.Factor,
-                    Offset = s.Offset,
-                    Min = s.Min,
-                    Max = s.Max,
-                    Unit = s.Unit,
-                    Receiver = s.Receiver
-                });
-            }
-            return copy;
-        }
     }
 }

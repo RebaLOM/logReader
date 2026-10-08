@@ -1,4 +1,3 @@
-using System.Globalization;
 using ClosedXML.Excel;
 
 namespace logReader
@@ -6,13 +5,25 @@ namespace logReader
     // Общие правила чтения ячеек xlsx для DeviceExcelFile и CompositeExcelFile.
     internal static class XlsxCellReader
     {
+        // Текстовая ячейка «0,1» — десятичная запятая, а не разделитель тысяч.
         public static double? GetNumber(IXLCell cell)
         {
             if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out double d) && !double.IsNaN(d)) return d;
-            var s = cell.GetString()?.Trim();
+            // TryGetValue<double> у ClosedXML сам разбирает текст и тоже считает запятую разделителем тысяч.
+            XLCellValue value = cell.Value;
+            if (value.IsNumber) return double.IsNaN(value.GetNumber()) ? null : value.GetNumber();
+            if (value.IsBoolean) return value.GetBoolean() ? 1 : 0;
+            var s = (value.IsText ? value.GetText() : cell.GetString())?.Trim();
             if (string.IsNullOrWhiteSpace(s)) return null;
-            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed) ? parsed : null;
+            return NumberParseHelper.TryParseDouble(s, out double parsed) ? parsed : null;
+        }
+
+        public static int? GetInt(IXLCell cell)
+        {
+            double? d = GetNumber(cell);
+            if (d is not double v || double.IsInfinity(v) || v < int.MinValue || v > int.MaxValue)
+                return null;
+            return (int)Math.Round(v);
         }
 
         public static bool ParseBool01(IXLCell cell, bool defaultValue = false)

@@ -1,12 +1,14 @@
 using System.Linq;
-using System.Text;
+using logReader.Processing;
 
 namespace logReader.UI
 {
+    // Count through the shared readers and display only the requested virtual cells.
     public partial class CanLogViewForm : Form
     {
         private readonly string _sourcePath;
         private List<(string ID, int Count)> _packets = new();
+        private List<(string ID, int Count)> _filtered = new();
         private CancellationTokenSource? _loadingCancellation;
         private ProgressBar _loadingProgress = null!;
 
@@ -17,13 +19,21 @@ namespace logReader.UI
             AppTheme.StyleGrid(dataGridPackets, "В этом логе нет распознанных посылок");
             dataGridPackets.Columns[0].DefaultCellStyle.Font = Typography.Mono;
             dataGridPackets.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dataGridPackets.CellValueNeeded += (_, e) =>
+            {
+                if (e.RowIndex < 0 || e.RowIndex >= _filtered.Count) return;
+                var packet = _filtered[e.RowIndex];
+                e.Value = e.ColumnIndex == 0 ? packet.ID : packet.Count.ToString("N0");
+            };
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             _sourcePath = sourcePath;
-            _loadingProgress = new ProgressBar { Dock = DockStyle.Bottom, Height = UiScale.Px(this, 4),
-                Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30, Visible = false };
+            _loadingProgress = new ProgressBar
+            {
+                Dock = DockStyle.Bottom, Height = 4,
+                Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30, Visible = false
+            };
             panelTop.Controls.Add(_loadingProgress);
-            FormClosed += (_, _) => _loadingCancellation?.Cancel();
-            Disposed += (_, _) => _loadingCancellation?.Cancel();
+            FormClosing += (_, _) => _loadingCancellation?.Cancel();
             Shown += async (_, _) => await LoadAndBuildAsync();
         }
 
@@ -40,27 +50,33 @@ namespace logReader.UI
             labelCount.Text = "Чтение логов…";
             try
             {
-                var packets = await Task.Run(() => ReadPacketCounts(_sourcePath, cancellation.Token), cancellation.Token);
+                var scan = await Task.Run(() => ReadPacketCounts(_sourcePath, cancellation.Token), cancellation.Token);
                 if (IsDisposed || cancellation.IsCancellationRequested) return;
-                if (packets == null)
+                if (!scan.HasSupportedFiles)
                 {
-                    AppDialog.Show("В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
+                    AppDialog.Show(this, "В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
                         "Нет логов", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     Close();
                     return;
                 }
-                _packets = packets;
-                labelCount.Text = $"Уникальных ID: {_packets.Count}   Всего посылок: {_packets.Sum(p => p.Count):N0}";
-                BuildList(_packets);
+                _packets = scan.Counts.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(kv => (kv.Key, kv.Value)).ToList();
+                ApplyFilter();
+                if (scan.Warnings.Count > 0)
+                {
+                    _loadingProgress.Visible = false;
+                    AppDialog.Show(this, string.Join(Environment.NewLine, scan.Warnings),
+                        "Часть логов не прочитана", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
             catch (OperationCanceledException)
             {
-                // Closing the viewer cancels counting and does not show an error.
+                // Closing the viewer cancels counting without showing an error.
             }
             catch (Exception ex)
             {
                 if (IsDisposed || cancellation.IsCancellationRequested) return;
-                AppDialog.Show("Ошибка чтения файла: " + ex.Message,
+                AppDialog.Show(this, "Ошибка чтения файла: " + ex.Message,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
             }
@@ -75,199 +91,44 @@ namespace logReader.UI
             }
         }
 
-        private static List<(string ID, int Count)>? ReadPacketCounts(string sourcePath, CancellationToken cancellation)
+        private static (Dictionary<string, int> Counts, bool HasSupportedFiles, List<string> Warnings)
+            ReadPacketCounts(string sourcePath, CancellationToken cancellation)
         {
-            var paths = ResolveInputPaths(sourcePath);
-            if (paths.Count == 0) return null;
-            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            Span<int> bytes = stackalloc int[8];
-            foreach (string path in paths)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                ProcessSingleLogFile(path, counts, bytes, cancellation);
-            }
-            return counts.OrderBy(kv => kv.Key).Select(kv => (kv.Key, kv.Value)).ToList();
+            cancellation.ThrowIfCancellationRequested();
+            bool hasFiles = !Directory.Exists(sourcePath)
+                || LogFolderScanner.EnumerateSupportedLogFiles(sourcePath).Any();
+            var warnings = new List<string>();
+            var counts = hasFiles
+                ? UnknownDevicesScanner.CollectLogIds(sourcePath, warnings.Add, cancellation)
+                : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            cancellation.ThrowIfCancellationRequested();
+            return (counts, hasFiles, warnings);
         }
 
-        private static List<string> ResolveInputPaths(string sourcePath)
+        private void ApplyFilter()
         {
-            if (Directory.Exists(sourcePath))
-            {
-                return EnumerateLogFilesInFolder(sourcePath)
-                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
+            string query = textBoxSearch.Text.Trim();
+            _filtered = string.IsNullOrEmpty(query) ? _packets
+                : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+            long total = _packets.Sum(p => (long)p.Count);
+            long filteredTotal = _filtered.Sum(p => (long)p.Count);
+            labelCount.Text = string.IsNullOrEmpty(query)
+                ? $"Уникальных ID: {_packets.Count}   Всего посылок: {total:N0}"
+                : $"Найдено ID: {_filtered.Count} из {_packets.Count}   Посылок: {filteredTotal:N0} из {total:N0}";
 
-            if (File.Exists(sourcePath))
-                return new List<string> { sourcePath };
-
-            return new List<string>();
-        }
-
-        private static IEnumerable<string> EnumerateLogFilesInFolder(string folder)
-        {
-            string[] patterns = { "*.csv", "*.trc", "*.asc", "*.txt" };
-            foreach (var pattern in patterns)
-            {
-                foreach (var path in Directory.EnumerateFiles(folder, pattern, SearchOption.TopDirectoryOnly))
-                    yield return path;
-            }
-        }
-
-        private static void ProcessSingleLogFile(
-            string inputPath,
-            Dictionary<string, int> counts,
-            Span<int> bytes,
-            CancellationToken cancellation)
-        {
-            string ext = Path.GetExtension(inputPath);
-            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
-            bool isAsc = ext.Equals(".asc", StringComparison.OrdinalIgnoreCase);
-            var encoding = LogFileEncoding.Detect(inputPath);
-            bool isCanfox = !isTrc && !isAsc && CanfoxLogParser.LooksLikeCanfoxLog(inputPath, encoding);
-
-            if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase)
-                && MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, encoding))
-            {
-                ProcessMatrixCsvFile(inputPath, encoding, counts, cancellation);
-                return;
-            }
-
-            foreach (var line in File.ReadLines(inputPath, encoding))
-            {
-                cancellation.ThrowIfCancellationRequested();
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                string id;
-                if (isTrc)
-                {
-                    if (!TrcLogParser.TryParseTrcFrameLine(
-                            line,
-                            out _,
-                            out _,
-                            out id,
-                            out _,
-                            bytes,
-                            out _))
-                    {
-                        continue;
-                    }
-                }
-                else if (isAsc)
-                {
-                    if (!AscLogParser.TryParseFrameId(line, out id))
-                        continue;
-                }
-                else if (isCanfox)
-                {
-                    if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out _, out id, bytes, out _))
-                        continue;
-                }
-                else
-                {
-                    // Как в CanLogProcessor: только priority==1 (заголовок и дубли — иначе).
-                    var parts = line.Split(';');
-                    if (parts.Length < 4)
-                        continue;
-                    if (!int.TryParse(parts[3], out int pri) || pri != 1)
-                        continue;
-                    id = parts[2].Trim();
-                }
-
-                if (string.IsNullOrWhiteSpace(id))
-                    continue;
-
-                counts[id] = counts.TryGetValue(id, out int n) ? n + 1 : 1;
-            }
-        }
-
-        private static void ProcessMatrixCsvFile(
-            string inputPath,
-            Encoding encoding,
-            Dictionary<string, int> counts,
-            CancellationToken cancellation)
-        {
-            bool headerRead = false;
-            List<MatrixCsvColumn> columns = new();
-            Span<int> msgBytes = stackalloc int[8];
-
-            foreach (string line in File.ReadLines(inputPath, encoding))
-            {
-                cancellation.ThrowIfCancellationRequested();
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                if (!headerRead)
-                {
-                    if (!MatrixCsvLogParser.TryReadHeader(line, out columns, out _))
-                        return;
-
-                    foreach (MatrixCsvColumn col in columns)
-                    {
-                        if (!counts.ContainsKey(col.Id))
-                            counts[col.Id] = 0;
-                    }
-
-                    headerRead = true;
-                    continue;
-                }
-
-                string[] parts = line.Split(';');
-                if (parts.Length < 2 || !MatrixCsvLogParser.TryParseTimeCell(parts[0], out _))
-                    continue;
-
-                foreach (MatrixCsvColumn col in columns)
-                {
-                    if (col.ColumnIndex >= parts.Length)
-                        continue;
-
-                    string cell = parts[col.ColumnIndex];
-                    if (MatrixCsvLogParser.IsCellEmpty(cell))
-                        continue;
-                    if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes))
-                        continue;
-
-                    counts[col.Id] = counts.TryGetValue(col.Id, out int n) ? n + 1 : 1;
-                }
-            }
-        }
-
-        private void BuildList(List<(string ID, int Count)> items)
-        {
-            dataGridPackets.SuspendLayout();
-            dataGridPackets.Rows.Clear();
-            foreach (var (id, count) in items)
-                dataGridPackets.Rows.Add(id, count.ToString("N0"));
+            dataGridPackets.RowCount = _filtered.Count;
             dataGridPackets.ClearSelection();
-            dataGridPackets.ResumeLayout();
-
-            bool empty = items.Count == 0;
+            dataGridPackets.Invalidate();
+            bool empty = _filtered.Count == 0;
             dataGridPackets.Visible = !empty;
             emptyState.Visible = empty;
-            emptyState.Title = string.IsNullOrWhiteSpace(textBoxSearch.Text)
-                ? "Посылки не найдены" : "Нет совпадений";
-            emptyState.Description = string.IsNullOrWhiteSpace(textBoxSearch.Text)
+            emptyState.Title = query.Length == 0 ? "Посылки не найдены" : "Нет совпадений";
+            emptyState.Description = query.Length == 0
                 ? "В выбранных файлах нет распознанных CAN-посылок."
                 : "Попробуйте другой CAN ID или очистите строку поиска.";
         }
 
-        private void textBoxSearch_TextChanged(object? sender, EventArgs e)
-        {
-            string query = textBoxSearch.Text.Trim();
-
-            var filtered = string.IsNullOrEmpty(query)
-                ? _packets
-                : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
-
-            int totalPackets = _packets.Sum(p => p.Count);
-            int filteredPackets = filtered.Sum(p => p.Count);
-            labelCount.Text = string.IsNullOrEmpty(query)
-                ? $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}"
-                : $"Найдено ID: {filtered.Count} из {_packets.Count}   Посылок: {filteredPackets:N0} из {totalPackets:N0}";
-
-            BuildList(filtered);
-        }
+        private void textBoxSearch_TextChanged(object? sender, EventArgs e) => ApplyFilter();
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
@@ -283,11 +144,18 @@ namespace logReader.UI
         protected override void OnDpiChanged(DpiChangedEventArgs e)
         {
             base.OnDpiChanged(e);
-            if (dataGridPackets == null) return;
-            int rowHeight = UiScale.Px(this, 36);
-            dataGridPackets.RowTemplate.Height = rowHeight;
-            foreach (DataGridViewRow row in dataGridPackets.Rows) row.Height = rowHeight;
-            AppTheme.StyleGrid(dataGridPackets, "В этом логе нет распознанных посылок");
+            if (dataGridPackets != null)
+                AppTheme.StyleGrid(dataGridPackets, "В этом логе нет распознанных посылок");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _loadingCancellation?.Cancel();
+                components?.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }

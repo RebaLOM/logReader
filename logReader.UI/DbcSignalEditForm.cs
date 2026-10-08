@@ -47,7 +47,7 @@ namespace logReader.UI
                 : Array.Empty<string>();
             _siblingSignals = siblingSignals?.ToList() ?? new List<DbcSignal>();
             _currentSignalName = currentSignalName ?? initial?.Name;
-            Signal = initial != null ? Clone(initial) : new DbcSignal();
+            Signal = initial != null ? initial.Clone() : new DbcSignal();
 
             Text = initial == null ? "Новый сигнал DBC" : "Редактирование сигнала DBC";
             FormBorderStyle = FormBorderStyle.Sizable;
@@ -359,7 +359,11 @@ namespace logReader.UI
                 Factor = factor == 0 ? 1.0 : factor,
                 Offset = offset,
                 Unit = _txtUnit.Text.Trim(),
-                Receiver = Signal.Receiver ?? "Vector__XXX"
+                Receiver = Signal.Receiver ?? "Vector__XXX",
+                MultiplexIndicator = Signal.MultiplexIndicator,
+                ValueType = Signal.ValueType,
+                OriginName = Signal.OriginName,
+                TrailingLines = new List<string>(Signal.TrailingLines),
             };
 
             ComputeRawRange(Signal.Length, Signal.IsSigned, out long rawMin, out long rawMax);
@@ -370,19 +374,5 @@ namespace logReader.UI
             Close();
         }
 
-        private static DbcSignal Clone(DbcSignal s) => new()
-        {
-            Name = s.Name,
-            StartBit = s.StartBit,
-            Length = s.Length,
-            IsLittleEndian = s.IsLittleEndian,
-            IsSigned = s.IsSigned,
-            Factor = s.Factor,
-            Offset = s.Offset,
-            Min = s.Min,
-            Max = s.Max,
-            Unit = s.Unit,
-            Receiver = s.Receiver
-        };
     }
 }

@@ -32,15 +32,15 @@ namespace logReader.UI
             textBoxSearch = new ModernTextBox
             {
                 Name = "textBoxSearch", TabIndex = 0,
-                PlaceholderText = "Введите CAN ID устройства"
+                PlaceholderText = "Введите CAN ID или имя параметра"
             };
             textBoxSearch.TextChanged += textBoxSearch_TextChanged;
-            var deviceSearchField = UiFactory.Field("ПОИСК УСТРОЙСТВА", textBoxSearch);
+            var deviceSearchField = UiFactory.Field("ПОИСК УСТРОЙСТВ И ПАРАМЕТРОВ", textBoxSearch);
             labelSearch = deviceSearchField.Controls.OfType<Label>().First();
             panelSearch.Controls.Add(deviceSearchField);
-            scrollPanel = new Panel
+            scrollPanel = new ModernCard
             {
-                Dock = DockStyle.Fill, AutoScroll = true, BackColor = AppTheme.Background,
+                Dock = DockStyle.Fill, AutoScroll = false, Padding = new Padding(16),
                 Name = "scrollPanel", TabIndex = 1
             };
             emptyDevices = new EmptyState
@@ -74,6 +74,7 @@ namespace logReader.UI
             panelButtons.Controls.Add(buttonDisableAll);
             tabKnown.Controls.Add(scrollPanel);
             tabKnown.Controls.Add(panelButtons);
+            tabKnown.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 16, BackColor = AppTheme.Background });
             tabKnown.Controls.Add(panelSearch);
 
             panelSearchUnknown = new ModernCard { Dock = DockStyle.Top, Height = 96, Padding = new Padding(16) };
@@ -130,10 +131,25 @@ namespace logReader.UI
                 Dock = DockStyle.Bottom, Height = 40, Font = Typography.Secondary,
                 ForeColor = AppTheme.TextSecondary, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
             };
-            var header = UiFactory.Header("Устройства и параметры", "Выберите данные для обработки и сверьте CAN ID с логом", IconKind.Devices);
+            var applyButton = new ModernButton
+            {
+                Text = "OK", Icon = IconKind.Check, Variant = ButtonVariant.Primary,
+                AutoSize = true, MinimumSize = new Size(140, 40), DialogResult = DialogResult.OK
+            };
+            applyButton.Click += (_, _) => ApplyToTarget();
+            var cancelButton = new ModernButton
+            {
+                Text = "Отмена", Variant = ButtonVariant.Ghost,
+                AutoSize = true, MinimumSize = new Size(100, 40), DialogResult = DialogResult.Cancel
+            };
+            AcceptButton = applyButton;
+            CancelButton = cancelButton;
+            var footer = UiFactory.Footer(applyButton, cancelButton);
+            var header = UiFactory.Header("Устройства и параметры", "Настройте фильтры и сверьте CAN ID с логом. Изменения применяются по кнопке «OK».", IconKind.Devices);
             header.Dock = DockStyle.Top;
             Controls.Add(tabControlMain);
             Controls.Add(labelSelectionCount);
+            Controls.Add(footer);
             Controls.Add(header);
             ResumeLayout(true);
         }
