@@ -77,7 +77,10 @@ namespace logReader.Processing
                 SafeFileWriter.Write(_outputPath, tmp =>
                 {
                     foreach (var ws in _workbook.Worksheets)
+                    {
                         ExcelLayoutBuilder.AutoFitColumns(ws);
+                        ExcelLayoutBuilder.EnsureStepColumnMinWidth(ws);
+                    }
                     _workbook.SaveAs(tmp);
                 });
                 return;

@@ -1,6 +1,6 @@
 namespace logReader.UI.Theme;
 
-// Подключение темы к форме: Apply + dark title bar.
+// Подключение темы к форме: Antd bridge + Apply + dark title bar (без пересоздания дерева).
 public static class ThemeForm
 {
     public static void Wire(Form form)
@@ -11,6 +11,7 @@ public static class ThemeForm
         {
             if (form.IsDisposed)
                 return;
+            AntdThemeBridge.Apply(AppTheme.Current);
             AppTheme.Apply(form);
             ThemeNative.ApplyTitleBar(form, AppTheme.Current);
         }
@@ -20,7 +21,7 @@ public static class ThemeForm
 
         EventHandler onChanged = (_, _) =>
         {
-            if (!form.IsDisposed && form.IsHandleCreated)
+            if (!form.IsDisposed && form.IsHandleCreated && !form.Disposing)
                 form.BeginInvoke(Apply);
         };
         AppTheme.Changed += onChanged;

@@ -8,6 +8,7 @@ namespace logReader.UI
         static void Main()
         {
             ApplicationConfiguration.Initialize();
+            AntdThemeBridge.EnsureConfigured();
             AppTheme.InitializeFromPreferences();
             Application.Run(new MainForm());
         }

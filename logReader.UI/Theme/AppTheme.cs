@@ -4,7 +4,7 @@ namespace logReader.UI.Theme;
 
 public static class AppTheme
 {
-    private static ThemeMode _current = ThemeMode.Dark;
+    private static ThemeMode _current = ThemeMode.Light;
 
     public static ThemeMode Current
     {
@@ -14,6 +14,7 @@ public static class AppTheme
             if (_current == value)
                 return;
             _current = value;
+            AntdThemeBridge.Apply(_current);
             Changed?.Invoke(null, EventArgs.Empty);
         }
     }
@@ -25,6 +26,7 @@ public static class AppTheme
     public static void InitializeFromPreferences()
     {
         _current = ThemePreferences.Load();
+        AntdThemeBridge.Apply(_current);
     }
 
     public static void SetAndPersist(ThemeMode mode)
@@ -36,6 +38,7 @@ public static class AppTheme
     public static void Apply(Control root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        AntdThemeBridge.Apply(Current);
         ThemePalette p = Palette;
         ApplyRecursive(root, p);
 
@@ -49,6 +52,18 @@ public static class AppTheme
         {
             case ModernButton mb:
                 mb.ApplyTheme(p);
+                break;
+            case ModernCard card:
+                card.ApplyTheme(p);
+                break;
+            case NavigationItem:
+                control.Invalidate();
+                break;
+            case StatusBadge badge:
+                badge.ApplyTheme(p);
+                break;
+            case EmptyState empty:
+                empty.ApplyTheme(p);
                 break;
             case InlineNotice notice:
                 notice.ApplyTheme(p);
@@ -89,10 +104,18 @@ public static class AppTheme
                 rb.BackColor = Color.Transparent;
                 break;
             case ComboBox combo:
+            {
+                // FlatStyle на ComboBox сбрасывает SelectedIndex — из‑за этого «CSV» мог
+                // превратиться в «CSV ДСТ Коннект» после Apply темы.
+                int selected = combo.SelectedIndex;
                 combo.BackColor = p.Surface;
                 combo.ForeColor = p.Text;
-                combo.FlatStyle = FlatStyle.Flat;
+                if (combo.FlatStyle != FlatStyle.Flat)
+                    combo.FlatStyle = FlatStyle.Flat;
+                if (selected >= 0 && selected < combo.Items.Count && combo.SelectedIndex != selected)
+                    combo.SelectedIndex = selected;
                 break;
+            }
             case NumericUpDown nud:
                 nud.BackColor = p.Surface;
                 nud.ForeColor = p.Text;

@@ -28,9 +28,9 @@ public class ThemePreferencesTests : IDisposable
     }
 
     [Fact]
-    public void Load_defaults_to_Dark_when_file_missing()
+    public void Load_defaults_to_Light_when_file_missing()
     {
-        Assert.Equal(ThemeMode.Dark, ThemePreferences.Load());
+        Assert.Equal(ThemeMode.Light, ThemePreferences.Load());
     }
 
     [Fact]

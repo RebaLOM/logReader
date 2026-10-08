@@ -41,30 +41,132 @@ namespace logReader.UI
         public MainForm()
         {
             InitializeComponent();
+            EnableDoubleBuffer(workScroll);
+            EnableDoubleBuffer(cardsHost);
+            EnableDoubleBuffer(navPanel);
             TagSectionSurfaces();
             WireContentSplitLayout();
             UpdateDevicesCreateAddButtonState();
             UpdateCompositesCreateAddButtonState();
             UpdateFilterLabel();
-            buttonOpenOutput.Visible = false;
+            SetOpenOutputVisible(false);
             FormClosing += MainForm_FormClosing;
             Load += (_, _) =>
             {
                 ApplyThemeToUi();
                 ThemeNative.ApplyTitleBar(this, AppTheme.Current);
+                LayoutCardsHost();
             };
+            Resize += (_, _) => LayoutCardsHost();
+            workScroll.Resize += (_, _) => LayoutCardsHost();
             AppTheme.Changed += OnAppThemeChanged;
             FormClosed += (_, _) => AppTheme.Changed -= OnAppThemeChanged;
+        }
+
+        private static void EnableDoubleBuffer(Control control)
+        {
+            typeof(Control).InvokeMember(
+                "DoubleBuffered",
+                System.Reflection.BindingFlags.SetProperty
+                | System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic,
+                binder: null,
+                target: control,
+                args: [true]);
+            control.GetType().GetProperty("ResizeRedraw",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(control, true);
         }
 
         private void TagSectionSurfaces()
         {
             headerPanel.Tag = ThemeTags.Header;
+            navPanel.Tag = ThemeTags.Elevated;
+            statusBar.Tag = ThemeTags.Header;
+            actionBar.Tag = ThemeTags.Elevated;
             labelBrand.Tag = ThemeTags.Brand;
             labelFilterStatus.Tag = ThemeTags.Muted;
             labelProgress.Tag = ThemeTags.Muted;
             textBoxLog.Tag = ThemeTags.Console;
             buttonProcess.Tag = ThemeTags.Primary;
+        }
+
+        private void LayoutCardsHost()
+        {
+            if (workScroll.ClientSize.Width <= 0)
+                return;
+            int w = Math.Max(480, workScroll.ClientSize.Width - workScroll.Padding.Horizontal);
+            cardsHost.SuspendLayout();
+            cardsHost.Width = w;
+            cardsHost.Height = 520;
+            foreach (Control card in cardsHost.Controls)
+            {
+                if (card.Anchor.HasFlag(AnchorStyles.Right))
+                    card.Width = w;
+            }
+            LayoutPathRows();
+            FitActionBarButtons();
+            cardsHost.ResumeLayout(true);
+            workScroll.Invalidate(true);
+        }
+
+        private void FitActionBarButtons()
+        {
+            buttonProcess.Width = MeasureButtonWidth(buttonProcess);
+            buttonCancel.Width = MeasureButtonWidth(buttonCancel);
+            buttonHelp.Width = MeasureButtonWidth(buttonHelp);
+            buttonTrcToAsc.Width = MeasureButtonWidth(buttonTrcToAsc);
+            buttonDevicesParams.Width = MeasureButtonWidth(buttonDevicesParams);
+
+            buttonCancel.Left = buttonProcess.Right + 8;
+            buttonHelp.Left = buttonCancel.Right + 8;
+            buttonTrcToAsc.Left = buttonHelp.Right + 8;
+        }
+
+        // Кнопки справа от полей пути — ширина по тексту, без обрезки («Посылки», «Редактор», …).
+        private void LayoutPathRows()
+        {
+            LayoutPathRow(textBoxCanLog, buttonCANlog, buttonViewLog);
+            LayoutPathRow(textBoxDevices, buttonDevices, buttonDevicesCreateOrAdd);
+            LayoutPathRow(textBoxComposites, buttonComposites, buttonCompositesCreateOrAdd);
+            LayoutPathRow(textBoxOutput, buttonOutput, buttonOpenOutput, buttonSaveOptions);
+        }
+
+        private static void LayoutPathRow(TextBox path, params Button[] buttonsLeftToRight)
+        {
+            if (path.Parent == null)
+                return;
+
+            const int gap = 6;
+            const int rightMargin = 16;
+            int x = path.Parent.ClientSize.Width - rightMargin;
+
+            for (int i = buttonsLeftToRight.Length - 1; i >= 0; i--)
+            {
+                Button btn = buttonsLeftToRight[i];
+                if (!btn.Visible)
+                    continue;
+
+                int w = MeasureButtonWidth(btn);
+                btn.Width = w;
+                btn.Left = x - w;
+                x = btn.Left - gap;
+            }
+
+            path.Width = Math.Max(80, x - path.Left);
+        }
+
+        private static int MeasureButtonWidth(Button btn)
+        {
+            // Flat-кнопки: запас под padding и DPI.
+            int textW = TextRenderer.MeasureText(btn.Text, btn.Font).Width;
+            return Math.Max(72, textW + 28);
+        }
+
+        private void SetOpenOutputVisible(bool visible)
+        {
+            buttonOpenOutput.Visible = visible;
+            LayoutPathRow(textBoxOutput, buttonOutput, buttonOpenOutput, buttonSaveOptions);
         }
 
         private void OnAppThemeChanged(object? sender, EventArgs e)
@@ -82,14 +184,57 @@ namespace logReader.UI
             ThemePalette p = AppTheme.Palette;
             brandAccent.BackColor = p.Primary;
             buttonThemeToggle.Text = AppTheme.Current == ThemeMode.Dark ? "Светлая тема" : "Тёмная тема";
+            FitRightAnchoredButton(buttonThemeToggle);
             UpdateFilterLabel();
             ThemeNative.ApplyTitleBar(this, AppTheme.Current);
+            LayoutPathRows();
+            navProcess.Invalidate();
+            navHelp.Invalidate();
+            navConvert.Invalidate();
+        }
+
+        private static void FitRightAnchoredButton(Button btn)
+        {
+            int w = MeasureButtonWidth(btn);
+            if (btn.Width == w)
+                return;
+            if (btn.Anchor.HasFlag(AnchorStyles.Right) && !btn.Anchor.HasFlag(AnchorStyles.Left))
+            {
+                int right = btn.Right;
+                btn.Width = w;
+                btn.Left = right - w;
+            }
+            else
+            {
+                btn.Width = w;
+            }
         }
 
         private void buttonThemeToggle_Click(object? sender, EventArgs e)
         {
             ThemeMode next = AppTheme.Current == ThemeMode.Dark ? ThemeMode.Light : ThemeMode.Dark;
             AppTheme.SetAndPersist(next);
+        }
+
+        private void SelectNav(NavigationItem active)
+        {
+            navProcess.Selected = ReferenceEquals(active, navProcess);
+            navHelp.Selected = ReferenceEquals(active, navHelp);
+            navConvert.Selected = ReferenceEquals(active, navConvert);
+        }
+
+        private void navProcess_Click(object? sender, EventArgs e) => SelectNav(navProcess);
+
+        private void navHelp_Click(object? sender, EventArgs e)
+        {
+            SelectNav(navHelp);
+            buttonHelp_Click(sender!, EventArgs.Empty);
+        }
+
+        private void navConvert_Click(object? sender, EventArgs e)
+        {
+            SelectNav(navConvert);
+            buttonFormatConvert_Click(sender!, EventArgs.Empty);
         }
 
         private bool IsBusy => _operation != null;
@@ -179,6 +324,7 @@ namespace logReader.UI
             buttonDevicesCreateOrAdd.Text = IsDevicesFileSelectedAndExists()
                 ? "Редактор"
                 : "Создать...";
+            LayoutPathRow(textBoxDevices, buttonDevices, buttonDevicesCreateOrAdd);
         }
 
         private void EnsureFiltersMatchDevices()
@@ -215,6 +361,8 @@ namespace logReader.UI
             {
                 labelFilterStatus.Text = "Файл посылок не загружен";
                 labelFilterStatus.ForeColor = p.Muted;
+                statusBadge.Text = "Готово к обработке";
+                statusBadge.Kind = StatusBadgeKind.Neutral;
                 return;
             }
 
@@ -224,8 +372,11 @@ namespace logReader.UI
             int totalParams = devices.Sum(d => d.Headers.Length);
             int enabledParams = devices.Sum(d => filter.GetActiveParams(d).Length);
 
-            labelFilterStatus.Text = $"Устройства: {enabledDevices}/{devices.Count}  Параметры: {enabledParams}/{totalParams}";
+            string summary = $"Устройства: {enabledDevices}/{devices.Count}  Параметры: {enabledParams}/{totalParams}";
+            labelFilterStatus.Text = summary;
             labelFilterStatus.ForeColor = p.Text;
+            statusBadge.Text = summary;
+            statusBadge.Kind = StatusBadgeKind.Info;
         }
 
         private void ResetFilters()
@@ -493,6 +644,7 @@ namespace logReader.UI
             buttonCompositesCreateOrAdd.Text = IsCompositesFileSelectedAndExists()
                 ? "Редактор"
                 : "Создать .xlsx";
+            LayoutPathRow(textBoxComposites, buttonComposites, buttonCompositesCreateOrAdd);
         }
 
         private CompositeRuntime? EnsureCompositesLoaded()
@@ -592,7 +744,7 @@ namespace logReader.UI
             {
                 textBoxOutput.Text = sfd.FileName;
                 SyncOutputFormatWithPath(sfd.FileName);
-                buttonOpenOutput.Visible = false;
+                SetOpenOutputVisible(false);
             }
         }
 
@@ -641,7 +793,7 @@ namespace logReader.UI
         private void textBoxOutput_TextChanged(object sender, EventArgs e)
         {
             SyncOutputFormatWithPath(textBoxOutput.Text);
-            buttonOpenOutput.Visible = false;
+            SetOpenOutputVisible(false);
         }
 
         private void buttonOpenOutput_Click(object sender, EventArgs e)
@@ -687,7 +839,12 @@ namespace logReader.UI
             }
 
             _helpForm = new HelpForm();
-            _helpForm.FormClosed += (_, _) => _helpForm = null;
+            _helpForm.FormClosed += (_, _) =>
+            {
+                _helpForm = null;
+                if (!IsDisposed && !Disposing)
+                    SelectNav(navProcess);
+            };
             _helpForm.Show(this);
         }
 
@@ -696,6 +853,8 @@ namespace logReader.UI
             string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
             using var dialog = new FormatConversionDialog(_conversionPairs, initialPath, Log);
             dialog.ShowDialog(this);
+            if (!IsDisposed && !Disposing)
+                SelectNav(navProcess);
         }
 
         private async void buttonDevicesParams_Click(object sender, EventArgs e)
@@ -803,25 +962,47 @@ namespace logReader.UI
 
         private void SetBusy(bool busy, string stage)
         {
-            foreach (Control c in workRoot.Controls)
-            {
-                if (c == buttonCancel || c == buttonHelp || c == progressBarProcess
-                    || c == labelProgress || c == labelFilterStatus || c == headerPanel)
-                    continue;
-                c.Enabled = !busy;
-            }
-
+            navPanel.Enabled = !busy;
+            SetInteractiveEnabled(cardsHost, !busy);
             buttonThemeToggle.Enabled = true;
-            buttonCancel.Enabled = busy;
             buttonCancel.Visible = busy;
-            buttonHelp.Enabled = true;
+            buttonCancel.Enabled = busy;
             progressBarProcess.Visible = busy;
             labelProgress.Visible = busy;
             progressBarProcess.Value = 0;
             labelProgress.Text = stage;
             buttonProcess.Text = busy ? "Обработка..." : "Обработать";
+            if (busy)
+            {
+                statusBadge.Text = string.IsNullOrWhiteSpace(stage) ? "Обработка…" : stage;
+                statusBadge.Kind = StatusBadgeKind.Warning;
+            }
+            else
+            {
+                UpdateFilterLabel();
+            }
+
             UseWaitCursor = busy;
             buttonCancel.UseWaitCursor = false;
+        }
+
+        private void SetInteractiveEnabled(Control root, bool enabled)
+        {
+            foreach (Control c in root.Controls)
+            {
+                if (c == buttonCancel || c == progressBarProcess || c == labelProgress || c == labelFilterStatus)
+                {
+                    if (c.HasChildren)
+                        SetInteractiveEnabled(c, enabled);
+                    continue;
+                }
+
+                if (c is Button or TextBox or CheckBox or ComboBox or NumericUpDown)
+                    c.Enabled = enabled;
+
+                if (c.HasChildren)
+                    SetInteractiveEnabled(c, enabled);
+            }
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)
@@ -932,19 +1113,24 @@ namespace logReader.UI
                 service.ProcessSingleFile(canInput, outputPath, allDevices, settings, context));
             if (result == null)
             {
-                buttonOpenOutput.Visible = false;
+                SetOpenOutputVisible(false);
                 return;
             }
 
             if (result.Success)
             {
                 Log($"Файл успешно создан (строк: {result.RowsWritten:N0}).");
-                buttonOpenOutput.Visible = true;
+                SetOpenOutputVisible(true);
+                statusBadge.Text = $"Готово · строк: {result.RowsWritten:N0}";
+                statusBadge.Kind = StatusBadgeKind.Success;
+                try { AntdUI.Message.success(this, "Файл успешно создан"); } catch { /* chrome optional */ }
             }
             else
             {
                 Log("Обработка завершилась с ошибкой: выходной файл не создан.");
-                buttonOpenOutput.Visible = false;
+                SetOpenOutputVisible(false);
+                statusBadge.Text = "Ошибка обработки";
+                statusBadge.Kind = StatusBadgeKind.Error;
             }
         }
 
@@ -1010,13 +1196,13 @@ namespace logReader.UI
 
             if (outcome is not { Outcome: var result })
             {
-                buttonOpenOutput.Visible = false;
+                SetOpenOutputVisible(false);
                 return;
             }
 
             Log($"Готово: создано файлов: {result.Created} из {result.Expected}"
                 + (result.Failed > 0 ? $", с ошибками: {result.Failed}." : "."));
-            buttonOpenOutput.Visible = result.Created > 0;
+            SetOpenOutputVisible(result.Created > 0);
         }
 
         private sealed record BatchRun(LogProcessingService.BatchOutcome Outcome);
@@ -1033,21 +1219,19 @@ namespace logReader.UI
 
         private void WireContentSplitLayout()
         {
-            _logPanelHeight = Math.Max(
-                contentSplit.Panel2MinSize,
-                contentSplit.Height - contentSplit.SplitterDistance - contentSplit.SplitterWidth);
-
+            contentSplit.FixedPanel = FixedPanel.Panel2;
+            _logPanelHeight = 120;
             contentSplit.SplitterMoved += (_, _) =>
             {
                 if (!_layingOutContentSplit)
-                    _logPanelHeight = contentSplit.Panel2.Height;
+                    _logPanelHeight = Math.Clamp(contentSplit.Panel2.Height, contentSplit.Panel2MinSize, Math.Max(contentSplit.Panel2MinSize, contentSplit.Height / 2));
             };
             contentSplit.Resize += (_, _) => ApplyLogPanelBottomAnchor();
             Resize += (_, _) => ApplyLogPanelBottomAnchor();
             Shown += (_, _) => ApplyLogPanelBottomAnchor();
         }
 
-        /// <summary>Держит журнал у нижнего края окна с сохранённой высотой.</summary>
+        // Журнал снизу с ограниченной высотой — рабочая зона с карточками не схлопывается.
         private void ApplyLogPanelBottomAnchor()
         {
             if (_layingOutContentSplit || contentSplit.Height <= 0)
@@ -1061,7 +1245,8 @@ namespace logReader.UI
             if (available <= minLog + minTop)
                 return;
 
-            int logHeight = Math.Clamp(_logPanelHeight, minLog, available - minTop);
+            int maxLog = Math.Max(minLog, Math.Min(220, available / 3));
+            int logHeight = Math.Clamp(_logPanelHeight, minLog, maxLog);
             int topHeight = available - logHeight;
 
             if (topHeight < minTop)

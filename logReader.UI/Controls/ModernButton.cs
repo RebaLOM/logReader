@@ -54,6 +54,17 @@ public class ModernButton : Button
                 FlatAppearance.MouseOverBackColor = p.Elevated;
                 FlatAppearance.MouseDownBackColor = p.Surface;
                 break;
+            case ButtonKind.Danger:
+                BackColor = p.Error;
+                ForeColor = Color.White;
+                FlatAppearance.BorderColor = p.Error;
+                FlatAppearance.BorderSize = 0;
+                FlatAppearance.MouseOverBackColor = Color.FromArgb(
+                    Math.Max(0, p.Error.R - 20),
+                    Math.Max(0, p.Error.G - 20),
+                    Math.Max(0, p.Error.B - 20));
+                FlatAppearance.MouseDownBackColor = FlatAppearance.MouseOverBackColor;
+                break;
             default:
                 BackColor = p.Elevated;
                 ForeColor = p.Text;

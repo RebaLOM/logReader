@@ -163,8 +163,8 @@ namespace logReader.UI
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Location = new Point(505, 432),
-                Size = new Size(75, 26)
+                Location = new Point(490, 430),
+                Size = new Size(80, 28)
             };
             buttonOk.Click += buttonOk_Click;
             // ItemCheck приходит до смены флажка: состояние «OK» пересчитывается уже после неё.
@@ -177,8 +177,8 @@ namespace logReader.UI
             {
                 Text = "Отмена",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(586, 432),
-                Size = new Size(75, 26)
+                Location = new Point(576, 430),
+                Size = new Size(90, 28)
             };
 
             Controls.Add(labelFormat);
@@ -216,6 +216,19 @@ namespace logReader.UI
             UpdateOkEnabledState(buttonOk);
             UiScaling.Apply(this);
             ThemeForm.Wire(this);
+            // После Theme Apply (FlatStyle) индекс ComboBox может сброситься — восстановим.
+            int formatIndex = currentFormat switch
+            {
+                OutputFormat.Csv => 1,
+                OutputFormat.CsvDstConnect => 2,
+                _ => 0
+            };
+            Shown += (_, _) =>
+            {
+                if (_comboOutputFormat.SelectedIndex != formatIndex && formatIndex < _comboOutputFormat.Items.Count)
+                    _comboOutputFormat.SelectedIndex = formatIndex;
+                UpdateDstPanelVisibility();
+            };
         }
 
         private void UpdateDstPanelVisibility()

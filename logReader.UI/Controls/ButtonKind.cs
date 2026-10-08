@@ -5,4 +5,5 @@ public enum ButtonKind
     Primary,
     Secondary,
     Ghost,
+    Danger,
 }

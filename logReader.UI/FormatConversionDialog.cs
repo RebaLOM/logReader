@@ -117,16 +117,16 @@ namespace logReader.UI
             _convertButton = new Button
             {
                 Text = "Преобразовать",
-                Location = new Point(248, 188),
-                Size = new Size(110, 25)
+                Location = new Point(220, 188),
+                Size = new Size(128, 28)
             };
             _convertButton.Click += convertButton_Click;
 
             _openButton = new Button
             {
                 Text = "Открыть",
-                Location = new Point(364, 188),
-                Size = new Size(85, 25),
+                Location = new Point(354, 188),
+                Size = new Size(88, 28),
                 Enabled = false
             };
             _openButton.Click += openButton_Click;
@@ -135,8 +135,8 @@ namespace logReader.UI
             {
                 Text = "Закрыть",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(455, 188),
-                Size = new Size(93, 25)
+                Location = new Point(448, 188),
+                Size = new Size(100, 28)
             };
 
             Controls.Add(inputPathLabel);

@@ -1,4 +1,5 @@
 using System.Linq;
+using logReader.UI.Controls;
 using logReader.UI.Theme;
 
 namespace logReader.UI
@@ -8,6 +9,7 @@ namespace logReader.UI
     {
         private readonly string _sourcePath;
         private readonly ListView _list = new();
+        private readonly EmptyState _empty = new();
         private readonly CancellationTokenSource _loading = new();
         private List<(string ID, int Count)> _packets = new();
         private List<(string ID, int Count)> _filtered = new();
@@ -34,8 +36,13 @@ namespace logReader.UI
                 e.Item = new ListViewItem(new[] { id, count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) });
             };
             _list.Resize += (_, _) => FitColumns();
+            _empty.Dock = DockStyle.Fill;
+            _empty.TitleText = "Ничего не найдено";
+            _empty.BodyText = "Измените строку поиска или выберите другой лог.";
+            _empty.Visible = false;
             scrollPanel.AutoScroll = false;
             scrollPanel.Controls.Add(_list);
+            scrollPanel.Controls.Add(_empty);
 
             labelCount.Text = "Чтение лога…";
             textBoxSearch.Enabled = false;
@@ -97,6 +104,8 @@ namespace logReader.UI
                 : $"Найдено ID: {_filtered.Count} из {_packets.Count}   Посылок: {filteredPackets:N0} из {totalPackets:N0}";
 
             _list.VirtualListSize = _filtered.Count;
+            _list.Visible = _filtered.Count > 0;
+            _empty.Visible = _filtered.Count == 0 && _packets.Count > 0;
             _list.Invalidate();
             FitColumns();
         }

@@ -154,7 +154,8 @@ namespace logReader
 
             if (messageIndex == detection.FirstBlockMessageIndex)
             {
-                if (!detection.UsedGapFallback && detection.BlockPeriodMs > 0)
+                // И для запасной сетки, и для слотов без якоря — фиксируем стартовый слот.
+                if (detection.BlockPeriodMs > 0)
                 {
                     currentSlot = ComputeSlot(
                         timeMs,
@@ -165,9 +166,8 @@ namespace logReader
                 return true;
             }
 
-            if (detection.UsedGapFallback)
-                return IsGapBlockStart(timeMs, previousTimeMs, framesInCurrentBlock, detection.GapThresholdMs);
-
+            // UsedGapFallback: origin/period уже выровнены по паузам в Detect();
+            // резать блоки снова по gap нельзя — Step становится «случайным».
             if (detection.BlockPeriodMs <= 0)
                 return false;
 
@@ -181,18 +181,6 @@ namespace logReader
 
             currentSlot = slot;
             return true;
-        }
-
-        private static bool IsGapBlockStart(
-            double timeMs,
-            double previousTimeMs,
-            int framesInCurrentBlock,
-            double gapThresholdMs)
-        {
-            if (framesInCurrentBlock < 3)
-                return false;
-
-            return timeMs - previousTimeMs >= gapThresholdMs;
         }
 
         private static bool IsReferenceBlockStart(

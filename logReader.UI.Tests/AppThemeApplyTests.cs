@@ -4,35 +4,43 @@ namespace logReader.UI.Tests;
 
 public class AppThemeApplyTests
 {
+    private static readonly object UiGate = new();
+
     [Fact]
     public void Apply_on_simple_form_does_not_throw()
     {
-        RunSta(() =>
+        lock (UiGate)
         {
-            AppTheme.Current = ThemeMode.Dark;
-            using var form = new Form();
-            var button = new Button { Name = "buttonProcess", Text = "Обработать" };
-            var text = new TextBox { Name = "textBoxLog", Multiline = true };
-            form.Controls.Add(button);
-            form.Controls.Add(text);
+            RunSta(() =>
+            {
+                AppTheme.Current = ThemeMode.Dark;
+                using var form = new Form();
+                var button = new Button { Name = "buttonProcess", Text = "Обработать" };
+                var text = new TextBox { Name = "textBoxLog", Multiline = true };
+                form.Controls.Add(button);
+                form.Controls.Add(text);
 
-            AppTheme.Apply(form);
+                AppTheme.Apply(form);
 
-            Assert.Equal(AppTheme.Palette.Primary, button.BackColor);
-            Assert.Equal(AppTheme.Palette.ConsoleBg, text.BackColor);
-        });
+                Assert.Equal(AppTheme.Palette.Primary, button.BackColor);
+                Assert.Equal(AppTheme.Palette.ConsoleBg, text.BackColor);
+            });
+        }
     }
 
     [Fact]
     public void Apply_light_mode_updates_form_canvas()
     {
-        RunSta(() =>
+        lock (UiGate)
         {
-            AppTheme.Current = ThemeMode.Light;
-            using var form = new Form();
-            AppTheme.Apply(form);
-            Assert.Equal(ThemePalette.Light.Canvas, form.BackColor);
-        });
+            RunSta(() =>
+            {
+                AppTheme.Current = ThemeMode.Light;
+                using var form = new Form();
+                AppTheme.Apply(form);
+                Assert.Equal(ThemePalette.Light.Canvas, form.BackColor);
+            });
+        }
     }
 
     private static void RunSta(Action action)

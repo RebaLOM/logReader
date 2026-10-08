@@ -19,7 +19,7 @@ public static class ThemePreferences
         try
         {
             if (!File.Exists(PreferencesPath))
-                return ThemeMode.Dark;
+                return ThemeMode.Light;
 
             string raw = File.ReadAllText(PreferencesPath).Trim();
             if (Enum.TryParse(raw, ignoreCase: true, out ThemeMode mode))
@@ -30,7 +30,7 @@ public static class ThemePreferences
             // Повреждённый файл настроек — безопасный default.
         }
 
-        return ThemeMode.Dark;
+        return ThemeMode.Light;
     }
 
     public static void Save(ThemeMode mode)

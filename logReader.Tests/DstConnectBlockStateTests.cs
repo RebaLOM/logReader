@@ -23,15 +23,21 @@ public class DstConnectBlockStateTests
             Confidence = 0.85
         };
 
-    private static TrcBlockDetectionResult GapFallback(double thresholdMs, int firstBlockMessageIndex = 1)
+    private static TrcBlockDetectionResult GapFallback(
+        double thresholdMs,
+        int firstBlockMessageIndex = 1,
+        double originTimeMs = 0,
+        double periodMs = 20,
+        double jitterMs = 3)
         => new()
         {
             AnchorMessageIndex = 1,
             FirstBlockMessageIndex = firstBlockMessageIndex,
-            BlockOriginTimeMs = 0,
+            BlockOriginTimeMs = originTimeMs,
             UsedGapFallback = true,
             GapThresholdMs = thresholdMs,
-            BlockPeriodMs = 20
+            BlockPeriodMs = periodMs,
+            JitterToleranceMs = jitterMs
         };
 
     [Fact]
@@ -91,19 +97,53 @@ public class DstConnectBlockStateTests
     }
 
     [Fact]
-    public void Gap_fallback_splits_on_long_pause()
+    public void Gap_fallback_splits_on_period_grid_not_on_inter_frame_pause()
     {
-        var tracker = new DstConnectBlockTracker(new DstConnectOptions(), GapFallback(5), columnCount: 1);
+        // Раньше UsedGapFallback резал блок по паузе между кадрами → «случайный» Step.
+        // Сетка 20 мс: кадры 0…15 — один блок, 20… — следующий; пауза 9 мс внутри слота не режет.
+        var tracker = new DstConnectBlockTracker(
+            new DstConnectOptions { BlockPeriodMs = 20 },
+            GapFallback(thresholdMs: 5),
+            columnCount: 1);
 
         tracker.OnFrameStart(1, 0, "A");
         tracker.UpdateParameter(P, 1);
         tracker.OnFrameStart(2, 0.3, "B");
         tracker.OnFrameStart(3, 0.6, "C");
-        tracker.OnFrameStart(4, 10, "D");
+        tracker.OnFrameStart(4, 10, "D"); // пауза > GapThreshold, но тот же слот 0
         tracker.UpdateParameter(P, 2);
-        tracker.Finish(10);
+        tracker.OnFrameStart(5, 20.0, "A");
+        tracker.UpdateParameter(P, 3);
+        tracker.Finish(25);
 
         Assert.Equal(2, tracker.Rows.Count);
+        Assert.Equal(20, tracker.Rows[0].StepMs, precision: 3);
+        Assert.Equal(40, tracker.Rows[1].StepMs, precision: 3);
+        Assert.Equal(2, tracker.Rows[0].Values[P]);
+        Assert.Equal(3, tracker.Rows[1].Values[P]);
+    }
+
+    [Fact]
+    public void Gap_fallback_step_deltas_match_block_period()
+    {
+        var tracker = new DstConnectBlockTracker(
+            new DstConnectOptions { BlockPeriodMs = 20 },
+            GapFallback(5, originTimeMs: 0.4),
+            columnCount: 1);
+
+        for (int block = 0; block < 5; block++)
+        {
+            double t0 = 0.4 + block * 20;
+            tracker.OnFrameStart(block * 3 + 1, t0, "A");
+            tracker.UpdateParameter(P, block);
+            tracker.OnFrameStart(block * 3 + 2, t0 + 6, "B");
+            tracker.OnFrameStart(block * 3 + 3, t0 + 14, "C");
+        }
+        tracker.Finish(0.4 + 5 * 20);
+
+        Assert.Equal(5, tracker.Rows.Count);
+        for (int i = 1; i < tracker.Rows.Count; i++)
+            Assert.Equal(20, tracker.Rows[i].StepMs - tracker.Rows[i - 1].StepMs, precision: 3);
     }
 
     [Fact]
