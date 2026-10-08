@@ -266,8 +266,9 @@ namespace logReader.Processing
             });
         }
 
+        // Числа — с запятой для Excel/Power BI; колонка «Время» идёт через TimeAxisFormat без замены.
         private static string FormatValue(double v)
-            => TimeSeriesCollector.IsError(v) ? "ERR" : ValueFormatter.FormatInvariant(v);
+            => TimeSeriesCollector.IsError(v) ? "ERR" : ValueFormatter.FormatCsv(v);
 
         private static void SetValue(IXLCell cell, double v)
         {

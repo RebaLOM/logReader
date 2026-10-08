@@ -59,6 +59,7 @@ namespace logReader.Processing
             {
                 _row.Clear();
                 _row.Add(step.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                // Колонка времени — как в логе (HH:mm:ss[.fff]), без замены точки на запятую.
                 _row.Add(CsvOutput.Text(time));
                 foreach (var group in _columns)
                     foreach (int idx in group.ParamIndexes)
