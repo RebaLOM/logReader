@@ -5,6 +5,57 @@ namespace logReader.Tests;
 public class TrcFormatTests
 {
     [Theory]
+    [InlineData("0 21.092 Rx 18031603 8 BC 02 5A 50 01 BE 8C FF", 0, "21.092", "Rx", "18031603", 188)]
+    [InlineData("7 1059,900 tX 0300 8 01 02 03 04 05 06 07 08", 7, "1059.900", "Tx", "300", 1)]
+    public void Dst_frames_without_parentheses_preserve_index_time_direction_id_and_payload(
+        string line, int index, string milliseconds, string direction, string id, int firstByte)
+    {
+        Span<int> bytes = stackalloc int[64];
+        Assert.True(TrcLogParser.TryParseTrcFrameLine(line, out int actualIndex, out decimal time,
+            out string actualDirection, out string actualId, out int dlc, bytes, out int count));
+        Assert.Equal(index, actualIndex);
+        Assert.Equal(decimal.Parse(milliseconds, System.Globalization.CultureInfo.InvariantCulture), time);
+        Assert.Equal(direction, actualDirection);
+        Assert.Equal(id, actualId);
+        Assert.Equal(8, dlc);
+        Assert.Equal(8, count);
+        Assert.Equal(firstByte, bytes[0]);
+        Assert.Equal(id == "300" ? 8 : 255, bytes[7]);
+    }
+
+    [Theory]
+    [InlineData("0 21.092 Rx 18031603 1 RTR")]
+    [InlineData("0 21.092 Rx invalid 8 01 02 03 04 05 06 07 08")]
+    [InlineData("0 21.092 Rx 18031603 8 01 02")]
+    [InlineData("0 21.092 Rx 18031603 -1 01")]
+    [InlineData("0 invalid Rx 18031603 1 01")]
+    public void Invalid_dst_frames_are_skipped(string line)
+    {
+        Span<int> bytes = stackalloc int[64];
+        Assert.False(TrcLogParser.TryParseTrcFrameLine(line, out _, out _, out _, out _, out _, bytes, out _));
+    }
+
+    [Fact]
+    public void Plain_dst_header_provides_start_time_and_stops_before_frames()
+    {
+        string[] header = { "ООО \"ДСТ-УРАЛ\"   Сайт: tm10.ru", "Время начала записи: 16.10.2025 06:41:35.235", "0 21.092 Rx 18031603 0" };
+        Assert.Equal(new DateTime(2025, 10, 16, 6, 41, 35, 235), TrcLogParser.ParseStartTime(header));
+        Assert.Null(TrcLogParser.ParseStartTime(new[] { header[0], header[2], header[1] }));
+    }
+
+    [Fact]
+    public void Unknown_plain_header_is_not_scanned_without_a_limit()
+    {
+        int visited = 0;
+        IEnumerable<string> Lines()
+        {
+            for (int i = 0; i < 10000; i++) { visited++; yield return "unknown header"; }
+        }
+        Assert.Null(TrcLogParser.ParseStartTime(Lines()));
+        Assert.InRange(visited, 1, 65);
+    }
+
+    [Theory]
     [InlineData("     1)      1841  0300  8  01 02 03 04 05 06 07 08", "1.0")]
     [InlineData("     1)      1059.9  Rx         0300  8  01 02 03 04 05 06 07 08", "1.1")]
     [InlineData("     1)      1059.900 1  Rx        0300  8  01 02 03 04 05 06 07 08", "1.2")]

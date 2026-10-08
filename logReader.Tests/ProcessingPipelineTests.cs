@@ -5,6 +5,44 @@ namespace logReader.Tests;
 
 public class ProcessingPipelineTests
 {
+    [Theory]
+    [InlineData(OutputFormat.Csv)]
+    [InlineData(OutputFormat.Xlsx)]
+    [InlineData(OutputFormat.CsvDstConnect)]
+    public void Windows1251_dst_log_matches_equivalent_pcan_log(OutputFormat format)
+    {
+        using var dir = new TempDir();
+        string frames = "0 1000.0 Rx 0CFF0008 8 11 00 00 00 00 00 00 00\n"
+            + "1 1000.3 Tx 0CFF0009 8 22 00 00 00 00 00 00 00\n"
+            + "2 1020.0 Rx 0CFF0008 8 12 00 00 00 00 00 00 00\n"
+            + "3 1020.3 Rx 0CFF0009 8 23 00 00 00 00 00 00 00\n";
+        string dst = dir.File("dst.trc");
+        File.WriteAllText(dst, "ООО \"ДСТ-УРАЛ\"\nВремя начала записи: 16.10.2025 10:00:00.235\n" + frames,
+            LogFileEncoding.Windows1251);
+        string pcan = dir.Write("pcan.trc", "; Start time: 16.10.2025 10:00:00.235\n"
+            + string.Join("\n", frames.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Insert(line.IndexOf(' '), ")"))));
+        string extension = format == OutputFormat.Xlsx ? ".xlsx" : ".csv";
+        string actual = dir.File("actual" + extension);
+        string expected = dir.File("expected" + extension);
+        var service = new LogProcessingService();
+        var result = service.ProcessSingleFile(dst, actual, Devices(dir), Settings(format), new ProcessingContext());
+        var reference = service.ProcessSingleFile(pcan, expected, Devices(dir), Settings(format), new ProcessingContext());
+        Assert.True(result.Success, result.Error);
+        Assert.True(reference.Success, reference.Error);
+        Assert.True(result.RowsWritten > 0);
+        Assert.Equal(reference.RowsWritten, result.RowsWritten);
+        Assert.Equal(1251, LogFileEncoding.Detect(dst).CodePage);
+        if (format != OutputFormat.Xlsx) Assert.Equal(File.ReadAllText(expected), File.ReadAllText(actual));
+        else
+        {
+            using var a = new XLWorkbook(actual);
+            using var b = new XLWorkbook(expected);
+            Assert.Equal(b.Worksheet(1).CellsUsed().Select(c => (c.Address.ToString(), c.Value)),
+                a.Worksheet(1).CellsUsed().Select(c => (c.Address.ToString(), c.Value)));
+        }
+    }
+
     private const string TwoFramesTrc =
         "     1)        10.0  Rx     0CFF0008  8  11 00 00 00 00 00 00 00\n" +
         "     2)        20.0  Rx     0CFF0009  8  22 00 00 00 00 00 00 00\n";

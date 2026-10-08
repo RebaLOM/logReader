@@ -27,6 +27,7 @@ namespace logReader.Processing
         // Раскладка строки определяется по самой строке, поэтому заголовок $COLUMNS не обязателен:
         //  1.0: «N) O ID L D…»;              1.1: «N) O Rx ID L D…»;
         //  1.2: «N) O Bus Rx ID L D…»;       1.3: «N) O Bus Rx ID - L D…»;
+        //  ДСТ: «N O Rx ID L D…», без скобки после номера.
         //  2.0: «N O T ID Rx l D…» (l — длина данных); 2.1: «N O T Bus ID Rx - L D…» (L — код DLC).
         // dlc на выходе — длина данных в байтах.
         internal static bool TryParseTrcFrameLine(
@@ -57,7 +58,7 @@ namespace logReader.Processing
             if (tokens.Length < 4)
                 return false;
 
-            bool versionOne = tokens[0].EndsWith(')');
+            bool versionOne = tokens[0].EndsWith(')') || TryParseDirection(tokens[2], out _);
             if (!TryParseFrameIndex(tokens[0], out messageIndex))
                 return false;
             if (!TryParseMilliseconds(tokens[1], out timeMs))
@@ -160,11 +161,12 @@ namespace logReader.Processing
         internal static DateTime? ParseStartTime(string path, System.Text.Encoding encoding)
             => ParseStartTime(LogFileReader.ReadLines(path, encoding));
 
-        // Заголовок TRC — строки «;…» в начале файла; на первой строке кадров чтение прекращается,
-        // иначе для файла без Start time читался бы весь лог.
+        // pCAN использует «;…», ДСТ — текстовый заголовок без «;».
+        // Останавливаемся до кадров; неизвестный текстовый заголовок ограничен 64 строками.
         internal static DateTime? ParseStartTime(IEnumerable<string> lines)
         {
             DateTime? fallback = null;
+            int plainHeaderLines = 0;
 
             foreach (var line in lines)
             {
@@ -172,7 +174,7 @@ namespace logReader.Processing
                     continue;
 
                 string trimmed = line.Trim();
-                if (!trimmed.StartsWith(';'))
+                if (!trimmed.StartsWith(';') && (char.IsDigit(trimmed[0]) || ++plainHeaderLines > 64))
                     break;
 
                 if (TryParseStartTimeAfterMarker(trimmed, "Start time:", out DateTime startTime))
