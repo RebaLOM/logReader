@@ -53,7 +53,6 @@ namespace logReader.Processing
             bool includeDeviceIdHeaderRow,
             ProcessingContext context)
         {
-            var ru = CultureInfo.GetCultureInfo("ru-RU");
             try
             {
                 SafeFileWriter.Write(outputPath, tmp =>
@@ -81,10 +80,11 @@ namespace logReader.Processing
                     foreach (var row in rows.OrderBy(r => r.StepMs))
                     {
                         line.Clear();
+                        // Time — часы:минуты:секунды без замены точки; Step/значения — ru-RU.
                         line.Add(FormatClockTime(startTime, row.StepMs));
-                        line.Add(FormatStep(row.StepMs, ru));
+                        line.Add(FormatStep(row.StepMs));
                         foreach (var col in columns)
-                            line.Add(FormatValue(row.Values[col.Index], ru));
+                            line.Add(FormatValue(row.Values[col.Index]));
                         CsvOutput.WriteRow(writer, line);
                     }
                 });
@@ -107,17 +107,17 @@ namespace logReader.Processing
             return t.ToString("H:mm:ss", CultureInfo.InvariantCulture);
         }
 
-        private static string FormatStep(double stepMs, CultureInfo ru)
+        private static string FormatStep(double stepMs)
         {
             if (Math.Abs(stepMs - Math.Round(stepMs)) < 0.001)
-                return ((long)Math.Round(stepMs)).ToString(ru);
-            return stepMs.ToString(ru);
+                return CsvNumberFormat.Format(Math.Round(stepMs));
+            return CsvNumberFormat.Format(stepMs);
         }
 
-        private static string FormatValue(double value, CultureInfo ru)
+        private static string FormatValue(double value)
         {
             if (TimeSeriesCollector.IsError(value)) return "ERR";
-            return double.IsNaN(value) ? "" : value.ToString(ru);
+            return CsvNumberFormat.Format(value);
         }
     }
 }

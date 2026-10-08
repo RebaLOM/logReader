@@ -2,6 +2,7 @@ using System.Text;
 
 namespace logReader.Processing
 {
+    // Разделитель полей «;»; числа в ячейках — через CsvNumberFormat (запятая), время не трогаем.
     internal static class CsvOutput
     {
         internal const char Delimiter = ';';

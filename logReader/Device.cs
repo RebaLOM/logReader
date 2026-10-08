@@ -40,14 +40,17 @@ namespace logReader
             Array.Clear(FieldErrors);
         }
 
+        // Для CSV (ru-RU): десятичная запятая. Для Excel пишутся double напрямую.
         public string FormatValue(int index)
-            => FieldErrors[index] ? "ERR" : ValueFormatter.FormatInvariant(Values[index]);
+            => FieldErrors[index] ? "ERR" : ValueFormatter.FormatCsv(Values[index]);
     }
 
     public static class ValueFormatter
     {
         public static string FormatInvariant(double value)
             => double.IsNaN(value) ? "" : value.ToString(CultureInfo.InvariantCulture);
+
+        public static string FormatCsv(double value) => CsvNumberFormat.Format(value);
     }
 
     public enum SignalValueType
