@@ -8,7 +8,7 @@ Premium + Clean Minimal desktop tool for CAN log processing.
 
 ## Atmosphere
 
-- Light theme by default; Dark is a full second theme.
+- Light theme by default (`ui-theme-v2.txt`); Dark is a full second theme via header toggle.
 - Yellow Primary accent only (CTA, brand mark, selection).
 - Surface hierarchy: Canvas → Surface → Elevated.
 - Density closer to Fluent / Windows 11 than Ant Design marketing demos.

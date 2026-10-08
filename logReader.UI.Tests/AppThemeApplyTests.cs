@@ -43,6 +43,29 @@ public class AppThemeApplyTests
         }
     }
 
+    [Fact]
+    public void Apply_light_then_dark_round_trip_updates_canvas()
+    {
+        lock (UiGate)
+        {
+            RunSta(() =>
+            {
+                using var form = new Form();
+                AppTheme.Current = ThemeMode.Light;
+                AppTheme.Apply(form);
+                Assert.Equal(ThemePalette.Light.Canvas, form.BackColor);
+
+                AppTheme.Current = ThemeMode.Dark;
+                AppTheme.Apply(form);
+                Assert.Equal(ThemePalette.Dark.Canvas, form.BackColor);
+
+                AppTheme.Current = ThemeMode.Light;
+                AppTheme.Apply(form);
+                Assert.Equal(ThemePalette.Light.Canvas, form.BackColor);
+            });
+        }
+    }
+
     private static void RunSta(Action action)
     {
         Exception? caught = null;

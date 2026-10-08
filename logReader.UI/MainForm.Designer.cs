@@ -117,7 +117,7 @@ namespace logReader.UI
             labelBrand.Name = "labelBrand";
             labelBrand.Text = "LOGER";
             // 
-            // buttonThemeToggle
+            // buttonThemeToggle — позиция в LayoutHeader(); справа в шапке рядом с brand.
             // 
             buttonThemeToggle.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonThemeToggle.Location = new Point(748, 10);

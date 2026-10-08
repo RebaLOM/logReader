@@ -18,7 +18,7 @@
             // 
             // panelTop
             // 
-            panelTop.BackColor = Color.FromArgb(248, 248, 248);
+            // Цвет задаёт AppTheme (ThemeTags.Elevated).
             panelTop.Controls.Add(labelSearch);
             panelTop.Controls.Add(textBoxSearch);
             panelTop.Controls.Add(labelCount);

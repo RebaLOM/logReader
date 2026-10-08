@@ -55,9 +55,15 @@ namespace logReader.UI
             {
                 ApplyThemeToUi();
                 ThemeNative.ApplyTitleBar(this, AppTheme.Current);
+                LayoutHeader();
                 LayoutCardsHost();
             };
-            Resize += (_, _) => LayoutCardsHost();
+            Resize += (_, _) =>
+            {
+                LayoutHeader();
+                LayoutCardsHost();
+            };
+            headerPanel.Resize += (_, _) => LayoutHeader();
             workScroll.Resize += (_, _) => LayoutCardsHost();
             AppTheme.Changed += OnAppThemeChanged;
             FormClosed += (_, _) => AppTheme.Changed -= OnAppThemeChanged;
@@ -183,8 +189,9 @@ namespace logReader.UI
             AppTheme.Apply(this);
             ThemePalette p = AppTheme.Palette;
             brandAccent.BackColor = p.Primary;
+            // Подпись = тема, на которую переключимся по клику.
             buttonThemeToggle.Text = AppTheme.Current == ThemeMode.Dark ? "Светлая тема" : "Тёмная тема";
-            FitRightAnchoredButton(buttonThemeToggle);
+            LayoutHeader();
             UpdateFilterLabel();
             ThemeNative.ApplyTitleBar(this, AppTheme.Current);
             LayoutPathRows();
@@ -193,21 +200,17 @@ namespace logReader.UI
             navConvert.Invalidate();
         }
 
-        private static void FitRightAnchoredButton(Button btn)
+        // Кнопка темы — всегда в правом краю шапки (не уезжает за край при DPI/resize).
+        private void LayoutHeader()
         {
-            int w = MeasureButtonWidth(btn);
-            if (btn.Width == w)
+            if (headerPanel.ClientSize.Width <= 0)
                 return;
-            if (btn.Anchor.HasFlag(AnchorStyles.Right) && !btn.Anchor.HasFlag(AnchorStyles.Left))
-            {
-                int right = btn.Right;
-                btn.Width = w;
-                btn.Left = right - w;
-            }
-            else
-            {
-                btn.Width = w;
-            }
+
+            buttonThemeToggle.Width = MeasureButtonWidth(buttonThemeToggle);
+            int top = Math.Max(headerPanel.Padding.Top, (headerPanel.ClientSize.Height - buttonThemeToggle.Height) / 2);
+            int left = headerPanel.ClientSize.Width - headerPanel.Padding.Right - buttonThemeToggle.Width;
+            buttonThemeToggle.Location = new Point(Math.Max(headerPanel.Padding.Left, left), top);
+            buttonThemeToggle.BringToFront();
         }
 
         private void buttonThemeToggle_Click(object? sender, EventArgs e)

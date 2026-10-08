@@ -93,7 +93,7 @@ namespace logReader.UI
             panelSearchUnknown.Dock = DockStyle.Top;
             panelSearchUnknown.Height = 44;
             panelSearchUnknown.Name = "panelSearchUnknown";
-            panelSearchUnknown.BackColor = Color.FromArgb(248, 248, 248);
+            // Цвет задаёт AppTheme (ThemeTags.Elevated).
             panelSearchUnknown.TabIndex = 0;
             // 
             // labelSearchUnknown
@@ -191,7 +191,7 @@ namespace logReader.UI
             panelButtons.Dock = DockStyle.Bottom;
             panelButtons.Height = 48;
             panelButtons.Name = "panelButtons";
-            panelButtons.BackColor = Color.FromArgb(240, 240, 240);
+            // Цвет задаёт AppTheme (ThemeTags.Elevated).
             panelButtons.TabIndex = 2;
             // 
             // buttonEnableAll
@@ -221,7 +221,7 @@ namespace logReader.UI
             panelSearch.Dock = DockStyle.Top;
             panelSearch.Height = 44;
             panelSearch.Name = "panelSearch";
-            panelSearch.BackColor = Color.FromArgb(248, 248, 248);
+            // Цвет задаёт AppTheme (ThemeTags.Elevated).
             panelSearch.TabIndex = 1;
             // 
             // labelSearch

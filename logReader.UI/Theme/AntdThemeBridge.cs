@@ -26,6 +26,10 @@ public static class AntdThemeBridge
                 .Dark(ToHex(dark.Canvas), ToHex(dark.Text))
                 .Header(ToHex(light.Surface), ToHex(dark.Surface));
 
+            // Стартовый mode до первого Apply — светлый (default product theme).
+            AntdUI.Config.Mode = AntdUI.TMode.Light;
+            AntdUI.Style.SetPrimary(light.Primary);
+
             _configured = true;
         }
     }
@@ -75,6 +79,9 @@ public static class AntdThemeBridge
             .Light(ToHex(light.Canvas), ToHex(light.Text))
             .Dark(ToHex(dark.Canvas), ToHex(dark.Text))
             .Header(ToHex(light.Surface), ToHex(dark.Surface));
+
+        AntdUI.Config.Mode = AntdUI.TMode.Light;
+        AntdUI.Style.SetPrimary(light.Primary);
 
         _configured = true;
     }

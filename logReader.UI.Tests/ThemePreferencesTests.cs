@@ -34,6 +34,15 @@ public class ThemePreferencesTests : IDisposable
     }
 
     [Fact]
+    public void Preferences_path_uses_v2_filename_so_legacy_Dark_is_not_sticky()
+    {
+        Assert.EndsWith("ui-theme-v2.txt", ThemePreferences.PreferencesPath, StringComparison.OrdinalIgnoreCase);
+        // Старый ui-theme.txt с Dark не влияет на default.
+        File.WriteAllText(Path.Combine(_tempDir, "ui-theme.txt"), "Dark");
+        Assert.Equal(ThemeMode.Light, ThemePreferences.Load());
+    }
+
+    [Fact]
     public void Save_and_Load_round_trip()
     {
         ThemePreferences.Save(ThemeMode.Light);

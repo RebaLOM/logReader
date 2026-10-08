@@ -2,7 +2,8 @@ namespace logReader.UI.Theme;
 
 public static class ThemePreferences
 {
-    private const string FileName = "ui-theme.txt";
+    // v2: светлая по умолчанию для premium UI; старый ui-theme.txt с Dark не подхватываем.
+    private const string FileName = "ui-theme-v2.txt";
     private static string? _overrideDirectory;
 
     public static string PreferencesDirectory =>
