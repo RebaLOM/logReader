@@ -43,28 +43,30 @@ public sealed record ThemePalette
         Hex(0x64AFA0), Hex(0xD28C78), Hex(0x82A064), Hex(0xAA6E6E)
     });
 
+    // Чёрно-жёлтая палитра (DESIGN.md): жёлтый только как акцент, статусы отдельно.
     public static ThemePalette Light { get; } = new()
     {
-        Mode = ThemeMode.Light, Background = Hex(0xF4F6FA), Surface = Hex(0xFFFFFF),
-        SurfaceSecondary = Hex(0xF8FAFC), Border = Hex(0xE2E8F0), BorderHover = Hex(0x94A3B8),
-        Primary = Hex(0x2563EB), PrimaryHover = Hex(0x1D4ED8), PrimaryPressed = Hex(0x1E40AF), PrimarySoft = Hex(0xEFF6FF),
-        TextPrimary = Hex(0x172033), TextSecondary = Hex(0x526078), TextMuted = Hex(0x7C879A),
+        Mode = ThemeMode.Light, Background = Hex(0xF5F5F4), Surface = Hex(0xFFFFFF),
+        SurfaceSecondary = Hex(0xF0F0EE), Border = Hex(0xE2E2DE), BorderHover = Hex(0xA8A8A0),
+        // Primary глубже canary: Info на PrimarySoft должен держать ≥4.5.
+        Primary = Hex(0x8B6400), PrimaryHover = Hex(0x7A5800), PrimaryPressed = Hex(0x6B4C00), PrimarySoft = Hex(0xFFF6CC),
+        TextPrimary = Hex(0x141414), TextSecondary = Hex(0x4A4A46), TextMuted = Hex(0x7A7A74),
         TextOnPrimary = Hex(0xFFFFFF), TextOnError = Hex(0xFFFFFF),
         Success = Hex(0x15803D), Warning = Hex(0xB45309), Error = Hex(0xB91C1C),
         SuccessSoft = Hex(0xF0FDF4), WarningSoft = Hex(0xFFFBEB), ErrorSoft = Hex(0xFEF2F2),
-        DisabledSurface = Hex(0xF1F5F9)
+        DisabledSurface = Hex(0xEEEEEC)
     };
 
     public static ThemePalette Dark { get; } = new()
     {
-        Mode = ThemeMode.Dark, Background = Hex(0x101622), Surface = Hex(0x182131),
-        SurfaceSecondary = Hex(0x202C3E), Border = Hex(0x34445D), BorderHover = Hex(0x60728E),
-        Primary = Hex(0x60A5FA), PrimaryHover = Hex(0x93C5FD), PrimaryPressed = Hex(0x3B82F6), PrimarySoft = Hex(0x172B49),
-        TextPrimary = Hex(0xE8EEF8), TextSecondary = Hex(0xBAC7DB), TextMuted = Hex(0x94A4BE),
-        TextOnPrimary = Hex(0x07172B), TextOnError = Hex(0x2C080B),
+        Mode = ThemeMode.Dark, Background = Hex(0x0A0A0A), Surface = Hex(0x141414),
+        SurfaceSecondary = Hex(0x1C1C1C), Border = Hex(0x2E2E2A), BorderHover = Hex(0x5A5A52),
+        Primary = Hex(0xFFD60A), PrimaryHover = Hex(0xFFE566), PrimaryPressed = Hex(0xE6C008), PrimarySoft = Hex(0x2A2410),
+        TextPrimary = Hex(0xF2F2F0), TextSecondary = Hex(0xB8B8B0), TextMuted = Hex(0x8A8A82),
+        TextOnPrimary = Hex(0x0A0A0A), TextOnError = Hex(0x2C080B),
         Success = Hex(0x4ADE80), Warning = Hex(0xFBBF24), Error = Hex(0xF87171),
         SuccessSoft = Hex(0x173A2A), WarningSoft = Hex(0x3E3015), ErrorSoft = Hex(0x3F2029),
-        DisabledSurface = Hex(0x253044)
+        DisabledSurface = Hex(0x242422)
     };
 
     public static ThemePalette For(ThemeMode mode) => mode switch

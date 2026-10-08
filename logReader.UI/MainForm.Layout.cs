@@ -66,15 +66,28 @@ namespace logReader.UI
                 Dock = DockStyle.Fill, BackColor = AppTheme.Surface, Padding = new Padding(16, 24, 16, 16),
                 ColumnCount = 1, RowCount = 5, Margin = Padding.Empty
             };
-            sidebar.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
+            sidebar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             sidebar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             sidebar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             sidebar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             sidebar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var brand = WorkspaceStack();
+            // Жёлтый маркер бренда (DESIGN.md): не красим весь wordmark.
+            var brandMark = new FlowLayoutPanel
+            {
+                AutoSize = true, Dock = DockStyle.Top, WrapContents = false,
+                Margin = Padding.Empty, Padding = Padding.Empty
+            };
+            brandMark.Controls.Add(new Panel
+            {
+                Size = new Size(UiScale.Px(this, 40), UiScale.Px(this, 3)),
+                BackColor = AppTheme.Primary,
+                Margin = new Padding(0, 0, 0, UiScale.Px(this, 10))
+            });
+            StackAdd(brand, brandMark);
             StackAdd(brand, new Label { Text = "LOGER", AutoSize = true, Font = Typography.PageTitle, ForeColor = AppTheme.TextPrimary });
             StackAdd(brand, new Label { Text = "Анализ CAN-данных", AutoSize = true, Font = Typography.Caption,
-                ForeColor = AppTheme.TextMuted, Margin = new Padding(0, 8, 0, 0) });
+                ForeColor = AppTheme.TextMuted, Margin = new Padding(0, 8, 0, 12) });
             sidebar.Controls.Add(brand, 0, 0);
             var navigation = WorkspaceStack();
             var labels = new[] { "Обработка", "Библиотеки", "Инструменты" };
