@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using logReader;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -30,8 +31,8 @@ namespace logReader.UI
         private int HeaderRowHeight => LogicalToDeviceUnits(22);
         private int LegendRowHeight => LogicalToDeviceUnits(18);
 
-        private static readonly Color EmptyCell = Color.FromArgb(240, 242, 245);
-        private static readonly Color ConflictColor = Color.FromArgb(220, 53, 69);
+        private static Color EmptyCell => AppTheme.Palette.EmptyCell;
+        private static Color ConflictColor => AppTheme.Palette.Error;
 
         private int _dlc = 8;
         private CanPayloadGridMode _mode = CanPayloadGridMode.View;
@@ -52,9 +53,25 @@ namespace logReader.UI
         {
             DoubleBuffered = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
-            BackColor = Color.White;
+            BackColor = AppTheme.Palette.Surface;
             TabStop = false;
             UpdatePreferredSize();
+            AppTheme.Changed += OnAppThemeChanged;
+        }
+
+        private void OnAppThemeChanged(object? sender, EventArgs e)
+        {
+            if (IsDisposed)
+                return;
+            BackColor = AppTheme.Palette.Surface;
+            Invalidate();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                AppTheme.Changed -= OnAppThemeChanged;
+            base.Dispose(disposing);
         }
 
         [Browsable(false)]
@@ -263,9 +280,10 @@ namespace logReader.UI
                 }
             }
 
-            using var gridPen = new Pen(Color.FromArgb(180, 180, 190));
-            using var selectionPen = new Pen(Color.FromArgb(30, 60, 120), Math.Max(2, LogicalToDeviceUnits(2)));
-            using var previewBrush = new SolidBrush(Color.FromArgb(90, 100, 149, 237));
+            ThemePalette palette = AppTheme.Palette;
+            using var gridPen = new Pen(palette.GridLine);
+            using var selectionPen = new Pen(palette.Primary, Math.Max(2, LogicalToDeviceUnits(2)));
+            using var previewBrush = new SolidBrush(Color.FromArgb(90, palette.Primary.R, palette.Primary.G, palette.Primary.B));
             HashSet<int>? preview = null;
             if (_dragAnchorBit is int anchor && _dragHoverBit is int hover
                 && TryPreviewBits(anchor, hover, payloadBits, out var previewBits))
@@ -320,7 +338,7 @@ namespace logReader.UI
                 int x = LabelColWidth + col * CellSize;
                 TextRenderer.DrawText(g, bitInByte.ToString(System.Globalization.CultureInfo.InvariantCulture), Font,
                     new Rectangle(x, 2, CellSize, HeaderRowHeight - 2),
-                    Color.DimGray, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    palette.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
 
             if (_showLegend && _overlays.Count > 0)

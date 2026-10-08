@@ -1,4 +1,5 @@
 using System.Linq;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -109,6 +110,7 @@ namespace logReader.UI
             Controls.Add(root);
             CancelButton = btnCancel;
             UiScaling.Apply(this);
+            ThemeForm.Wire(this);
         }
     }
 }

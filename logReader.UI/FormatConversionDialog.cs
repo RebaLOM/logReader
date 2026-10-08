@@ -1,3 +1,4 @@
+using logReader.UI.Theme;
 namespace logReader.UI
 {
     internal sealed class FormatConversionDialog : Form
@@ -156,6 +157,7 @@ namespace logReader.UI
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
             UiScaling.Apply(this);
+            ThemeForm.Wire(this);
         }
 
         private async void convertButton_Click(object? sender, EventArgs e)

@@ -1,4 +1,5 @@
 using System.Linq;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -23,6 +24,12 @@ namespace logReader.UI
             List<string>? matchedDevices = null)
         {
             InitializeComponent();
+            panelSearch.Tag = ThemeTags.Elevated;
+            panelSearchUnknown.Tag = ThemeTags.Elevated;
+            panelButtons.Tag = ThemeTags.Elevated;
+            labelMissingTitle.Font = Typography.Section();
+            labelMatchedTitle.Font = Typography.Section();
+            ThemeForm.Wire(this);
             _devices = devices;
             _targetDeviceEnabled = deviceEnabled;
             _targetParamEnabled = paramEnabled;

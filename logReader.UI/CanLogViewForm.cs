@@ -1,4 +1,5 @@
 using System.Linq;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -16,6 +17,9 @@ namespace logReader.UI
             InitializeComponent();
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             _sourcePath = sourcePath;
+            panelTop.Tag = ThemeTags.Elevated;
+            labelCount.Tag = ThemeTags.Muted;
+            ThemeForm.Wire(this);
 
             _list.Dock = DockStyle.Fill;
             _list.View = View.Details;

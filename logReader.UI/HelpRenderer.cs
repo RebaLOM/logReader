@@ -1,3 +1,5 @@
+using logReader.UI.Theme;
+
 namespace logReader.UI
 {
     internal static class HelpRenderer
@@ -9,8 +11,6 @@ namespace logReader.UI
         private static Font _monoFont = null!;
         private static Font _boldFont = null!;
         private static bool _fontsReady;
-
-        private static readonly Color HighlightBackColor = Color.FromArgb(255, 255, 160);
 
         public static void Render(RichTextBox box, HelpTopic topic, string? highlightNeedle = null)
         {
@@ -38,6 +38,7 @@ namespace logReader.UI
                 return;
             }
 
+            ThemePalette p = AppTheme.Palette;
             string text = box.Text;
             int searchFrom = 0;
             int firstMatch = -1;
@@ -52,7 +53,8 @@ namespace logReader.UI
                     firstMatch = index;
 
                 box.Select(index, needle.Length);
-                box.SelectionBackColor = HighlightBackColor;
+                box.SelectionBackColor = p.Primary;
+                box.SelectionColor = p.OnPrimary;
                 searchFrom = index + needle.Length;
             }
 
@@ -106,13 +108,14 @@ namespace logReader.UI
 
         private static void AppendHeading(RichTextBox box, string text, HelpHeadingLevel level)
         {
+            ThemePalette p = AppTheme.Palette;
             box.SelectionFont = level switch
             {
                 HelpHeadingLevel.H1 => _heading1Font,
                 HelpHeadingLevel.H2 => _heading2Font,
                 _ => _heading3Font,
             };
-            box.SelectionColor = Color.FromArgb(32, 32, 32);
+            box.SelectionColor = p.Text;
             box.AppendText(text + Environment.NewLine);
             box.SelectionFont = _bodyFont;
             box.SelectionColor = box.ForeColor;
@@ -138,6 +141,7 @@ namespace logReader.UI
 
         private static void AppendLabeled(RichTextBox box, HelpLabeledItem item)
         {
+            ThemePalette p = AppTheme.Palette;
             string prefix = item.Kind switch
             {
                 HelpCalloutKind.Tip => "Совет: ",
@@ -149,8 +153,8 @@ namespace logReader.UI
             {
                 box.SelectionFont = _boldFont;
                 box.SelectionColor = item.Kind == HelpCalloutKind.Important
-                    ? Color.FromArgb(153, 51, 0)
-                    : Color.FromArgb(0, 102, 51);
+                    ? p.Warning
+                    : p.Success;
                 box.AppendText(prefix);
             }
 
@@ -163,9 +167,10 @@ namespace logReader.UI
 
         private static void AppendExample(RichTextBox box, string text)
         {
+            ThemePalette p = AppTheme.Palette;
             box.SelectionFont = _monoFont;
-            box.SelectionColor = Color.FromArgb(48, 48, 96);
-            box.SelectionBackColor = Color.FromArgb(245, 245, 250);
+            box.SelectionColor = p.Text;
+            box.SelectionBackColor = p.Elevated;
             foreach (string line in text.Replace("\r\n", "\n").Split('\n'))
             {
                 box.AppendText("  " + line + Environment.NewLine);

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using logReader;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -64,6 +65,7 @@ namespace logReader.UI
             LoadFromFile();
             FormClosing += OnFormClosing;
             UiScaling.Apply(this);
+            ThemeForm.Wire(this);
         }
 
         private void BuildLayout()

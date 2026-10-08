@@ -1,4 +1,6 @@
 using System.Linq;
+using logReader.UI.Controls;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -39,12 +41,55 @@ namespace logReader.UI
         public MainForm()
         {
             InitializeComponent();
+            TagSectionSurfaces();
             WireContentSplitLayout();
             UpdateDevicesCreateAddButtonState();
             UpdateCompositesCreateAddButtonState();
             UpdateFilterLabel();
             buttonOpenOutput.Visible = false;
             FormClosing += MainForm_FormClosing;
+            Load += (_, _) =>
+            {
+                ApplyThemeToUi();
+                ThemeNative.ApplyTitleBar(this, AppTheme.Current);
+            };
+            AppTheme.Changed += OnAppThemeChanged;
+            FormClosed += (_, _) => AppTheme.Changed -= OnAppThemeChanged;
+        }
+
+        private void TagSectionSurfaces()
+        {
+            headerPanel.Tag = ThemeTags.Header;
+            labelBrand.Tag = ThemeTags.Brand;
+            labelFilterStatus.Tag = ThemeTags.Muted;
+            labelProgress.Tag = ThemeTags.Muted;
+            textBoxLog.Tag = ThemeTags.Console;
+            buttonProcess.Tag = ThemeTags.Primary;
+        }
+
+        private void OnAppThemeChanged(object? sender, EventArgs e)
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated)
+                return;
+            BeginInvoke(ApplyThemeToUi);
+        }
+
+        private void ApplyThemeToUi()
+        {
+            if (IsDisposed || Disposing)
+                return;
+            AppTheme.Apply(this);
+            ThemePalette p = AppTheme.Palette;
+            brandAccent.BackColor = p.Primary;
+            buttonThemeToggle.Text = AppTheme.Current == ThemeMode.Dark ? "Светлая тема" : "Тёмная тема";
+            UpdateFilterLabel();
+            ThemeNative.ApplyTitleBar(this, AppTheme.Current);
+        }
+
+        private void buttonThemeToggle_Click(object? sender, EventArgs e)
+        {
+            ThemeMode next = AppTheme.Current == ThemeMode.Dark ? ThemeMode.Light : ThemeMode.Dark;
+            AppTheme.SetAndPersist(next);
         }
 
         private bool IsBusy => _operation != null;
@@ -165,10 +210,11 @@ namespace logReader.UI
         private void UpdateFilterLabel()
         {
             var devices = _cachedDevices;
+            ThemePalette p = AppTheme.Palette;
             if (devices == null || devices.Count == 0)
             {
                 labelFilterStatus.Text = "Файл посылок не загружен";
-                labelFilterStatus.ForeColor = Color.DarkGray;
+                labelFilterStatus.ForeColor = p.Muted;
                 return;
             }
 
@@ -179,7 +225,7 @@ namespace logReader.UI
             int enabledParams = devices.Sum(d => filter.GetActiveParams(d).Length);
 
             labelFilterStatus.Text = $"Устройства: {enabledDevices}/{devices.Count}  Параметры: {enabledParams}/{totalParams}";
-            labelFilterStatus.ForeColor = SystemColors.ControlText;
+            labelFilterStatus.ForeColor = p.Text;
         }
 
         private void ResetFilters()
@@ -192,29 +238,29 @@ namespace logReader.UI
 
         private LogSourceKind ShowPickLogSourceDialog()
         {
-            using var dlg = new Form
+            using var dlg = new AppDialog
             {
                 Text = "Источник логов",
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                StartPosition = FormStartPosition.CenterParent,
-                MinimizeBox = false,
-                MaximizeBox = false,
                 ShowInTaskbar = false,
-                AutoScaleDimensions = new SizeF(7F, 15F),
-                AutoScaleMode = AutoScaleMode.Font,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding = new Padding(12),
+                Padding = new Padding(16),
             };
 
             var layout = new TableLayoutPanel { AutoSize = true, ColumnCount = 3, RowCount = 2, Dock = DockStyle.Fill };
-            var lbl = new Label { Text = "Выберите один файл лога или папку с логами:", AutoSize = true, Margin = new Padding(3, 3, 3, 12) };
+            var lbl = new Label
+            {
+                Text = "Выберите один файл лога или папку с логами:",
+                AutoSize = true,
+                Margin = new Padding(3, 3, 3, 12),
+                Font = Typography.Body(),
+            };
             layout.Controls.Add(lbl, 0, 0);
             layout.SetColumnSpan(lbl, 3);
 
-            var btnFile = new Button { Text = "&Файл...", AutoSize = true, MinimumSize = new Size(100, 26) };
-            var btnFolder = new Button { Text = "&Папка...", AutoSize = true, MinimumSize = new Size(100, 26) };
-            var btnCancel = new Button { Text = "Отмена", AutoSize = true, MinimumSize = new Size(100, 26), DialogResult = DialogResult.Cancel };
+            var btnFile = new ModernButton { Text = "&Файл...", Kind = ButtonKind.Primary, AutoSize = true, MinimumSize = new Size(100, 30) };
+            var btnFolder = new ModernButton { Text = "&Папка...", Kind = ButtonKind.Secondary, AutoSize = true, MinimumSize = new Size(100, 30) };
+            var btnCancel = new ModernButton { Text = "Отмена", Kind = ButtonKind.Ghost, AutoSize = true, MinimumSize = new Size(100, 30), DialogResult = DialogResult.Cancel };
             layout.Controls.Add(btnFile, 0, 1);
             layout.Controls.Add(btnFolder, 1, 1);
             layout.Controls.Add(btnCancel, 2, 1);
@@ -757,15 +803,18 @@ namespace logReader.UI
 
         private void SetBusy(bool busy, string stage)
         {
-            foreach (Control c in contentSplit.Panel1.Controls)
+            foreach (Control c in workRoot.Controls)
             {
-                if (c == buttonCancel || c == buttonHelp || c == progressBarProcess || c == labelProgress || c == labelFilterStatus)
+                if (c == buttonCancel || c == buttonHelp || c == progressBarProcess
+                    || c == labelProgress || c == labelFilterStatus || c == headerPanel)
                     continue;
                 c.Enabled = !busy;
             }
 
+            buttonThemeToggle.Enabled = true;
             buttonCancel.Enabled = busy;
             buttonCancel.Visible = busy;
+            buttonHelp.Enabled = true;
             progressBarProcess.Visible = busy;
             labelProgress.Visible = busy;
             progressBarProcess.Value = 0;

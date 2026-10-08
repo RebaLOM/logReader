@@ -1,4 +1,5 @@
 using System.Linq;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
@@ -13,6 +14,21 @@ namespace logReader.UI
             InitializeComponent();
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             CacheSearchText();
+            ThemeForm.Wire(this);
+            AppTheme.Changed += OnAppThemeChanged;
+            FormClosed += (_, _) => AppTheme.Changed -= OnAppThemeChanged;
+        }
+
+        private void OnAppThemeChanged(object? sender, EventArgs e)
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated)
+                return;
+            BeginInvoke(() =>
+            {
+                if (IsDisposed || treeViewTopics.SelectedNode?.Tag is not string topicId)
+                    return;
+                RenderSelectedTopic(topicId);
+            });
         }
 
         private void HelpForm_Load(object? sender, EventArgs e)

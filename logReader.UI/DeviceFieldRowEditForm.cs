@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using logReader;
+using logReader.UI.Theme;
 using static logReader.BitMath;
 
 namespace logReader.UI
@@ -76,6 +77,7 @@ namespace logReader.UI
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
             UiScaling.Apply(this);
+            ThemeForm.Wire(this);
         }
 
         private static DeviceFieldRow CreateDefaultNumRow() => new(

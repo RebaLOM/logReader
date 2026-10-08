@@ -1,3 +1,4 @@
+using logReader.UI.Theme;
 namespace logReader.UI
 {
     internal sealed class SaveOptionsForm : Form
@@ -214,6 +215,7 @@ namespace logReader.UI
             UpdateDstPanelVisibility();
             UpdateOkEnabledState(buttonOk);
             UiScaling.Apply(this);
+            ThemeForm.Wire(this);
         }
 
         private void UpdateDstPanelVisibility()
