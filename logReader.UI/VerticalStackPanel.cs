@@ -1,4 +1,4 @@
-﻿using System.Windows.Forms.Layout;
+using System.Windows.Forms.Layout;
 
 namespace logReader.UI;
 
@@ -76,4 +76,3 @@ internal sealed class VerticalStackPanel : Panel
         }
     }
 }
-

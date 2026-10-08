@@ -1,4 +1,4 @@
-﻿namespace logReader.UI;
+namespace logReader.UI;
 
 // Decorative headings share the card surface; input controls retain their native behavior.
 internal sealed class WorkspaceCardPanel : Panel
@@ -57,4 +57,3 @@ internal sealed class WorkspaceCardPanel : Panel
             TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
     }
 }
-
