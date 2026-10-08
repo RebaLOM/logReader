@@ -77,37 +77,22 @@ public partial class MainForm
     private Font? _eyebrowFont;
     private Panel WorkspaceCard(string title, string eyebrow, Control body)
     {
-        var panel = new Panel { Dock = DockStyle.Top, Padding = new Padding(16), Tag = "surface", Margin = new Padding(0, 0, 0, 10) };
+        var panel = new WorkspaceCardPanel(title, eyebrow,
+            _cardTitleFont ??= WorkspaceFont(14F, FontStyle.Bold),
+            _eyebrowFont ??= WorkspaceFont(8F, FontStyle.Bold), body);
         DeferWorkspaceLayout(panel);
-        var stack = WorkspaceStack();
-        var kicker = WorkspaceLabel(eyebrow, tag: "muted");
-        kicker.Font = _eyebrowFont ??= WorkspaceFont(8F, FontStyle.Bold);
-        kicker.Margin = new Padding(0, 0, 0, 4);
-        var heading = WorkspaceLabel(title);
-        heading.Font = _cardTitleFont ??= WorkspaceFont(14F, FontStyle.Bold);
-        heading.Margin = new Padding(0, 0, 0, 12);
-        body.Dock = DockStyle.Top;
-        body.Margin = Padding.Empty;
-        stack.Controls.Add(kicker);
-        stack.Controls.Add(heading);
-        stack.Controls.Add(body);
-        panel.Controls.Add(stack);
-        stack.SizeChanged += (_, _) => panel.Height = stack.Height + panel.Padding.Vertical;
-        panel.Height = stack.PreferredSize.Height + panel.Padding.Vertical;
         return panel;
     }
 
-    private TableLayoutPanel WorkspaceStack()
+    private VerticalStackPanel WorkspaceStack()
     {
-        var stack = new TableLayoutPanel
+        var stack = new VerticalStackPanel
         {
-            ColumnCount = 1, AutoSize = true, Dock = DockStyle.Top,
+            AutoSize = true, Dock = DockStyle.Top,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Margin = Padding.Empty, Padding = Padding.Empty, BackColor = Color.Transparent,
-            GrowStyle = TableLayoutPanelGrowStyle.AddRows
+            Margin = Padding.Empty, Padding = Padding.Empty, BackColor = Color.Transparent
         };
         DeferWorkspaceLayout(stack);
-        stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         return stack;
     }
 
@@ -178,10 +163,10 @@ public partial class MainForm
         Shown += (_, _) => RefreshWorkspaceSummary();
         SelectWorkspacePage(false);
         RefreshWorkspaceSummary();
-        // Each nested layout runs once after its controls, styles and text are ready.
+        // Release batched containers; the root layout arranges their final widths once.
         // Without batching, every Add recalculates the full AutoSize ancestor chain.
         for (int i = _deferredWorkspaceLayouts.Count - 1; i >= 0; i--)
-            _deferredWorkspaceLayouts[i].ResumeLayout(true);
+            _deferredWorkspaceLayouts[i].ResumeLayout(false);
         _deferredWorkspaceLayouts.Clear();
     }
 
@@ -355,6 +340,7 @@ public partial class MainForm
         layout.Controls.Add(settings, 0, 0);
         var execution = WorkspaceStack();
         execution.Name = "executionActions";
+        execution.IncludeChild = child => child != progressBarProcess && child != labelProgress && child != buttonCancel || IsBusy;
         execution.Padding = new Padding(0, 12, 0, 0);
         buttonProcess.Margin = new Padding(0, 0, 0, 8);
         buttonProcess.MinimumSize = new Size(100, 46);
@@ -367,7 +353,7 @@ public partial class MainForm
         return inspector;
     }
 
-    private static Label AddReadiness(TableLayoutPanel stack, string text)
+    private static Label AddReadiness(Control stack, string text)
     {
         var label = WorkspaceLabel("○  " + text, tag: "muted");
         label.Dock = DockStyle.Top; label.AutoSize = false; label.AutoEllipsis = true; label.Height = 25; label.Margin = Padding.Empty;

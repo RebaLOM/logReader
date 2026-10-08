@@ -1,0 +1,1195 @@
+{
+  "Label": "after",
+  "RecordedUtc": "2026-10-08T20:25:05.261043Z",
+  "Runtime": ".NET 10.0.12",
+  "OperatingSystem": "Microsoft Windows 10.0.26200",
+  "LogicalProcessors": 12,
+  "ServerGc": false,
+  "MeasuredRuns": 5,
+  "WarmupRuns": 1,
+  "CoreSourceSha256": "FA8066E82E43B49D375375304AB9A1733E0E1AF2BF2445A93B6371AB8AD49EEC",
+  "CoreAssemblySha256": "0E2187ED88068A6E8B90D399CB91D358F92827382DE71892847948E176A03FC4",
+  "Inputs": [
+    {
+      "Name": "batch-next.trc",
+      "Bytes": 108096,
+      "Sha256": "E817BA112F8E7764B41A56BEA872353C68F8BBA74AFA8A83FF51B91F8A036A17"
+    },
+    {
+      "Name": "devices.dbc",
+      "Bytes": 748,
+      "Sha256": "E03E918D5C0C7FF94CFC403EFD973C2346DC7F17F957A2E0A0B88F8E9E2E070C"
+    },
+    {
+      "Name": "large.trc",
+      "Bytes": 5591466,
+      "Sha256": "3F2F6200FAAA24F7A20E2BC22ED6DF836294A2530901F8D327F283BCAE48FC92"
+    },
+    {
+      "Name": "small-canfox.txt",
+      "Bytes": 122024,
+      "Sha256": "30C150A122D0860723961C06345E8B41811E095D5173B570FBB61A9220E3E020"
+    },
+    {
+      "Name": "small-legacy.csv",
+      "Bytes": 114016,
+      "Sha256": "7B4C755FDB16DA8ECCDF43C1C6ACB4513B5D7EC2CA58BA6B19C9A86228355C74"
+    },
+    {
+      "Name": "small-matrix.csv",
+      "Bytes": 66037,
+      "Sha256": "612595545114F9757DD503A7CA56C3B4A3A0B2085A37349D45E459763BD49D1C"
+    },
+    {
+      "Name": "small.asc",
+      "Bytes": 104088,
+      "Sha256": "DC9DC3A7627588DD350530C3DE307E023C1057418663C61D79A4EF77278E274A"
+    },
+    {
+      "Name": "small.trc",
+      "Bytes": 108096,
+      "Sha256": "97652078D81EE2AD6A6F8B6E58C2C83FFBD3E1B46ED0171CFE09E6B95787D5B4"
+    }
+  ],
+  "Scenarios": [
+    {
+      "Scenario": "small-trc-parse-decode-aggregate",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 5.3972,
+      "MedianCpuMs": 0,
+      "MedianAllocatedBytes": 2354056,
+      "MedianWorkingSetAfterBytes": 64204800,
+      "Rows": 500,
+      "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E",
+      "Samples": [
+        {
+          "ElapsedMs": 5.3366,
+          "CpuMs": 0,
+          "AllocatedBytes": 2353720,
+          "ManagedBeforeBytes": 7634160,
+          "ManagedAfterBytes": 9989264,
+          "WorkingSetAfterBytes": 67563520,
+          "ProcessLifetimePeakWorkingSetBytes": 67563520,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 5.408,
+          "CpuMs": 0,
+          "AllocatedBytes": 2354104,
+          "ManagedBeforeBytes": 7767192,
+          "ManagedAfterBytes": 10120680,
+          "WorkingSetAfterBytes": 64204800,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 5.2773,
+          "CpuMs": 0,
+          "AllocatedBytes": 2354056,
+          "ManagedBeforeBytes": 7767432,
+          "ManagedAfterBytes": 10120920,
+          "WorkingSetAfterBytes": 64204800,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 5.4661,
+          "CpuMs": 0,
+          "AllocatedBytes": 2354392,
+          "ManagedBeforeBytes": 7759448,
+          "ManagedAfterBytes": 10121160,
+          "WorkingSetAfterBytes": 64204800,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 5.3972,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2353768,
+          "ManagedBeforeBytes": 7767912,
+          "ManagedAfterBytes": 10121400,
+          "WorkingSetAfterBytes": 64204800,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-csv-export",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 21.9101,
+      "MedianCpuMs": 0,
+      "MedianAllocatedBytes": 432328,
+      "MedianWorkingSetAfterBytes": 63545344,
+      "Rows": 500,
+      "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E",
+      "Samples": [
+        {
+          "ElapsedMs": 21.9101,
+          "CpuMs": 0,
+          "AllocatedBytes": 432328,
+          "ManagedBeforeBytes": 7638688,
+          "ManagedAfterBytes": 8066304,
+          "WorkingSetAfterBytes": 64827392,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 25.0208,
+          "CpuMs": 0,
+          "AllocatedBytes": 432328,
+          "ManagedBeforeBytes": 7504664,
+          "ManagedAfterBytes": 7937624,
+          "WorkingSetAfterBytes": 65294336,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 25.522,
+          "CpuMs": 0,
+          "AllocatedBytes": 432616,
+          "ManagedBeforeBytes": 7496680,
+          "ManagedAfterBytes": 7937864,
+          "WorkingSetAfterBytes": 63070208,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 21.7195,
+          "CpuMs": 0,
+          "AllocatedBytes": 432328,
+          "ManagedBeforeBytes": 7505144,
+          "ManagedAfterBytes": 7938104,
+          "WorkingSetAfterBytes": 63537152,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        },
+        {
+          "ElapsedMs": 21.8677,
+          "CpuMs": 0,
+          "AllocatedBytes": 432328,
+          "ManagedBeforeBytes": 7509576,
+          "ManagedAfterBytes": 7937192,
+          "WorkingSetAfterBytes": 63545344,
+          "ProcessLifetimePeakWorkingSetBytes": 67596288,
+          "Rows": 500,
+          "Hash": "90CC7B03E49B1ABB32C84771F9227964A2D13140B788AA9117FBDFCF3D40123E"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-xlsx-export",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 273.5928,
+      "MedianCpuMs": 375,
+      "MedianAllocatedBytes": 33787448,
+      "MedianWorkingSetAfterBytes": 112250880,
+      "Rows": 500,
+      "Hash": "6390B3393CE7F68F90AF62C3817415D81A6143F9A4D13AC4830C3C4B68EB9A1E",
+      "Samples": [
+        {
+          "ElapsedMs": 334.7836,
+          "CpuMs": 453.125,
+          "AllocatedBytes": 33787448,
+          "ManagedBeforeBytes": 22126368,
+          "ManagedAfterBytes": 25296480,
+          "WorkingSetAfterBytes": 114507776,
+          "ProcessLifetimePeakWorkingSetBytes": 114507776,
+          "Rows": 500,
+          "Hash": "6390B3393CE7F68F90AF62C3817415D81A6143F9A4D13AC4830C3C4B68EB9A1E"
+        },
+        {
+          "ElapsedMs": 243.4663,
+          "CpuMs": 375,
+          "AllocatedBytes": 33787448,
+          "ManagedBeforeBytes": 22130856,
+          "ManagedAfterBytes": 24860280,
+          "WorkingSetAfterBytes": 108388352,
+          "ProcessLifetimePeakWorkingSetBytes": 119193600,
+          "Rows": 500,
+          "Hash": "6390B3393CE7F68F90AF62C3817415D81A6143F9A4D13AC4830C3C4B68EB9A1E"
+        },
+        {
+          "ElapsedMs": 294.4005,
+          "CpuMs": 500,
+          "AllocatedBytes": 33787488,
+          "ManagedBeforeBytes": 22131096,
+          "ManagedAfterBytes": 24767024,
+          "WorkingSetAfterBytes": 111947776,
+          "ProcessLifetimePeakWorkingSetBytes": 119193600,
+          "Rows": 500,
+          "Hash": "6390B3393CE7F68F90AF62C3817415D81A6143F9A4D13AC4830C3C4B68EB9A1E"
+        },
+        {
+          "ElapsedMs": 273.5928,
+          "CpuMs": 375,
+          "AllocatedBytes": 33787448,
+          "ManagedBeforeBytes": 22131376,
+          "ManagedAfterBytes": 24753392,
+          "WorkingSetAfterBytes": 112250880,
+          "ProcessLifetimePeakWorkingSetBytes": 119193600,
+          "Rows": 500,
+          "Hash": "6390B3393CE7F68F90AF62C3817415D81A6143F9A4D13AC4830C3C4B68EB9A1E"
+        },
+        {
+          "ElapsedMs": 243.6676,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 33785384,
+          "ManagedBeforeBytes": 22131616,
+          "ManagedAfterBytes": 25271992,
+          "WorkingSetAfterBytes": 112713728,
+          "ProcessLifetimePeakWorkingSetBytes": 119193600,
+          "Rows": 500,
+          "Hash": "6390B3393CE7F68F90AF62C3817415D81A6143F9A4D13AC4830C3C4B68EB9A1E"
+        }
+      ]
+    },
+    {
+      "Scenario": "large-trc-parse-decode-aggregate",
+      "InputFrames": 100000,
+      "MedianElapsedMs": 230.9187,
+      "MedianCpuMs": 468.75,
+      "MedianAllocatedBytes": 99053584,
+      "MedianWorkingSetAfterBytes": 135262208,
+      "Rows": 25000,
+      "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50",
+      "Samples": [
+        {
+          "ElapsedMs": 346.7969,
+          "CpuMs": 687.5,
+          "AllocatedBytes": 99053536,
+          "ManagedBeforeBytes": 29030520,
+          "ManagedAfterBytes": 42396384,
+          "WorkingSetAfterBytes": 125009920,
+          "ProcessLifetimePeakWorkingSetBytes": 125009920,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 312.4424,
+          "CpuMs": 609.375,
+          "AllocatedBytes": 99053872,
+          "ManagedBeforeBytes": 35928672,
+          "ManagedAfterBytes": 49294536,
+          "WorkingSetAfterBytes": 130584576,
+          "ProcessLifetimePeakWorkingSetBytes": 130584576,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 230.9187,
+          "CpuMs": 468.75,
+          "AllocatedBytes": 99053584,
+          "ManagedBeforeBytes": 35928912,
+          "ManagedAfterBytes": 49294776,
+          "WorkingSetAfterBytes": 135532544,
+          "ProcessLifetimePeakWorkingSetBytes": 135532544,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 126.5617,
+          "CpuMs": 125,
+          "AllocatedBytes": 99053536,
+          "ManagedBeforeBytes": 35929152,
+          "ManagedAfterBytes": 49295016,
+          "WorkingSetAfterBytes": 136970240,
+          "ProcessLifetimePeakWorkingSetBytes": 137039872,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 136.3171,
+          "CpuMs": 125,
+          "AllocatedBytes": 99053872,
+          "ManagedBeforeBytes": 35921168,
+          "ManagedAfterBytes": 49295256,
+          "WorkingSetAfterBytes": 135262208,
+          "ProcessLifetimePeakWorkingSetBytes": 137953280,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        }
+      ]
+    },
+    {
+      "Scenario": "large-csv-export",
+      "InputFrames": 100000,
+      "MedianElapsedMs": 134.2468,
+      "MedianCpuMs": 109.375,
+      "MedianAllocatedBytes": 20880128,
+      "MedianWorkingSetAfterBytes": 113090560,
+      "Rows": 25000,
+      "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50",
+      "Samples": [
+        {
+          "ElapsedMs": 138.1046,
+          "CpuMs": 93.75,
+          "AllocatedBytes": 20880128,
+          "ManagedBeforeBytes": 29023112,
+          "ManagedAfterBytes": 33205112,
+          "WorkingSetAfterBytes": 124329984,
+          "ProcessLifetimePeakWorkingSetBytes": 137953280,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 133.4119,
+          "CpuMs": 109.375,
+          "AllocatedBytes": 20880128,
+          "ManagedBeforeBytes": 22124896,
+          "ManagedAfterBytes": 26306896,
+          "WorkingSetAfterBytes": 116326400,
+          "ProcessLifetimePeakWorkingSetBytes": 137953280,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 131.2455,
+          "CpuMs": 125,
+          "AllocatedBytes": 20880128,
+          "ManagedBeforeBytes": 22125136,
+          "ManagedAfterBytes": 26307072,
+          "WorkingSetAfterBytes": 113078272,
+          "ProcessLifetimePeakWorkingSetBytes": 137953280,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 135.5289,
+          "CpuMs": 125,
+          "AllocatedBytes": 20879840,
+          "ManagedBeforeBytes": 22133600,
+          "ManagedAfterBytes": 26307376,
+          "WorkingSetAfterBytes": 113090560,
+          "ProcessLifetimePeakWorkingSetBytes": 137953280,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        },
+        {
+          "ElapsedMs": 134.2468,
+          "CpuMs": 109.375,
+          "AllocatedBytes": 20880128,
+          "ManagedBeforeBytes": 22125616,
+          "ManagedAfterBytes": 26307552,
+          "WorkingSetAfterBytes": 110964736,
+          "ProcessLifetimePeakWorkingSetBytes": 137953280,
+          "Rows": 25000,
+          "Hash": "7DBA4CCF3A20851B99A70CF8C0BC50E2509B02336B4EB4D4477FE52961E26F50"
+        }
+      ]
+    },
+    {
+      "Scenario": "large-xlsx-export",
+      "InputFrames": 100000,
+      "MedianElapsedMs": 1336.7076,
+      "MedianCpuMs": 1500,
+      "MedianAllocatedBytes": 869829456,
+      "MedianWorkingSetAfterBytes": 175796224,
+      "Rows": 25000,
+      "Hash": "BBDB48E80A7D36A6E7CBFBA6F98F88136B3FC9DB7877710DFE9DCDFD6E1FA14A",
+      "Samples": [
+        {
+          "ElapsedMs": 1550.2567,
+          "CpuMs": 2109.375,
+          "AllocatedBytes": 869610976,
+          "ManagedBeforeBytes": 26394664,
+          "ManagedAfterBytes": 80299216,
+          "WorkingSetAfterBytes": 176058368,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "BBDB48E80A7D36A6E7CBFBA6F98F88136B3FC9DB7877710DFE9DCDFD6E1FA14A"
+        },
+        {
+          "ElapsedMs": 1351.2901,
+          "CpuMs": 1593.75,
+          "AllocatedBytes": 869833080,
+          "ManagedBeforeBytes": 26394960,
+          "ManagedAfterBytes": 80520512,
+          "WorkingSetAfterBytes": 177516544,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "BBDB48E80A7D36A6E7CBFBA6F98F88136B3FC9DB7877710DFE9DCDFD6E1FA14A"
+        },
+        {
+          "ElapsedMs": 1336.7076,
+          "CpuMs": 1437.5,
+          "AllocatedBytes": 869832688,
+          "ManagedBeforeBytes": 26395200,
+          "ManagedAfterBytes": 80507088,
+          "WorkingSetAfterBytes": 175796224,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "BBDB48E80A7D36A6E7CBFBA6F98F88136B3FC9DB7877710DFE9DCDFD6E1FA14A"
+        },
+        {
+          "ElapsedMs": 1329.0344,
+          "CpuMs": 1500,
+          "AllocatedBytes": 869829032,
+          "ManagedBeforeBytes": 26395440,
+          "ManagedAfterBytes": 80479896,
+          "WorkingSetAfterBytes": 174936064,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "BBDB48E80A7D36A6E7CBFBA6F98F88136B3FC9DB7877710DFE9DCDFD6E1FA14A"
+        },
+        {
+          "ElapsedMs": 1331.0235,
+          "CpuMs": 1453.125,
+          "AllocatedBytes": 869829456,
+          "ManagedBeforeBytes": 26395680,
+          "ManagedAfterBytes": 80482104,
+          "WorkingSetAfterBytes": 175656960,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "BBDB48E80A7D36A6E7CBFBA6F98F88136B3FC9DB7877710DFE9DCDFD6E1FA14A"
+        }
+      ]
+    },
+    {
+      "Scenario": "large-trc-csv-pipeline",
+      "InputFrames": 100000,
+      "MedianElapsedMs": 214.0656,
+      "MedianCpuMs": 203.125,
+      "MedianAllocatedBytes": 116569624,
+      "MedianWorkingSetAfterBytes": 137244672,
+      "Rows": 25000,
+      "Hash": "FA825E183F54A2A5A1D360E0B07EF4CAADEA7D442E71E1506F432490208AA1C1",
+      "Samples": [
+        {
+          "ElapsedMs": 211.6893,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 116572344,
+          "ManagedBeforeBytes": 26396472,
+          "ManagedAfterBytes": 38531936,
+          "WorkingSetAfterBytes": 166227968,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "FA825E183F54A2A5A1D360E0B07EF4CAADEA7D442E71E1506F432490208AA1C1"
+        },
+        {
+          "ElapsedMs": 216.5396,
+          "CpuMs": 203.125,
+          "AllocatedBytes": 116568952,
+          "ManagedBeforeBytes": 26398640,
+          "ManagedAfterBytes": 38531904,
+          "WorkingSetAfterBytes": 153559040,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "FA825E183F54A2A5A1D360E0B07EF4CAADEA7D442E71E1506F432490208AA1C1"
+        },
+        {
+          "ElapsedMs": 210.6328,
+          "CpuMs": 187.5,
+          "AllocatedBytes": 116569624,
+          "ManagedBeforeBytes": 26398880,
+          "ManagedAfterBytes": 38532144,
+          "WorkingSetAfterBytes": 137244672,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "FA825E183F54A2A5A1D360E0B07EF4CAADEA7D442E71E1506F432490208AA1C1"
+        },
+        {
+          "ElapsedMs": 214.0656,
+          "CpuMs": 203.125,
+          "AllocatedBytes": 116569672,
+          "ManagedBeforeBytes": 26399120,
+          "ManagedAfterBytes": 38532384,
+          "WorkingSetAfterBytes": 123600896,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "FA825E183F54A2A5A1D360E0B07EF4CAADEA7D442E71E1506F432490208AA1C1"
+        },
+        {
+          "ElapsedMs": 243.7596,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 116569624,
+          "ManagedBeforeBytes": 26399360,
+          "ManagedAfterBytes": 38532624,
+          "WorkingSetAfterBytes": 123568128,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 25000,
+          "Hash": "FA825E183F54A2A5A1D360E0B07EF4CAADEA7D442E71E1506F432490208AA1C1"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-asc-csv-pipeline",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 27.4707,
+      "MedianCpuMs": 31.25,
+      "MedianAllocatedBytes": 2583264,
+      "MedianWorkingSetAfterBytes": 117399552,
+      "Rows": 500,
+      "Hash": "556F1DAA01FA7A2590AA0BE9F5CEDE9CC90BA2FDAB050F84D5062A1555AAE32D",
+      "Samples": [
+        {
+          "ElapsedMs": 29.7494,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2583264,
+          "ManagedBeforeBytes": 26400840,
+          "ManagedAfterBytes": 28987832,
+          "WorkingSetAfterBytes": 117399552,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "556F1DAA01FA7A2590AA0BE9F5CEDE9CC90BA2FDAB050F84D5062A1555AAE32D"
+        },
+        {
+          "ElapsedMs": 26.9919,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 2583216,
+          "ManagedBeforeBytes": 26401136,
+          "ManagedAfterBytes": 28988128,
+          "WorkingSetAfterBytes": 117399552,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "556F1DAA01FA7A2590AA0BE9F5CEDE9CC90BA2FDAB050F84D5062A1555AAE32D"
+        },
+        {
+          "ElapsedMs": 27.4707,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2583264,
+          "ManagedBeforeBytes": 26401376,
+          "ManagedAfterBytes": 28988368,
+          "WorkingSetAfterBytes": 115945472,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "556F1DAA01FA7A2590AA0BE9F5CEDE9CC90BA2FDAB050F84D5062A1555AAE32D"
+        },
+        {
+          "ElapsedMs": 25.1612,
+          "CpuMs": 62.5,
+          "AllocatedBytes": 2583264,
+          "ManagedBeforeBytes": 26401616,
+          "ManagedAfterBytes": 28988608,
+          "WorkingSetAfterBytes": 117039104,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "556F1DAA01FA7A2590AA0BE9F5CEDE9CC90BA2FDAB050F84D5062A1555AAE32D"
+        },
+        {
+          "ElapsedMs": 29.5773,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 2582784,
+          "ManagedBeforeBytes": 26401856,
+          "ManagedAfterBytes": 28988752,
+          "WorkingSetAfterBytes": 117800960,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "556F1DAA01FA7A2590AA0BE9F5CEDE9CC90BA2FDAB050F84D5062A1555AAE32D"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-legacy-csv-pipeline",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 32.0979,
+      "MedianCpuMs": 15.625,
+      "MedianAllocatedBytes": 3987272,
+      "MedianWorkingSetAfterBytes": 117800960,
+      "Rows": 2000,
+      "Hash": "098CC90DC8272361923F36839EB72602DBD8AFA2ECD4E1077AAD5E1942766061",
+      "Samples": [
+        {
+          "ElapsedMs": 32.319,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 3987272,
+          "ManagedBeforeBytes": 26398352,
+          "ManagedAfterBytes": 30393184,
+          "WorkingSetAfterBytes": 117784576,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "098CC90DC8272361923F36839EB72602DBD8AFA2ECD4E1077AAD5E1942766061"
+        },
+        {
+          "ElapsedMs": 31.8314,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 3987560,
+          "ManagedBeforeBytes": 26394616,
+          "ManagedAfterBytes": 30391264,
+          "WorkingSetAfterBytes": 117800960,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "098CC90DC8272361923F36839EB72602DBD8AFA2ECD4E1077AAD5E1942766061"
+        },
+        {
+          "ElapsedMs": 32.0979,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 3987272,
+          "ManagedBeforeBytes": 26403080,
+          "ManagedAfterBytes": 30391504,
+          "WorkingSetAfterBytes": 117796864,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "098CC90DC8272361923F36839EB72602DBD8AFA2ECD4E1077AAD5E1942766061"
+        },
+        {
+          "ElapsedMs": 33.9172,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 3987272,
+          "ManagedBeforeBytes": 26403320,
+          "ManagedAfterBytes": 30391744,
+          "WorkingSetAfterBytes": 117911552,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "098CC90DC8272361923F36839EB72602DBD8AFA2ECD4E1077AAD5E1942766061"
+        },
+        {
+          "ElapsedMs": 29.5863,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 3987560,
+          "ManagedBeforeBytes": 26395336,
+          "ManagedAfterBytes": 30391984,
+          "WorkingSetAfterBytes": 117952512,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "098CC90DC8272361923F36839EB72602DBD8AFA2ECD4E1077AAD5E1942766061"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-matrix-csv-pipeline",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 30.6269,
+      "MedianCpuMs": 15.625,
+      "MedianAllocatedBytes": 2935648,
+      "MedianWorkingSetAfterBytes": 117551104,
+      "Rows": 2000,
+      "Hash": "DF79872071C490F2A8BD27FDF3B6971C41308B579ACF9D089A965AEDCE876CFD",
+      "Samples": [
+        {
+          "ElapsedMs": 29.8872,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2935648,
+          "ManagedBeforeBytes": 26395880,
+          "ManagedAfterBytes": 29336736,
+          "WorkingSetAfterBytes": 118382592,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "DF79872071C490F2A8BD27FDF3B6971C41308B579ACF9D089A965AEDCE876CFD"
+        },
+        {
+          "ElapsedMs": 30.6269,
+          "CpuMs": 0,
+          "AllocatedBytes": 2935648,
+          "ManagedBeforeBytes": 26396176,
+          "ManagedAfterBytes": 29337032,
+          "WorkingSetAfterBytes": 118382592,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "DF79872071C490F2A8BD27FDF3B6971C41308B579ACF9D089A965AEDCE876CFD"
+        },
+        {
+          "ElapsedMs": 32.0778,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2935360,
+          "ManagedBeforeBytes": 26404640,
+          "ManagedAfterBytes": 29342576,
+          "WorkingSetAfterBytes": 117506048,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "DF79872071C490F2A8BD27FDF3B6971C41308B579ACF9D089A965AEDCE876CFD"
+        },
+        {
+          "ElapsedMs": 30.5119,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 2935648,
+          "ManagedBeforeBytes": 26396656,
+          "ManagedAfterBytes": 29337512,
+          "WorkingSetAfterBytes": 117551104,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "DF79872071C490F2A8BD27FDF3B6971C41308B579ACF9D089A965AEDCE876CFD"
+        },
+        {
+          "ElapsedMs": 31.1877,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 2935648,
+          "ManagedBeforeBytes": 26396896,
+          "ManagedAfterBytes": 29337752,
+          "WorkingSetAfterBytes": 117485568,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "DF79872071C490F2A8BD27FDF3B6971C41308B579ACF9D089A965AEDCE876CFD"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-canfox-csv-pipeline",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 25.5353,
+      "MedianCpuMs": 15.625,
+      "MedianAllocatedBytes": 2722096,
+      "MedianWorkingSetAfterBytes": 117288960,
+      "Rows": 500,
+      "Hash": "FA56A743BE2F913F23CD2D48F74C922A3958F4048D625DBA747A4A25407CA951",
+      "Samples": [
+        {
+          "ElapsedMs": 27.8335,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2722096,
+          "ManagedBeforeBytes": 26397352,
+          "ManagedAfterBytes": 29126520,
+          "WorkingSetAfterBytes": 117288960,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "FA56A743BE2F913F23CD2D48F74C922A3958F4048D625DBA747A4A25407CA951"
+        },
+        {
+          "ElapsedMs": 24.1762,
+          "CpuMs": 0,
+          "AllocatedBytes": 2722096,
+          "ManagedBeforeBytes": 26397648,
+          "ManagedAfterBytes": 29126600,
+          "WorkingSetAfterBytes": 117297152,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "FA56A743BE2F913F23CD2D48F74C922A3958F4048D625DBA747A4A25407CA951"
+        },
+        {
+          "ElapsedMs": 25.4714,
+          "CpuMs": 0,
+          "AllocatedBytes": 2721808,
+          "ManagedBeforeBytes": 26406112,
+          "ManagedAfterBytes": 29126840,
+          "WorkingSetAfterBytes": 117297152,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "FA56A743BE2F913F23CD2D48F74C922A3958F4048D625DBA747A4A25407CA951"
+        },
+        {
+          "ElapsedMs": 25.7536,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 2722096,
+          "ManagedBeforeBytes": 26398128,
+          "ManagedAfterBytes": 29127080,
+          "WorkingSetAfterBytes": 115998720,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "FA56A743BE2F913F23CD2D48F74C922A3958F4048D625DBA747A4A25407CA951"
+        },
+        {
+          "ElapsedMs": 25.5353,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 2722096,
+          "ManagedBeforeBytes": 26398368,
+          "ManagedAfterBytes": 29127320,
+          "WorkingSetAfterBytes": 116047872,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "FA56A743BE2F913F23CD2D48F74C922A3958F4048D625DBA747A4A25407CA951"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-dst-csv-pipeline",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 36.1074,
+      "MedianCpuMs": 31.25,
+      "MedianAllocatedBytes": 3147776,
+      "MedianWorkingSetAfterBytes": 118038528,
+      "Rows": 500,
+      "Hash": "526A2AD26D588B724B50F7E05437CD6BD977A96C6ADDE9D5DBDD91C68FBC228D",
+      "Samples": [
+        {
+          "ElapsedMs": 50.0986,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 3147440,
+          "ManagedBeforeBytes": 26442128,
+          "ManagedAfterBytes": 29589168,
+          "WorkingSetAfterBytes": 117194752,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "526A2AD26D588B724B50F7E05437CD6BD977A96C6ADDE9D5DBDD91C68FBC228D"
+        },
+        {
+          "ElapsedMs": 36.1074,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 3147488,
+          "ManagedBeforeBytes": 26442424,
+          "ManagedAfterBytes": 29593592,
+          "WorkingSetAfterBytes": 117972992,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "526A2AD26D588B724B50F7E05437CD6BD977A96C6ADDE9D5DBDD91C68FBC228D"
+        },
+        {
+          "ElapsedMs": 33.1474,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 3147776,
+          "ManagedBeforeBytes": 26434440,
+          "ManagedAfterBytes": 29588440,
+          "WorkingSetAfterBytes": 118038528,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "526A2AD26D588B724B50F7E05437CD6BD977A96C6ADDE9D5DBDD91C68FBC228D"
+        },
+        {
+          "ElapsedMs": 44.8743,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 3147848,
+          "ManagedBeforeBytes": 26434680,
+          "ManagedAfterBytes": 29588600,
+          "WorkingSetAfterBytes": 118136832,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "526A2AD26D588B724B50F7E05437CD6BD977A96C6ADDE9D5DBDD91C68FBC228D"
+        },
+        {
+          "ElapsedMs": 28.5779,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 3147848,
+          "ManagedBeforeBytes": 26434920,
+          "ManagedAfterBytes": 29590248,
+          "WorkingSetAfterBytes": 119422976,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 500,
+          "Hash": "526A2AD26D588B724B50F7E05437CD6BD977A96C6ADDE9D5DBDD91C68FBC228D"
+        }
+      ]
+    },
+    {
+      "Scenario": "batch-trc-PerInputFile",
+      "InputFrames": 4000,
+      "MedianElapsedMs": 70.271,
+      "MedianCpuMs": 31.25,
+      "MedianAllocatedBytes": 5420576,
+      "MedianWorkingSetAfterBytes": 121044992,
+      "Rows": 2,
+      "Hash": "8EC25E3048F55B1FB1FCB35548CFBEC809A59026A4B048CDDC4979569250FA7C",
+      "Samples": [
+        {
+          "ElapsedMs": 77.7799,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5423272,
+          "ManagedBeforeBytes": 26444456,
+          "ManagedAfterBytes": 27766864,
+          "WorkingSetAfterBytes": 121044992,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "8EC25E3048F55B1FB1FCB35548CFBEC809A59026A4B048CDDC4979569250FA7C"
+        },
+        {
+          "ElapsedMs": 70.271,
+          "CpuMs": 93.75,
+          "AllocatedBytes": 5420288,
+          "ManagedBeforeBytes": 26447264,
+          "ManagedAfterBytes": 27837584,
+          "WorkingSetAfterBytes": 119070720,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "8EC25E3048F55B1FB1FCB35548CFBEC809A59026A4B048CDDC4979569250FA7C"
+        },
+        {
+          "ElapsedMs": 70.0594,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 5420576,
+          "ManagedBeforeBytes": 26435088,
+          "ManagedAfterBytes": 27839400,
+          "WorkingSetAfterBytes": 120770560,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "8EC25E3048F55B1FB1FCB35548CFBEC809A59026A4B048CDDC4979569250FA7C"
+        },
+        {
+          "ElapsedMs": 68.2633,
+          "CpuMs": 0,
+          "AllocatedBytes": 5420576,
+          "ManagedBeforeBytes": 26438656,
+          "ManagedAfterBytes": 27837168,
+          "WorkingSetAfterBytes": 121974784,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "8EC25E3048F55B1FB1FCB35548CFBEC809A59026A4B048CDDC4979569250FA7C"
+        },
+        {
+          "ElapsedMs": 73.9798,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 5420576,
+          "ManagedBeforeBytes": 26438896,
+          "ManagedAfterBytes": 27837376,
+          "WorkingSetAfterBytes": 123371520,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "8EC25E3048F55B1FB1FCB35548CFBEC809A59026A4B048CDDC4979569250FA7C"
+        }
+      ]
+    },
+    {
+      "Scenario": "batch-trc-MergeToSingleFile",
+      "InputFrames": 4000,
+      "MedianElapsedMs": 36.1916,
+      "MedianCpuMs": 15.625,
+      "MedianAllocatedBytes": 5561608,
+      "MedianWorkingSetAfterBytes": 121126912,
+      "Rows": 1,
+      "Hash": "91B4B3A10D3B278F3CAF7F936127C4BD83B70DC01E3A2E2D54F684C830C3DFD9",
+      "Samples": [
+        {
+          "ElapsedMs": 36.1315,
+          "CpuMs": 0,
+          "AllocatedBytes": 5561560,
+          "ManagedBeforeBytes": 26447688,
+          "ManagedAfterBytes": 27278664,
+          "WorkingSetAfterBytes": 123654144,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 1,
+          "Hash": "91B4B3A10D3B278F3CAF7F936127C4BD83B70DC01E3A2E2D54F684C830C3DFD9"
+        },
+        {
+          "ElapsedMs": 36.0473,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5561832,
+          "ManagedBeforeBytes": 26447984,
+          "ManagedAfterBytes": 27861912,
+          "WorkingSetAfterBytes": 120922112,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 1,
+          "Hash": "91B4B3A10D3B278F3CAF7F936127C4BD83B70DC01E3A2E2D54F684C830C3DFD9"
+        },
+        {
+          "ElapsedMs": 38.483,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5561608,
+          "ManagedBeforeBytes": 26447792,
+          "ManagedAfterBytes": 32018488,
+          "WorkingSetAfterBytes": 121118720,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 1,
+          "Hash": "91B4B3A10D3B278F3CAF7F936127C4BD83B70DC01E3A2E2D54F684C830C3DFD9"
+        },
+        {
+          "ElapsedMs": 40.048,
+          "CpuMs": 62.5,
+          "AllocatedBytes": 5562120,
+          "ManagedBeforeBytes": 26439808,
+          "ManagedAfterBytes": 28039656,
+          "WorkingSetAfterBytes": 121196544,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 1,
+          "Hash": "91B4B3A10D3B278F3CAF7F936127C4BD83B70DC01E3A2E2D54F684C830C3DFD9"
+        },
+        {
+          "ElapsedMs": 36.1916,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5561608,
+          "ManagedBeforeBytes": 26447224,
+          "ManagedAfterBytes": 32013784,
+          "WorkingSetAfterBytes": 121126912,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 1,
+          "Hash": "91B4B3A10D3B278F3CAF7F936127C4BD83B70DC01E3A2E2D54F684C830C3DFD9"
+        }
+      ]
+    },
+    {
+      "Scenario": "batch-trc-SplitTrcByDate",
+      "InputFrames": 4000,
+      "MedianElapsedMs": 54.5585,
+      "MedianCpuMs": 46.875,
+      "MedianAllocatedBytes": 5588024,
+      "MedianWorkingSetAfterBytes": 122011648,
+      "Rows": 2,
+      "Hash": "215E483856B2F252E322E83CD83730801395101F7BD596827D40C68978A29674",
+      "Samples": [
+        {
+          "ElapsedMs": 59.5865,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 5588152,
+          "ManagedBeforeBytes": 26439720,
+          "ManagedAfterBytes": 32042504,
+          "WorkingSetAfterBytes": 121987072,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "215E483856B2F252E322E83CD83730801395101F7BD596827D40C68978A29674"
+        },
+        {
+          "ElapsedMs": 54.3446,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 5588312,
+          "ManagedBeforeBytes": 26440016,
+          "ManagedAfterBytes": 28157936,
+          "WorkingSetAfterBytes": 122081280,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "215E483856B2F252E322E83CD83730801395101F7BD596827D40C68978A29674"
+        },
+        {
+          "ElapsedMs": 57.3363,
+          "CpuMs": 46.875,
+          "AllocatedBytes": 5588024,
+          "ManagedBeforeBytes": 26440256,
+          "ManagedAfterBytes": 32047136,
+          "WorkingSetAfterBytes": 122007552,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "215E483856B2F252E322E83CD83730801395101F7BD596827D40C68978A29674"
+        },
+        {
+          "ElapsedMs": 53.3619,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5587960,
+          "ManagedBeforeBytes": 26448720,
+          "ManagedAfterBytes": 28158352,
+          "WorkingSetAfterBytes": 122011648,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "215E483856B2F252E322E83CD83730801395101F7BD596827D40C68978A29674"
+        },
+        {
+          "ElapsedMs": 54.5585,
+          "CpuMs": 62.5,
+          "AllocatedBytes": 5587736,
+          "ManagedBeforeBytes": 26448960,
+          "ManagedAfterBytes": 32043520,
+          "WorkingSetAfterBytes": 122044416,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2,
+          "Hash": "215E483856B2F252E322E83CD83730801395101F7BD596827D40C68978A29674"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-trc-to-asc",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 20.9809,
+      "MedianCpuMs": 15.625,
+      "MedianAllocatedBytes": 5161256,
+      "MedianWorkingSetAfterBytes": 124805120,
+      "Rows": 2000,
+      "Hash": "A049FCE2C254912ADFCAF83D4B5FCD822AC2EF80288B058AE0DE46C6B378B2FA",
+      "Samples": [
+        {
+          "ElapsedMs": 20.9809,
+          "CpuMs": 0,
+          "AllocatedBytes": 5161256,
+          "ManagedBeforeBytes": 26441344,
+          "ManagedAfterBytes": 27509496,
+          "WorkingSetAfterBytes": 122818560,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "A049FCE2C254912ADFCAF83D4B5FCD822AC2EF80288B058AE0DE46C6B378B2FA"
+        },
+        {
+          "ElapsedMs": 20.8638,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5161256,
+          "ManagedBeforeBytes": 26441640,
+          "ManagedAfterBytes": 27509792,
+          "WorkingSetAfterBytes": 123797504,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "A049FCE2C254912ADFCAF83D4B5FCD822AC2EF80288B058AE0DE46C6B378B2FA"
+        },
+        {
+          "ElapsedMs": 22.4439,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 5161256,
+          "ManagedBeforeBytes": 26441880,
+          "ManagedAfterBytes": 27510032,
+          "WorkingSetAfterBytes": 124923904,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "A049FCE2C254912ADFCAF83D4B5FCD822AC2EF80288B058AE0DE46C6B378B2FA"
+        },
+        {
+          "ElapsedMs": 23.8779,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5160920,
+          "ManagedBeforeBytes": 26450344,
+          "ManagedAfterBytes": 27510272,
+          "WorkingSetAfterBytes": 126054400,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "A049FCE2C254912ADFCAF83D4B5FCD822AC2EF80288B058AE0DE46C6B378B2FA"
+        },
+        {
+          "ElapsedMs": 18.2391,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 5161256,
+          "ManagedBeforeBytes": 26442360,
+          "ManagedAfterBytes": 27510512,
+          "WorkingSetAfterBytes": 124805120,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "A049FCE2C254912ADFCAF83D4B5FCD822AC2EF80288B058AE0DE46C6B378B2FA"
+        }
+      ]
+    },
+    {
+      "Scenario": "small-matrix-to-asc",
+      "InputFrames": 2000,
+      "MedianElapsedMs": 25.1304,
+      "MedianCpuMs": 15.625,
+      "MedianAllocatedBytes": 4462408,
+      "MedianWorkingSetAfterBytes": 123441152,
+      "Rows": 2000,
+      "Hash": "71A89AB5A9F341EAF08D0C9019F6BA913C29812BBDF5FCB7F38C55DD72BA0270",
+      "Samples": [
+        {
+          "ElapsedMs": 25.1304,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 4462408,
+          "ManagedBeforeBytes": 26451040,
+          "ManagedAfterBytes": 26812480,
+          "WorkingSetAfterBytes": 123482112,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "71A89AB5A9F341EAF08D0C9019F6BA913C29812BBDF5FCB7F38C55DD72BA0270"
+        },
+        {
+          "ElapsedMs": 22.1252,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 4462408,
+          "ManagedBeforeBytes": 26451336,
+          "ManagedAfterBytes": 26812776,
+          "WorkingSetAfterBytes": 122916864,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "71A89AB5A9F341EAF08D0C9019F6BA913C29812BBDF5FCB7F38C55DD72BA0270"
+        },
+        {
+          "ElapsedMs": 23.7343,
+          "CpuMs": 15.625,
+          "AllocatedBytes": 4462408,
+          "ManagedBeforeBytes": 26451576,
+          "ManagedAfterBytes": 26813016,
+          "WorkingSetAfterBytes": 123219968,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "71A89AB5A9F341EAF08D0C9019F6BA913C29812BBDF5FCB7F38C55DD72BA0270"
+        },
+        {
+          "ElapsedMs": 27.2372,
+          "CpuMs": 0,
+          "AllocatedBytes": 4462408,
+          "ManagedBeforeBytes": 26451816,
+          "ManagedAfterBytes": 26813256,
+          "WorkingSetAfterBytes": 123441152,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "71A89AB5A9F341EAF08D0C9019F6BA913C29812BBDF5FCB7F38C55DD72BA0270"
+        },
+        {
+          "ElapsedMs": 26.4551,
+          "CpuMs": 62.5,
+          "AllocatedBytes": 4462696,
+          "ManagedBeforeBytes": 26443832,
+          "ManagedAfterBytes": 26813496,
+          "WorkingSetAfterBytes": 123891712,
+          "ProcessLifetimePeakWorkingSetBytes": 219082752,
+          "Rows": 2000,
+          "Hash": "71A89AB5A9F341EAF08D0C9019F6BA913C29812BBDF5FCB7F38C55DD72BA0270"
+        }
+      ]
+    }
+  ]
+}

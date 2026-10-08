@@ -173,7 +173,9 @@ finally {
         $null = $taskProcess.CloseMainWindow()
         if (-not $taskProcess.WaitForExit(5000)) { $taskProcess.Kill(); $taskProcess.WaitForExit() }
     }
-    @{ app = $taskAppPath; theme = $Theme; method = 'Windows UI Automation against standalone application process'; checks = @($taskChecks.ToArray());
+    @{ app = $taskAppPath; appSha256 = (Get-FileHash -LiteralPath $taskAppPath -Algorithm SHA256).Hash;
+       uiAssemblySha256 = (Get-FileHash -LiteralPath ([IO.Path]::ChangeExtension($taskAppPath, '.dll')) -Algorithm SHA256).Hash;
+       theme = $Theme; method = 'Windows UI Automation against standalone application process'; checks = @($taskChecks.ToArray());
        limitations = @('Native file dialogs, physical keyboard/mouse and sustained scrolling not exercised') } |
        ConvertTo-Json -Depth 6 | Set-Content -LiteralPath ([IO.Path]::Combine($taskOutput, 'uia-report.json')) -Encoding UTF8
 }

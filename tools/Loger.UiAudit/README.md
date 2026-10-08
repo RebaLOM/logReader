@@ -47,10 +47,20 @@ overwriting the full audit report.
 `Invoke-UiaSmoke.ps1` launches the standalone application and uses Windows UI Automation
 against that separate process, without app reflection. It checks navigation, theme
 persistence, input through ValuePattern, processing through InvokePattern, validation,
-and cancellation followed by a repeated batch. `Measure-Startup.ps1` measures seven fresh
+and cancellation followed by a repeated batch. It closes and restarts the app without a
+theme environment override to check that the saved preference is loaded.
+`--message-contracts-only` compares actual native MessageBox and themed OK-only modal
+results when closing the window and when posting Escape key messages. This is message
+dispatch testing, not a physical-keyboard check. `Measure-Startup.ps1` measures seven fresh
 WinExe processes from `Process.Start` to a nonzero HWND and Windows input-idle, recording
 wall time and idle memory. Unlike the in-process form microbenchmark, this includes
 runtime bootstrap; it uses warm OS/disk caches.
+
+For default/persisted-theme startup use `Measure-Startup.ps1 -Theme existing`; the child
+process then receives no `LOGER_THEME` environment override. The isolated preferences
+path remains `<OutputPath>/preferences.json`; placing `{"Theme":"Light"}` or
+`{"Theme":"Dark"}` there before measuring covers a saved preference separately from
+first launch without a preferences file. Forced `-Theme Light`/`Dark` remain available.
 
 `report.json` records checks, assemblies and SHA-256, timings, working set/managed memory,
 GDI/user handles, captures, and control inventories. `*.png` uses `Control.DrawToBitmap`;

@@ -1,0 +1,48 @@
+﻿{
+    "method":  "Windows UI Automation against standalone application process",
+    "checks":  [
+                   {
+                       "name":  "Actual application launched; UIA connected to its HWND and PID",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA InvokePattern opens decoder page",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA InvokePattern returns to session page",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA theme button changes, persists, and restores both themes",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA ValuePattern inputs and InvokePattern processing produce correct decoded CSV",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA cancellation while decoder page active removes partial output and restores idle",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA repeated per-file batch after cancellation creates both outputs and exposes result action",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "UIA journal exposes actionable missing-input validation",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "Saved Light theme is restored by fresh application restart without environment override",
+                       "status":  "PASS"
+                   }
+               ],
+    "limitations":  [
+                        "Native file dialogs, physical keyboard/mouse and sustained scrolling not exercised"
+                    ],
+    "app":  "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\r2r\\app\\LOGER.exe",
+    "appSha256":  "83A3FB259E52858D3CFAE968333293F13675758FCAFE67B93FBD2FD094F5569C",
+    "uiAssemblySha256":  "D77258A3D71F591C1E0D77827A061EB21A292990509D0E275A86575092819A6A",
+    "theme":  "Dark"
+}

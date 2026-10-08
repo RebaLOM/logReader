@@ -8,13 +8,20 @@ $ErrorActionPreference = 'Stop'
 $taskApp = [IO.Path]::GetFullPath($AppPath)
 $taskOutput = [IO.Path]::GetFullPath($OutputPath)
 [IO.Directory]::CreateDirectory($taskOutput) | Out-Null
+$taskPreferences = [IO.Path]::Combine($taskOutput, 'preferences.json')
+$taskSavedTheme = $null
+if ([IO.File]::Exists($taskPreferences)) {
+    try { $taskSavedTheme = (Get-Content -LiteralPath $taskPreferences -Raw -Encoding UTF8 | ConvertFrom-Json).Theme }
+    catch { $taskSavedTheme = 'invalid preference JSON' }
+}
 $samples = [Collections.Generic.List[object]]::new()
 for ($sample = 1; $sample -le $Iterations; $sample++) {
     $start = [Diagnostics.ProcessStartInfo]::new($taskApp)
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $taskOutput
-    $start.EnvironmentVariables['LOGER_PREFERENCES_PATH'] = [IO.Path]::Combine($taskOutput, 'preferences.json')
-    $start.EnvironmentVariables['LOGER_THEME'] = $Theme
+    $start.EnvironmentVariables['LOGER_PREFERENCES_PATH'] = $taskPreferences
+    if ($Theme -eq 'existing') { $start.EnvironmentVariables.Remove('LOGER_THEME') }
+    else { $start.EnvironmentVariables['LOGER_THEME'] = $Theme }
     $watch = [Diagnostics.Stopwatch]::StartNew()
     $taskProcess = [Diagnostics.Process]::Start($start)
     try {
@@ -39,7 +46,10 @@ for ($sample = 1; $sample -le $Iterations; $sample++) {
 $timings = @($samples | ForEach-Object { $_.startupToInputIdleMs } | Sort-Object)
 $memory = @($samples | ForEach-Object { $_.workingSetBytes } | Sort-Object)
 $report = @{ app = $taskApp; sha256 = (Get-FileHash -LiteralPath $taskApp -Algorithm SHA256).Hash;
+    uiAssemblySha256 = (Get-FileHash -LiteralPath ([IO.Path]::ChangeExtension($taskApp, '.dll')) -Algorithm SHA256).Hash;
     theme = $Theme; iterations = $Iterations; samples = $samples.ToArray();
+    environmentThemeOverride = ($Theme -ne 'existing');
+    preferenceFileExists = [IO.File]::Exists($taskPreferences); savedPreferenceTheme = $taskSavedTheme;
     medianStartupMs = $timings[[int][Math]::Floor($timings.Length / 2)];
     medianWorkingSetBytes = $memory[[int][Math]::Floor($memory.Length / 2)];
     method = 'Fresh actual WinExe processes; wall clock from Process.Start to WaitForInputIdle with nonzero main HWND; includes runtime bootstrap. Warm OS/disk cache, same machine/session.';

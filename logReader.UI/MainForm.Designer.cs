@@ -50,7 +50,7 @@ namespace logReader.UI
             buttonViewLog = WorkspaceButton("Просмотр пакетов", "buttonViewLog", buttonViewLog_Click);
             buttonDevices = WorkspaceButton("Выбрать файл…", "buttonDevices", buttonDevices_Click);
             buttonDevicesParams = WorkspaceButton("Устройства и параметры", "buttonDevicesParams", buttonDevicesParams_Click);
-            buttonDevicesCreateOrAdd = WorkspaceButton("Создать…", "buttonDevicesCreateOrAdd", buttonDevicesCreateOrAdd_Click);
+            buttonDevicesCreateOrAdd = WorkspaceButton("Создать...", "buttonDevicesCreateOrAdd", buttonDevicesCreateOrAdd_Click);
             buttonComposites = WorkspaceButton("Выбрать файл…", "buttonComposites", buttonComposites_Click);
             buttonCompositesCreateOrAdd = WorkspaceButton("Создать .xlsx", "buttonCompositesCreateOrAdd", buttonCompositesCreateOrAdd_Click);
             buttonOutput = WorkspaceButton("Выбрать путь…", "buttonOutput", buttonOutput_Click);

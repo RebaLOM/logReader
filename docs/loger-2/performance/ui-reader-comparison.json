@@ -1,0 +1,148 @@
+﻿{
+    "method":  "7 fresh WinExe processes per variant; order rotates each round; existing preferences {Theme:Dark} and LOGER_THEME removed from child environment; same desktop/machine; no concurrent builds/tests; baseline ignores the new preference feature",
+    "summary":  [
+                    {
+                        "variant":  "baseline",
+                        "medianStartupMs":  220.9711,
+                        "medianWorkingSetBytes":  46596096
+                    },
+                    {
+                        "variant":  "control",
+                        "medianStartupMs":  422.8043,
+                        "medianWorkingSetBytes":  54857728
+                    },
+                    {
+                        "variant":  "json-document",
+                        "medianStartupMs":  392.0298,
+                        "medianWorkingSetBytes":  52932608
+                    }
+                ],
+    "samples":  [
+                    {
+                        "variant":  "baseline",
+                        "round":  1,
+                        "startupMs":  230.34660000000002,
+                        "workingSetBytes":  46800896
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  1,
+                        "startupMs":  877.22,
+                        "workingSetBytes":  55578624
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  1,
+                        "startupMs":  840.6285,
+                        "workingSetBytes":  53886976
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  2,
+                        "startupMs":  434.6619,
+                        "workingSetBytes":  54824960
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  2,
+                        "startupMs":  373.5423,
+                        "workingSetBytes":  52903936
+                    },
+                    {
+                        "variant":  "baseline",
+                        "round":  2,
+                        "startupMs":  220.9711,
+                        "workingSetBytes":  46518272
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  3,
+                        "startupMs":  369.6442,
+                        "workingSetBytes":  52867072
+                    },
+                    {
+                        "variant":  "baseline",
+                        "round":  3,
+                        "startupMs":  219.1595,
+                        "workingSetBytes":  46587904
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  3,
+                        "startupMs":  401.51050000000004,
+                        "workingSetBytes":  54857728
+                    },
+                    {
+                        "variant":  "baseline",
+                        "round":  4,
+                        "startupMs":  226.6371,
+                        "workingSetBytes":  46596096
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  4,
+                        "startupMs":  401.82660000000004,
+                        "workingSetBytes":  54812672
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  4,
+                        "startupMs":  383.36920000000003,
+                        "workingSetBytes":  52973568
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  5,
+                        "startupMs":  405.6243,
+                        "workingSetBytes":  54927360
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  5,
+                        "startupMs":  392.0298,
+                        "workingSetBytes":  52957184
+                    },
+                    {
+                        "variant":  "baseline",
+                        "round":  5,
+                        "startupMs":  212.3188,
+                        "workingSetBytes":  46739456
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  6,
+                        "startupMs":  397.67510000000004,
+                        "workingSetBytes":  52920320
+                    },
+                    {
+                        "variant":  "baseline",
+                        "round":  6,
+                        "startupMs":  209.47660000000002,
+                        "workingSetBytes":  46759936
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  6,
+                        "startupMs":  422.8043,
+                        "workingSetBytes":  54902784
+                    },
+                    {
+                        "variant":  "baseline",
+                        "round":  7,
+                        "startupMs":  230.47820000000002,
+                        "workingSetBytes":  46546944
+                    },
+                    {
+                        "variant":  "control",
+                        "round":  7,
+                        "startupMs":  498.5826,
+                        "workingSetBytes":  54841344
+                    },
+                    {
+                        "variant":  "json-document",
+                        "round":  7,
+                        "startupMs":  447.4028,
+                        "workingSetBytes":  52932608
+                    }
+                ]
+}

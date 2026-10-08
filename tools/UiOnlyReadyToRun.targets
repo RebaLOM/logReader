@@ -1,0 +1,8 @@
+<Project>
+  <!-- Precompile presentation code only; processing and third-party assemblies retain IL. -->
+  <Target Name="ExcludeNonUiAssembliesFromReadyToRun" BeforeTargets="_PrepareForReadyToRunCompilation">
+    <ItemGroup>
+      <PublishReadyToRunExclude Include="@(ResolvedFileToPublish->'%(Filename)%(Extension)')" Exclude="LOGER.dll" />
+    </ItemGroup>
+  </Target>
+</Project>

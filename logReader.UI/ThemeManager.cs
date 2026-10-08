@@ -48,8 +48,12 @@ namespace logReader.UI
             {
                 if (File.Exists(_preferencesPath))
                 {
-                    var preference = JsonSerializer.Deserialize<Preferences>(File.ReadAllText(_preferencesPath));
-                    if (Enum.TryParse<ThemeMode>(preference?.Theme, true, out var mode) && Enum.IsDefined(mode)) Mode = mode;
+                    using var document = JsonDocument.Parse(File.ReadAllText(_preferencesPath));
+                    if (document.RootElement.ValueKind == JsonValueKind.Object
+                        && document.RootElement.TryGetProperty("Theme", out var preference)
+                        && preference.ValueKind == JsonValueKind.String
+                        && Enum.TryParse<ThemeMode>(preference.GetString(), true, out var mode)
+                        && Enum.IsDefined(mode)) Mode = mode;
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)

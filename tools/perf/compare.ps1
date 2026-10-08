@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Before = 'docs/loger-2/performance/baseline.json',
     [string]$After = 'docs/loger-2/performance/after.json',
     [string]$Report = 'docs/loger-2/performance/comparison.md'
@@ -12,6 +12,11 @@ $lines.Add('')
 $sameCore = $baseline.CoreSourceSha256 -eq $current.CoreSourceSha256
 $sameInputs = ($baseline.Inputs | ConvertTo-Json -Depth 5 -Compress) -ceq ($current.Inputs | ConvertTo-Json -Depth 5 -Compress)
 $lines.Add("Идентичное ядро: $sameCore. Идентичные входные файлы: $sameInputs.")
+$lines.Add('')
+$sameAssembly = $baseline.CoreAssemblySha256 -ceq $current.CoreAssemblySha256
+$lines.Add("Байтовый SHA256 сборки ядра совпадает: $sameAssembly. До: $($baseline.CoreAssemblySha256); после: $($current.CoreAssemblySha256).")
+$lines.Add('')
+$lines.Add('Сборка SDK содержит автоматически созданный AssemblyInformationalVersion с Git commit, поэтому commit UI может менять байты DLL при одинаковых исходниках ядра. Проверка совместимости ниже требует одинаковых core .cs/.csproj, входов и выходов, а не одинаковых version metadata разных сборок.')
 $lines.Add('')
 $lines.Add('Медианы Release; по одному прогреву и пять измеряемых повторов. Обработка идёт в отдельном консольном процессе без WinForms. Время проверки SHA256 не включено.')
 $lines.Add('')

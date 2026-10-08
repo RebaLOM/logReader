@@ -62,13 +62,23 @@ internal static class Program
                 File.WriteAllText(Path.Combine(_output, "profile-report.json"), JsonSerializer.Serialize(report, Json));
                 Console.WriteLine(JsonSerializer.Serialize(report, Json)); profile.Close(); return 0;
             }
+            if (args.Contains("--message-contracts-only"))
+            {
+                using var owner = Form("MainForm"); Show(owner);
+                CheckOkMessageContracts(owner); owner.Close(); Pump();
+                File.WriteAllText(Path.Combine(_output, "message-contract-report.json"), JsonSerializer.Serialize(new
+                { assemblyPath, assemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assemblyPath))),
+                    theme, checks = Checks, method = "Actual native and themed modal OK dialogs, WM_CLOSE and posted Escape key messages" }, Json));
+                return _failures == 0 ? 0 : 1;
+            }
             if (args.Contains("--extras-only"))
             {
                 PrepareFixtures(out string extraTrc, out string extraDbc, out _, out _);
                 using var owner = Form("MainForm"); Show(owner);
                 CaptureExtras(owner, extraTrc, extraDbc); owner.Close(); Pump();
                 File.WriteAllText(Path.Combine(_output, "extra-report.json"), JsonSerializer.Serialize(new
-                { assemblyPath, theme, checks = Checks, screenshots = Screens, captureMethod = "Shown native WinForms HWND PrintWindow plus DrawToBitmap" }, Json));
+                { assemblyPath, assemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assemblyPath))),
+                    theme, checks = Checks, screenshots = Screens, captureMethod = "Shown native WinForms HWND PrintWindow plus DrawToBitmap" }, Json));
                 Console.WriteLine($"Extra UI audit complete: {_failures} failures, {Screens.Count} captures.");
                 return _failures == 0 ? 0 : 1;
             }
@@ -430,6 +440,54 @@ internal static class Program
             });
     }
 
+    private static void CheckOkMessageContracts(Form owner)
+    {
+        Type? box = _ui.GetType("logReader.UI.ThemedMessageBox");
+        Require(box != null, "ThemedMessageBox target required.");
+        var show = box!.GetMethod("Show", BindingFlags.Static | BindingFlags.Public)!;
+        foreach (bool escape in new[] { false, true })
+            Check("OK-only modal " + (escape ? "Escape" : "close") + " matches native MessageBox", () =>
+            {
+                DialogResult native = CloseMessage(false);
+                DialogResult themed = CloseMessage(true);
+                Require(native == DialogResult.OK, "Native OK-only dialog returned " + native);
+                Require(themed == native, $"Themed={themed}; native={native}");
+
+                DialogResult CloseMessage(bool custom)
+                {
+                    string caption = "UI audit OK contract " + Guid.NewGuid().ToString("N");
+                    bool issued = false; var watch = Stopwatch.StartNew();
+                    using var timer = new System.Windows.Forms.Timer { Interval = 25 };
+                    timer.Tick += (_, _) =>
+                    {
+                        IntPtr hwnd = custom
+                            ? Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Modal && f.Text == caption)?.Handle ?? IntPtr.Zero
+                            : Native.FindWindow("#32770", caption);
+                        if (hwnd == IntPtr.Zero) return;
+                        if (escape && watch.ElapsedMilliseconds < 2000)
+                        {
+                            IntPtr focused = Native.GetFocus();
+                            Native.PostMessage(focused == IntPtr.Zero ? hwnd : focused, 0x0100, new IntPtr(27), IntPtr.Zero);
+                            Native.PostMessage(focused == IntPtr.Zero ? hwnd : focused, 0x0101, new IntPtr(27), IntPtr.Zero);
+                            issued = true;
+                        }
+                        else
+                        {
+                            Native.PostMessage(hwnd, 0x0010, IntPtr.Zero, IntPtr.Zero);
+                            if (!escape) issued = true;
+                        }
+                    };
+                    timer.Start();
+                    DialogResult result = custom
+                        ? (DialogResult)show.Invoke(null, [owner, "OK contract check", caption, MessageBoxButtons.OK, MessageBoxIcon.Information])!
+                        : MessageBox.Show(owner, "OK contract check", caption, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    timer.Stop();
+                    Require(issued && watch.ElapsedMilliseconds < 2000, "Dialog did not close through requested message.");
+                    return result;
+                }
+            });
+    }
+
     private static void CheckEditorConfirmations(string description)
     {
         if (_ui.GetType("logReader.UI.ThemedMessageBox") == null) return;
@@ -609,6 +667,12 @@ internal static class Program
     private static double Median(List<double> data) { var sorted = data.Order().ToArray(); return sorted[sorted.Length / 2]; }
     private static class Native
     {
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        internal static extern IntPtr FindWindow(string? className, string? windowName);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        internal static extern IntPtr GetFocus();
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        internal static extern bool PostMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam);
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         internal static extern int GetGuiResources(IntPtr process, int flags);
         [System.Runtime.InteropServices.DllImport("user32.dll")]

@@ -26,6 +26,8 @@ namespace logReader.UI
                 Font = messageFont, ControlBox = buttons != MessageBoxButtons.YesNo, KeyPreview = true,
                 Icon = (owner as Form)?.Icon
             };
+            if (buttons == MessageBoxButtons.OK)
+                dialog.FormClosing += (_, _) => dialog.DialogResult = DialogResult.OK;
             var body = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 2, RowCount = 1

@@ -1,0 +1,16 @@
+{
+  "assemblyPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\r2r\\app\\LOGER.dll",
+  "assemblySha256": "D77258A3D71F591C1E0D77827A061EB21A292990509D0E275A86575092819A6A",
+  "theme": "Dark",
+  "checks": [
+    {
+      "name": "OK-only modal close matches native MessageBox",
+      "status": "PASS"
+    },
+    {
+      "name": "OK-only modal Escape matches native MessageBox",
+      "status": "PASS"
+    }
+  ],
+  "method": "Actual native and themed modal OK dialogs, WM_CLOSE and posted Escape key messages"
+}
