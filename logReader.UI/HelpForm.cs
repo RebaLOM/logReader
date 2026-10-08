@@ -45,8 +45,17 @@ namespace logReader.UI
         {
             ThemePalette p = AppTheme.Palette;
             BackColor = p.Canvas;
+
+            panelHeader.Tag = ThemeTags.Header;
+            panelHeader.BackColor = p.Surface;
+            headerBrandMark.BackColor = p.Primary;
+            labelHelpTitle.Tag = ThemeTags.Brand;
+            labelHelpTitle.Font = Typography.PageTitle();
+            labelHelpTitle.ForeColor = p.Text;
+            labelHelpTitle.BackColor = Color.Transparent;
+
+            panelSearch.Tag = ThemeTags.Elevated;
             panelSearch.BackColor = p.Elevated;
-            panelSearch.Padding = new Padding(12, 8, 12, 8);
             textBoxSearch.BackColor = p.Surface;
             textBoxSearch.ForeColor = p.Text;
             textBoxSearch.BorderStyle = BorderStyle.FixedSingle;

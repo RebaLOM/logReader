@@ -1,6 +1,6 @@
 namespace logReader.UI.Theme;
 
-// Семантические цвета одной темы; жёлтый — только Primary/акцент.
+// Семантические цвета одной темы; жёлтый — только Primary/акцент, не Warning.
 public sealed class ThemePalette
 {
     public required Color Canvas { get; init; }
@@ -29,58 +29,56 @@ public sealed class ThemePalette
 
     public static ThemePalette Dark { get; } = new()
     {
-        Canvas = Color.FromArgb(0x0B, 0x0E, 0x11),
-        Surface = Color.FromArgb(0x1E, 0x23, 0x29),
-        SurfaceSecondary = Color.FromArgb(0x16, 0x1A, 0x1F),
-        Elevated = Color.FromArgb(0x2B, 0x31, 0x39),
-        Text = Color.FromArgb(0xEA, 0xEC, 0xEF),
-        TextSecondary = Color.FromArgb(0xB7, 0xBD, 0xC8),
-        Muted = Color.FromArgb(0x84, 0x8E, 0x9C),
-        Border = Color.FromArgb(0x2B, 0x31, 0x39),
-        BorderHover = Color.FromArgb(0x3A, 0x42, 0x4C),
-        Primary = Color.FromArgb(0xFC, 0xD5, 0x35),
-        PrimaryHover = Color.FromArgb(0xF0, 0xB9, 0x0B),
-        PrimaryPressed = Color.FromArgb(0xD9, 0xA6, 0x0A),
-        OnPrimary = Color.FromArgb(0x18, 0x1A, 0x20),
-        Success = Color.FromArgb(0x0E, 0xCB, 0x81),
-        Warning = Color.FromArgb(0xF0, 0xB9, 0x0B),
-        Error = Color.FromArgb(0xF6, 0x46, 0x5D),
-        Info = Color.FromArgb(0x3B, 0x82, 0xF6),
-        Selection = Color.FromArgb(0x3A, 0x3A, 0x1F),
-        FocusRing = Color.FromArgb(0xFC, 0xD5, 0x35),
-        ConsoleBg = Color.FromArgb(0x0B, 0x0E, 0x11),
-        ConsoleFg = Color.FromArgb(0xEA, 0xEC, 0xEF),
-        GridLine = Color.FromArgb(0x3A, 0x42, 0x4C),
-        EmptyCell = Color.FromArgb(0x16, 0x1A, 0x1F),
+        Canvas = Color.FromArgb(0x0C, 0x0D, 0x10),
+        Surface = Color.FromArgb(0x16, 0x18, 0x1D),
+        SurfaceSecondary = Color.FromArgb(0x12, 0x14, 0x1A),
+        Elevated = Color.FromArgb(0x1E, 0x21, 0x28),
+        Text = Color.FromArgb(0xF3, 0xF4, 0xF6),
+        TextSecondary = Color.FromArgb(0xA1, 0xA8, 0xB3),
+        Muted = Color.FromArgb(0x8B, 0x92, 0x9E),
+        Border = Color.FromArgb(0x2A, 0x2E, 0x36),
+        BorderHover = Color.FromArgb(0x3D, 0x44, 0x50),
+        Primary = Color.FromArgb(0xFA, 0xCC, 0x15),
+        PrimaryHover = Color.FromArgb(0xEA, 0xB3, 0x08),
+        PrimaryPressed = Color.FromArgb(0xCA, 0x8A, 0x04),
+        OnPrimary = Color.FromArgb(0x11, 0x18, 0x27),
+        Success = Color.FromArgb(0x34, 0xD3, 0x99),
+        Warning = Color.FromArgb(0xFB, 0x92, 0x3C),
+        Error = Color.FromArgb(0xF8, 0x71, 0x71),
+        Info = Color.FromArgb(0x60, 0xA5, 0xFA),
+        Selection = Color.FromArgb(0x3F, 0x3A, 0x1E),
+        FocusRing = Color.FromArgb(0xFA, 0xCC, 0x15),
+        ConsoleBg = Color.FromArgb(0x0A, 0x0B, 0x0E),
+        ConsoleFg = Color.FromArgb(0xE5, 0xE7, 0xEB),
+        GridLine = Color.FromArgb(0x2A, 0x2E, 0x36),
+        EmptyCell = Color.FromArgb(0x12, 0x14, 0x1A),
     };
 
     public static ThemePalette Light { get; } = new()
     {
-        Canvas = Color.FromArgb(0xF5, 0xF6, 0xF8),
+        Canvas = Color.FromArgb(0xF3, 0xF4, 0xF6),
         Surface = Color.FromArgb(0xFF, 0xFF, 0xFF),
-        SurfaceSecondary = Color.FromArgb(0xEB, 0xEE, 0xF2),
-        Elevated = Color.FromArgb(0xF0, 0xF2, 0xF5),
-        Text = Color.FromArgb(0x18, 0x1A, 0x20),
+        SurfaceSecondary = Color.FromArgb(0xEB, 0xED, 0xF0),
+        Elevated = Color.FromArgb(0xF0, 0xF1, 0xF4),
+        Text = Color.FromArgb(0x11, 0x18, 0x27),
         TextSecondary = Color.FromArgb(0x4B, 0x55, 0x63),
-        Muted = Color.FromArgb(0x6B, 0x73, 0x80),
-        // Чуть контрастнее на белых карточках, чем #E5E7EB.
-        Border = Color.FromArgb(0xD0, 0xD5, 0xDD),
-        BorderHover = Color.FromArgb(0xB8, 0xC0, 0xCC),
-        Primary = Color.FromArgb(0xF0, 0xB9, 0x0B),
-        PrimaryHover = Color.FromArgb(0xD9, 0xA6, 0x0A),
-        PrimaryPressed = Color.FromArgb(0xB4, 0x8A, 0x08),
-        OnPrimary = Color.FromArgb(0x18, 0x1A, 0x20),
+        Muted = Color.FromArgb(0x6B, 0x72, 0x80),
+        Border = Color.FromArgb(0xD1, 0xD5, 0xDB),
+        BorderHover = Color.FromArgb(0x9C, 0xA3, 0xAF),
+        Primary = Color.FromArgb(0xEA, 0xB3, 0x08),
+        PrimaryHover = Color.FromArgb(0xCA, 0x8A, 0x04),
+        PrimaryPressed = Color.FromArgb(0xA1, 0x62, 0x07),
+        OnPrimary = Color.FromArgb(0x11, 0x18, 0x27),
         Success = Color.FromArgb(0x05, 0x96, 0x69),
-        Warning = Color.FromArgb(0xB4, 0x53, 0x09),
+        Warning = Color.FromArgb(0xC2, 0x41, 0x0C),
         Error = Color.FromArgb(0xB9, 0x1C, 0x1C),
         Info = Color.FromArgb(0x1D, 0x4E, 0xD8),
-        Selection = Color.FromArgb(0xFF, 0xF0, 0xB3),
-        FocusRing = Color.FromArgb(0xF0, 0xB9, 0x0B),
-        // Журнал следует теме (не «вечный» тёмный терминал).
-        ConsoleBg = Color.FromArgb(0xF0, 0xF2, 0xF5),
-        ConsoleFg = Color.FromArgb(0x18, 0x1A, 0x20),
-        GridLine = Color.FromArgb(0xC8, 0xCE, 0xD6),
-        EmptyCell = Color.FromArgb(0xF0, 0xF2, 0xF5),
+        Selection = Color.FromArgb(0xFE, 0xF3, 0xC7),
+        FocusRing = Color.FromArgb(0xEA, 0xB3, 0x08),
+        ConsoleBg = Color.FromArgb(0xEE, 0xF0, 0xF3),
+        ConsoleFg = Color.FromArgb(0x11, 0x18, 0x27),
+        GridLine = Color.FromArgb(0xD1, 0xD5, 0xDB),
+        EmptyCell = Color.FromArgb(0xF0, 0xF1, 0xF4),
     };
 
     public static ThemePalette For(ThemeMode mode) => mode == ThemeMode.Light ? Light : Dark;

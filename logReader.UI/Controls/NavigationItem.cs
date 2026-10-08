@@ -1,28 +1,31 @@
 using System.ComponentModel;
+using System.Drawing.Drawing2D;
+using logReader.UI.Icons;
 using logReader.UI.Theme;
 
 namespace logReader.UI.Controls;
 
+// Пункт боковой навигации: текстовый или icon-rail с жёлтой «таблеткой» выбора.
 public class NavigationItem : Control
 {
     private bool _selected;
     private bool _hover;
+    private IconKind _icon = IconKind.Workspace;
+    private bool _railMode = true;
 
     public NavigationItem()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
         DoubleBuffered = true;
-        Height = 40;
+        Height = 48;
         Cursor = Cursors.Hand;
         Font = Typography.Body();
-        // PushButton + AccessibleName: FlaUI видит и AutomationId (Name), и локализованный текст.
         AccessibleRole = AccessibleRole.PushButton;
         TabStop = true;
     }
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        // Без полной заливки при ресайзе остаются вертикальные артефакты.
         using var brush = new SolidBrush(AppTheme.Palette.SurfaceSecondary);
         e.Graphics.FillRectangle(brush, ClientRectangle);
     }
@@ -40,10 +43,36 @@ public class NavigationItem : Control
         }
     }
 
+    [DefaultValue(IconKind.Workspace)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+    public IconKind Icon
+    {
+        get => _icon;
+        set
+        {
+            if (_icon == value) return;
+            _icon = value;
+            Invalidate();
+        }
+    }
+
+    [DefaultValue(true)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+    public bool RailMode
+    {
+        get => _railMode;
+        set
+        {
+            if (_railMode == value) return;
+            _railMode = value;
+            Height = value ? 48 : 40;
+            Invalidate();
+        }
+    }
+
     protected override void OnTextChanged(EventArgs e)
     {
         base.OnTextChanged(e);
-        // Visible label for AT; Designer Name stays as UIA AutomationId.
         AccessibleName = Text;
     }
 
@@ -51,7 +80,6 @@ public class NavigationItem : Control
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        // TabStop=true + PushButton: Space/Enter должны активировать как клик (UIA DoDefaultAction недостаточно).
         if (e.KeyCode is Keys.Space or Keys.Enter)
         {
             OnClick(EventArgs.Empty);
@@ -80,18 +108,51 @@ public class NavigationItem : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         ThemePalette p = AppTheme.Palette;
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        if (_railMode)
+            PaintRail(e.Graphics, p);
+        else
+            PaintTextRow(e.Graphics, p);
+    }
+
+    private void PaintRail(Graphics g, ThemePalette p)
+    {
+        int pad = 10;
+        var pill = new Rectangle(pad, 6, Width - pad * 2, Height - 12);
+
+        if (_selected || _hover)
+        {
+            Color fill = _selected ? p.Primary : p.Elevated;
+            using var path = RoundedRect(pill, Radius.Md);
+            using var brush = new SolidBrush(fill);
+            g.FillPath(brush, path);
+        }
+
+        Color iconColor = _selected ? p.OnPrimary : _hover ? p.Text : p.TextSecondary;
+        int iconSize = 20;
+        var iconBounds = new Rectangle(
+            (Width - iconSize) / 2,
+            (Height - iconSize) / 2,
+            iconSize,
+            iconSize);
+        AppIcons.Draw(g, _icon, iconBounds, iconColor);
+    }
+
+    private void PaintTextRow(Graphics g, ThemePalette p)
+    {
         Color bg = _selected ? p.Selection : _hover ? p.Elevated : p.SurfaceSecondary;
         using (var brush = new SolidBrush(bg))
-            e.Graphics.FillRectangle(brush, ClientRectangle);
+            g.FillRectangle(brush, ClientRectangle);
 
         if (_selected)
         {
             using var accent = new SolidBrush(p.Primary);
-            e.Graphics.FillRectangle(accent, new Rectangle(0, 8, 3, Height - 16));
+            g.FillRectangle(accent, new Rectangle(0, 8, 3, Height - 16));
         }
 
         TextRenderer.DrawText(
-            e.Graphics,
+            g,
             Text,
             Font,
             new Rectangle(Spacing.Md, 0, Width - Spacing.Md, Height),
@@ -99,29 +160,37 @@ public class NavigationItem : Control
             TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
     }
 
+    private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
+    {
+        int d = radius * 2;
+        var path = new GraphicsPath();
+        path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
+        path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
+        path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
+        path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
     private sealed class NavigationItemAccessibleObject : ControlAccessibleObject
     {
-        public NavigationItemAccessibleObject(NavigationItem owner) : base(owner) { }
+        private readonly NavigationItem _owner;
 
-        public override string? Name
+        public NavigationItemAccessibleObject(NavigationItem owner) : base(owner) => _owner = owner;
+
+        public override string Name => _owner.AccessibleName ?? _owner.Text;
+
+        public override AccessibleStates State
         {
             get
             {
-                if (Owner is not NavigationItem owner)
-                    return base.Name;
-                return string.IsNullOrEmpty(owner.AccessibleName) ? owner.Text : owner.AccessibleName;
+                AccessibleStates s = base.State;
+                if (_owner.Selected)
+                    s |= AccessibleStates.Checked | AccessibleStates.Selected;
+                return s;
             }
-            set => base.Name = value;
         }
 
-        public override AccessibleRole Role => AccessibleRole.PushButton;
-
-        public override string? DefaultAction => "Нажать";
-
-        public override void DoDefaultAction()
-        {
-            if (Owner is NavigationItem owner)
-                owner.OnClick(EventArgs.Empty);
-        }
+        public override void DoDefaultAction() => _owner.OnClick(EventArgs.Empty);
     }
 }

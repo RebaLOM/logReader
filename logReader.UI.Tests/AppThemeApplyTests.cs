@@ -15,14 +15,22 @@ public class AppThemeApplyTests
             {
                 AppTheme.Current = ThemeMode.Dark;
                 using var form = new Form();
-                var button = new Button { Name = "buttonProcess", Text = "Обработать" };
+                var button = new Button
+                {
+                    Name = "buttonProcess",
+                    Text = "Обработать",
+                    Tag = ThemeTags.Primary
+                };
+                var muted = new Button { Name = "buttonSecondary", Text = "Вторичная" };
                 var text = new TextBox { Name = "textBoxLog", Multiline = true };
                 form.Controls.Add(button);
+                form.Controls.Add(muted);
                 form.Controls.Add(text);
 
                 AppTheme.Apply(form);
 
                 Assert.Equal(AppTheme.Palette.Primary, button.BackColor);
+                Assert.Equal(AppTheme.Palette.Elevated, muted.BackColor);
                 Assert.Equal(AppTheme.Palette.ConsoleBg, text.BackColor);
             });
         }

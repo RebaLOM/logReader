@@ -32,7 +32,7 @@ namespace logReader.UI
         private readonly SaveOptions _saveOptions = new();
 
         // Высота нижней панели журнала (px); сохраняется при перетаскивании разделителя.
-        private int _logPanelHeight = 96;
+        private int _logPanelHeight = 88;
         private bool _layingOutContentSplit;
 
         private CancellationTokenSource? _operation;
@@ -44,14 +44,23 @@ namespace logReader.UI
             EnableDoubleBuffer(workScroll);
             EnableDoubleBuffer(cardsHost);
             EnableDoubleBuffer(navPanel);
+            EnableDoubleBuffer(workspaceHost);
+            EnableDoubleBuffer(missionPanel);
+            EnableDoubleBuffer(headerPanel);
+            ApplyForgeChromeFonts();
             TagSectionSurfaces();
+            WireNavToolTips();
             WireContentSplitLayout();
             EnsureAutomationNames();
             ConfigureConsoleEmptyState();
             UpdateDevicesCreateAddButtonState();
             UpdateCompositesCreateAddButtonState();
             UpdateFilterLabel();
+            UpdateReadyHint();
             SetOpenOutputVisible(false);
+            // Live checklist: canLog/composites здесь; devices/output — в своих TextChanged-обработчиках.
+            textBoxCanLog.TextChanged += (_, _) => UpdateReadyHint();
+            textBoxComposites.TextChanged += (_, _) => UpdateReadyHint();
             FormClosing += MainForm_FormClosing;
             Load += (_, _) =>
             {
@@ -59,6 +68,7 @@ namespace logReader.UI
                 ThemeNative.ApplyTitleBar(this, AppTheme.Current);
                 LayoutHeader();
                 LayoutCardsHost();
+                FitMissionActions();
             };
             Resize += (_, _) =>
             {
@@ -67,8 +77,29 @@ namespace logReader.UI
             };
             headerPanel.Resize += (_, _) => LayoutHeader();
             workScroll.Resize += (_, _) => LayoutCardsHost();
+            missionPanel.Resize += (_, _) => FitMissionActions();
+            workspaceHost.Resize += (_, _) => LayoutCardsHost();
             AppTheme.Changed += OnAppThemeChanged;
             FormClosed += (_, _) => AppTheme.Changed -= OnAppThemeChanged;
+        }
+
+        private void ApplyForgeChromeFonts()
+        {
+            labelBrand.Font = Typography.Brand();
+            labelPageTitle.Font = Typography.PageTitle();
+            labelPageSubtitle.Font = Typography.Caption();
+            labelMissionTitle.Font = Typography.Section();
+            labelReadyHint.Font = Typography.Caption();
+            buttonProcess.Font = Typography.Button();
+            buttonThemeToggle.Font = Typography.Body();
+        }
+
+        private void WireNavToolTips()
+        {
+            toolTipNav.SetToolTip(navProcess, "Обработка");
+            toolTipNav.SetToolTip(navHelp, "Справка");
+            toolTipNav.SetToolTip(navConvert, "Конвертация");
+            toolTipNav.SetToolTip(buttonThemeToggle, "Переключить светлую / тёмную тему");
         }
 
         private static void EnableDoubleBuffer(Control control)
@@ -90,77 +121,153 @@ namespace logReader.UI
         {
             headerPanel.Tag = ThemeTags.Header;
             navPanel.Tag = ThemeTags.Elevated;
+            navBrandStrip.Tag = ThemeTags.Elevated;
             statusBar.Tag = ThemeTags.Header;
-            actionBar.Tag = ThemeTags.Elevated;
+            missionPanel.Tag = ThemeTags.Elevated;
+            workspaceHost.Tag = ThemeTags.Surface;
+            workScroll.Tag = ThemeTags.Surface;
+            cardsHost.Tag = ThemeTags.Surface;
             labelBrand.Tag = ThemeTags.Brand;
+            labelPageTitle.Tag = ThemeTags.Brand;
+            labelPageSubtitle.Tag = ThemeTags.Muted;
+            labelMissionTitle.Tag = ThemeTags.Brand;
+            labelReadyHint.Tag = ThemeTags.Muted;
             labelFilterStatus.Tag = ThemeTags.Muted;
             labelProgress.Tag = ThemeTags.Muted;
             textBoxLog.Tag = ThemeTags.Console;
-            buttonProcess.Tag = ThemeTags.Primary;
+            // Tag Primary выставляет ApplyProcessButtonState по готовности путей.
         }
 
+        // Две колонки: слева источник/посылки/составные, справа «Результат».
         private void LayoutCardsHost()
         {
             if (workScroll.ClientSize.Width <= 0)
                 return;
-            int w = Math.Max(480, workScroll.ClientSize.Width - workScroll.Padding.Horizontal);
-            cardsHost.SuspendLayout();
-            cardsHost.Width = w;
-            cardsHost.Height = 520;
-            foreach (Control card in cardsHost.Controls)
+
+            const int gap = 12;
+            const int cardLogsH = 100;
+            const int cardDevicesH = 124;
+            const int cardCompositesH = 100;
+            // Не растягиваем «Результат» на всю высоту левой колонки — иначе пустота внутри карточки.
+            const int cardOutputH = 140;
+
+            int available = Math.Max(320, workScroll.ClientSize.Width - workScroll.Padding.Horizontal);
+            int leftW = Math.Max(280, (int)(available * 0.58));
+            int rightW = Math.Max(200, available - leftW - gap);
+            if (leftW + gap + rightW > available)
             {
-                if (card.Anchor.HasFlag(AnchorStyles.Right))
-                    card.Width = w;
+                leftW = Math.Max(240, available - gap - rightW);
+                if (leftW + gap + rightW > available)
+                    rightW = Math.Max(160, available - leftW - gap);
             }
+
+            int leftH = cardLogsH + gap + cardDevicesH + gap + cardCompositesH;
+
+            cardsHost.SuspendLayout();
+            cardsHost.Width = available;
+            cardsHost.Height = leftH;
+
+            cardLogs.SetBounds(0, 0, leftW, cardLogsH);
+            cardDevices.SetBounds(0, cardLogsH + gap, leftW, cardDevicesH);
+            cardComposites.SetBounds(0, cardLogsH + gap + cardDevicesH + gap, leftW, cardCompositesH);
+            cardOutput.SetBounds(leftW + gap, 0, rightW, cardOutputH);
+
             LayoutPathRows();
-            FitActionBarButtons();
+            FitMissionActions();
             cardsHost.ResumeLayout(true);
             workScroll.Invalidate(true);
         }
 
-        private void FitActionBarButtons()
+        // Вертикальный стек CTA в правой mission-панели.
+        private void FitMissionActions()
         {
-            buttonProcess.Width = MeasureButtonWidth(buttonProcess);
-            buttonCancel.Width = MeasureButtonWidth(buttonCancel);
-            buttonHelp.Width = MeasureButtonWidth(buttonHelp);
-            buttonTrcToAsc.Width = MeasureButtonWidth(buttonTrcToAsc);
+            if (missionPanel.ClientSize.Width <= 0)
+                return;
+
             buttonDevicesParams.Width = MeasureButtonWidth(buttonDevicesParams);
 
-            // Правый кластер CTA: «Обработать» у правого края, «Отмена» слева от него.
+            int padL = missionPanel.Padding.Left;
+            int padR = missionPanel.Padding.Right;
+            int contentW = Math.Max(120, missionPanel.ClientSize.Width - padL - padR);
             const int gap = 8;
-            const int rightPad = 0;
-            int x = actionBar.ClientSize.Width - rightPad;
+            int y = missionPanel.Padding.Top;
 
-            if (buttonProcess.Visible)
-            {
-                buttonProcess.Left = Math.Max(0, x - buttonProcess.Width);
-                x = buttonProcess.Left - gap;
-            }
+            labelMissionTitle.Left = padL;
+            labelMissionTitle.Top = y;
+            y = labelMissionTitle.Bottom + gap;
+
+            labelReadyHint.Left = padL;
+            labelReadyHint.Top = y;
+            labelReadyHint.Width = contentW;
+            int hintH = TextRenderer.MeasureText(
+                labelReadyHint.Text,
+                labelReadyHint.Font,
+                new Size(contentW, 0),
+                TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl).Height;
+            labelReadyHint.Height = Math.Max(72, hintH + 4);
+            y = labelReadyHint.Bottom + Spacing.Md;
+
+            buttonProcess.Left = padL;
+            buttonProcess.Top = y;
+            buttonProcess.Width = contentW;
+            buttonProcess.Height = 40;
+            y = buttonProcess.Bottom + gap;
 
             if (buttonCancel.Visible)
             {
-                buttonCancel.Left = Math.Max(0, x - buttonCancel.Width);
-                x = buttonCancel.Left - gap;
+                buttonCancel.Left = padL;
+                buttonCancel.Top = y;
+                buttonCancel.Width = contentW;
+                buttonCancel.Height = 32;
+                y = buttonCancel.Bottom + gap;
             }
 
-            if (buttonHelp.Visible)
-            {
-                buttonHelp.Left = Math.Max(0, x - buttonHelp.Width);
-                x = buttonHelp.Left - gap;
-            }
-
-            if (buttonTrcToAsc.Visible)
-                buttonTrcToAsc.Left = Math.Max(0, x - buttonTrcToAsc.Width);
-
-            // Прогресс занимает пространство слева от кластера.
             if (progressBarProcess.Visible)
             {
-                int progressRight = buttonCancel.Visible ? buttonCancel.Left : buttonProcess.Left;
-                progressBarProcess.Left = 0;
-                progressBarProcess.Width = Math.Max(80, progressRight - gap - 160);
-                labelProgress.Left = progressBarProcess.Right + gap;
-                labelProgress.Width = Math.Max(60, progressRight - gap - labelProgress.Left);
+                progressBarProcess.Left = padL;
+                progressBarProcess.Top = y;
+                progressBarProcess.Width = contentW;
+                y = progressBarProcess.Bottom + gap;
             }
+
+            if (labelProgress.Visible)
+            {
+                labelProgress.Left = padL;
+                labelProgress.Top = y;
+                labelProgress.Width = contentW;
+            }
+        }
+
+        private void UpdateReadyHint()
+        {
+            bool hasLog = !string.IsNullOrWhiteSpace(textBoxCanLog.Text);
+            bool hasDevices = !string.IsNullOrWhiteSpace(textBoxDevices.Text);
+            bool hasOutput = !string.IsNullOrWhiteSpace(textBoxOutput.Text);
+            bool ready = hasLog && hasDevices && hasOutput;
+
+            static string Mark(bool ok) => ok ? "✓" : "•";
+            labelReadyHint.Text =
+                $"{Mark(hasLog)} Укажите источник логов\r\n" +
+                $"{Mark(hasDevices)} Загрузите посылки\r\n" +
+                $"{Mark(hasOutput)} Выберите файл результата\r\n" +
+                $"{Mark(ready)} Нажмите «Обработать»";
+
+            ThemePalette p = AppTheme.Palette;
+            // Готовые шаги — Success; иначе Muted (жёлтый остаётся только у Primary CTA).
+            labelReadyHint.ForeColor = ready ? p.Success : p.Muted;
+            labelReadyHint.Tag = ready ? null : ThemeTags.Muted;
+
+            ApplyProcessButtonState(ready);
+
+            if (missionPanel.IsHandleCreated)
+                FitMissionActions();
+        }
+
+        // Option A: кнопка всегда кликабельна (валидация в click), Primary только при ready.
+        private void ApplyProcessButtonState(bool ready)
+        {
+            buttonProcess.Tag = ready ? ThemeTags.Primary : null;
+            AppTheme.Apply(buttonProcess);
         }
 
         // Общая ширина правой колонки вторичных кнопок — выровненный правый край.
@@ -240,30 +347,65 @@ namespace logReader.UI
             AppTheme.Apply(this);
             ThemePalette p = AppTheme.Palette;
             brandAccent.BackColor = p.Primary;
-            // Подпись = тема, на которую переключимся по клику.
-            buttonThemeToggle.Text = AppTheme.Current == ThemeMode.Dark ? "Светлая тема" : "Тёмная тема";
-            buttonThemeToggle.AccessibleName = buttonThemeToggle.Text;
+            navBrandMark.BackColor = p.Primary;
+            missionAccent.BackColor = p.Primary;
+            if (navBrandStrip.ClientSize.Width > 0)
+            {
+                navBrandMark.Left = Math.Max(0, (navBrandStrip.ClientSize.Width - navBrandMark.Width) / 2);
+                navBrandMark.Top = Math.Max(0, (navBrandStrip.ClientSize.Height - navBrandMark.Height) / 2);
+            }
+            // Компактный переключатель; AccessibleName — следующая тема.
+            buttonThemeToggle.Text = "Тема";
+            buttonThemeToggle.AccessibleName = AppTheme.Current == ThemeMode.Dark
+                ? "Переключить на светлую тему"
+                : "Переключить на тёмную тему";
             LayoutHeader();
             UpdateFilterLabel();
+            UpdateReadyHint();
             ThemeNative.ApplyTitleBar(this, AppTheme.Current);
             LayoutPathRows();
-            FitActionBarButtons();
+            FitMissionActions();
             navProcess.Invalidate();
             navHelp.Invalidate();
             navConvert.Invalidate();
+            missionPanel.Invalidate(true);
+            navPanel.Invalidate(true);
         }
 
-        // Кнопка темы — всегда в правом краю шапки (не уезжает за край при DPI/resize).
+        // Бренд + заголовок страницы слева; кнопка темы — справа.
         private void LayoutHeader()
         {
             if (headerPanel.ClientSize.Width <= 0)
                 return;
 
+            int padL = headerPanel.Padding.Left;
+            int padR = headerPanel.Padding.Right;
+            int h = headerPanel.ClientSize.Height;
+
+            brandAccent.Size = new Size(18, 18);
+            brandAccent.Location = new Point(padL, Math.Max(0, (h - brandAccent.Height) / 2));
+
+            labelBrand.Location = new Point(brandAccent.Right + 8, Math.Max(0, (h - labelBrand.PreferredHeight) / 2));
+
+            // Заголовок + подзаголовок столбиком справа от бренда — меньше горизонтальной тесноты.
+            int titleLeft = labelBrand.Right + 24;
+            int blockH = labelPageTitle.PreferredHeight + 2 + labelPageSubtitle.PreferredHeight;
+            int blockTop = Math.Max(0, (h - blockH) / 2);
+            labelPageTitle.Location = new Point(titleLeft, blockTop);
+            labelPageSubtitle.Location = new Point(titleLeft, labelPageTitle.Bottom + 2);
+
             buttonThemeToggle.Width = MeasureButtonWidth(buttonThemeToggle);
-            int top = Math.Max(headerPanel.Padding.Top, (headerPanel.ClientSize.Height - buttonThemeToggle.Height) / 2);
-            int left = headerPanel.ClientSize.Width - headerPanel.Padding.Right - buttonThemeToggle.Width;
-            buttonThemeToggle.Location = new Point(Math.Max(headerPanel.Padding.Left, left), top);
+            int top = Math.Max(headerPanel.Padding.Top, (h - buttonThemeToggle.Height) / 2);
+            int left = headerPanel.ClientSize.Width - padR - buttonThemeToggle.Width;
+            buttonThemeToggle.Location = new Point(Math.Max(padL, left), top);
             buttonThemeToggle.BringToFront();
+
+            // Подзаголовок не должен заезжать под кнопку темы.
+            int maxSubRight = buttonThemeToggle.Left - 12;
+            if (labelPageSubtitle.Right > maxSubRight && labelPageSubtitle.Left < maxSubRight)
+                labelPageSubtitle.Visible = maxSubRight - labelPageSubtitle.Left > 80;
+            else
+                labelPageSubtitle.Visible = true;
         }
 
         private void buttonThemeToggle_Click(object? sender, EventArgs e)
@@ -428,6 +570,7 @@ namespace logReader.UI
                 labelFilterStatus.ForeColor = p.Muted;
                 statusBadge.Text = "Готово к обработке";
                 statusBadge.Kind = StatusBadgeKind.Neutral;
+                UpdateReadyHint();
                 return;
             }
 
@@ -442,6 +585,7 @@ namespace logReader.UI
             labelFilterStatus.ForeColor = p.Text;
             statusBadge.Text = summary;
             statusBadge.Kind = StatusBadgeKind.Info;
+            UpdateReadyHint();
         }
 
         private void ResetFilters()
@@ -550,6 +694,7 @@ namespace logReader.UI
         private void textBoxDevices_TextChanged(object sender, EventArgs e)
         {
             UpdateDevicesCreateAddButtonState();
+            UpdateReadyHint();
             string path = textBoxDevices.Text;
             if (!IsDevicesFileSelectedAndExists())
             {
@@ -859,6 +1004,7 @@ namespace logReader.UI
         {
             SyncOutputFormatWithPath(textBoxOutput.Text);
             SetOpenOutputVisible(false);
+            UpdateReadyHint();
         }
 
         private void buttonOpenOutput_Click(object sender, EventArgs e)
@@ -1070,6 +1216,7 @@ namespace logReader.UI
         {
             navPanel.Enabled = !busy;
             SetInteractiveEnabled(cardsHost, !busy);
+            SetInteractiveEnabled(missionPanel, !busy);
             buttonThemeToggle.Enabled = true;
             buttonCancel.Visible = busy;
             buttonCancel.Enabled = busy;
@@ -1087,9 +1234,10 @@ namespace logReader.UI
             else
             {
                 UpdateFilterLabel();
+                UpdateReadyHint();
             }
 
-            FitActionBarButtons();
+            FitMissionActions();
             UseWaitCursor = busy;
             buttonCancel.UseWaitCursor = false;
         }
@@ -1354,7 +1502,7 @@ namespace logReader.UI
             if (available <= minLog + minTop)
                 return;
 
-            int maxLog = Math.Max(minLog, Math.Min(180, (int)(available * 0.30)));
+            int maxLog = Math.Max(minLog, Math.Min(220, (int)(available * 0.34)));
             int logHeight = Math.Clamp(_logPanelHeight, minLog, maxLog);
             int topHeight = available - logHeight;
 

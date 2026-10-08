@@ -1,336 +1,609 @@
 {
   "project": "LOGER",
-  "runId": "audit-2026-10-08",
-  "status": "verified",
-  "auditedAt": "2026-10-08T20:15:00+05:00",
-  "verifiedAt": "2026-10-08T20:55:00+05:00",
-  "designBaseline": "DESIGN.md",
-  "exe": "C:/Users/Re/source/repos/RebaLOM/logReader/logReader.UI/bin/Debug/net10.0-windows/LOGER.exe",
+  "runId": "forge-audit-2026-10-08",
+  "mode": "VERIFY",
+  "status": "complete",
+  "auditedAt": "2026-10-08T22:15:00+05:00",
+  "branch": "feature/loger-next-generation",
+  "designBaseline": "DESIGN.md (Forge — Concept B)",
+  "exe": "C:/Users/Re/source/repos/RebaLOM/logReader/logReader.UI/bin/Release/net10.0-windows/LOGER.exe",
   "mcp": "project-0-logReader-windows",
+  "generationVerdict": {
+    "label": "new_generation_shell",
+    "summary": "Forge delivers a structural next-gen shell (icon rail + branded header + two-column workspace + mission CTA panel + equal Light/Dark). This is not «same card stack, new colors». Control-level polish and Help/Convert overlays still lag the shell — commercial quality is above prior utility LOGER, below NEXUS/Cloudio reference drama.",
+    "vsReferences": {
+      "nexusDark": "Yellow accent discipline and dark charcoal hierarchy are on-brand; missing glass depth, richer elevated surfaces, and denser mission storytelling.",
+      "cloudioLight": "Airy Canvas/Surface cards and yellow CTA/nav highlight align; missing refined rail frame, softer component chrome, and premium secondary controls."
+    }
+  },
   "screensVisited": [
     {
-      "id": "main-process",
-      "name": "Обработка (main)",
+      "id": "main-process-light-empty",
+      "name": "Обработка empty — Light",
       "status": "visited",
-      "themes": ["light", "dark"]
+      "themes": [
+        "light"
+      ],
+      "evidence": "ui-audit/screenshots/after/main-light-mission-empty.png"
     },
     {
-      "id": "help",
-      "name": "Справка / Помощь",
+      "id": "main-process-light-ready",
+      "name": "Обработка ready — Light",
       "status": "visited",
-      "themes": ["light", "dark"],
-      "notes": "Owned Form «Помощь»; Primary-tint tree selection; search AccessibleName «Поиск по справке»"
+      "themes": [
+        "light"
+      ],
+      "evidence": "ui-audit/screenshots/after/main-light-mission-ready.png"
+    },
+    {
+      "id": "main-process-dark-ready",
+      "name": "Обработка ready — Dark",
+      "status": "visited",
+      "themes": [
+        "dark"
+      ],
+      "evidence": "ui-audit/screenshots/after/main-dark-mission-ready.png"
+    },
+    {
+      "id": "main-process-dark-empty",
+      "name": "Обработка empty — Dark",
+      "status": "visited",
+      "themes": [
+        "dark"
+      ],
+      "evidence": "ui-audit/screenshots/after/main-dark-mission-empty.png"
+    },
+    {
+      "id": "help-light",
+      "name": "Помощь — Light",
+      "status": "visited",
+      "themes": [
+        "light"
+      ],
+      "evidence": "ui-audit/screenshots/after/help-light-window.png"
+    },
+    {
+      "id": "help-dark",
+      "name": "Помощь — Dark",
+      "status": "visited",
+      "themes": [
+        "dark"
+      ],
+      "evidence": "ui-audit/screenshots/after/help-dark-window.png"
     },
     {
       "id": "convert",
-      "name": "Конвертация / Смена формата",
-      "status": "visited",
-      "themes": ["light", "dark"],
-      "notes": "Modal with Primary «Преобразовать»; IsEnabled=false when no input (still solid Primary fill)"
-    },
-    {
-      "id": "devices-params",
-      "name": "Устройства и параметры",
-      "status": "blocked",
-      "notes": "Safe block without packets file: console error + statusBadge «Нужен файл посылок» (Error). No user files used."
-    },
-    {
-      "id": "save-options",
-      "name": "Параметры сохранения",
-      "status": "not_tested"
-    },
-    {
-      "id": "log-view-populated",
-      "name": "Просмотр лога с данными",
-      "status": "not_tested"
-    },
-    {
-      "id": "multi-dpi",
-      "name": "Multi-DPI scaling",
-      "status": "not_tested"
+      "name": "Конвертация",
+      "status": "not_tested",
+      "notes": "VERIFY 2026-10-08: one windows_click on nav Конвертация → UIA Timeout; MCP 0x80131505; LOGER process gone. No convert-light after capture."
     }
   ],
   "scores": {
     "visualAppeal": {
-      "score": 7.0,
-      "rationale": "Main action bar and console empty state feel intentional; Help/Convert closer to main brand. Still utility-grade, not premium."
+      "score": 7.7,
+      "rationale": "Forge shell unchanged; mission readiness + Help header polish lift perceived finish slightly."
     },
     "colorHarmony": {
-      "score": 7.5,
-      "rationale": "Primary yellow now appears on Convert CTA and Help selection (light). Dark Help selection is muted olive rather than clear Primary wash."
+      "score": 8.3,
+      "rationale": "Yellow remains disciplined; empty CTA no longer false-Primary. Help selection wash + header mark stay on-token."
     },
     "typography": {
-      "score": 6.0,
-      "rationale": "Unchanged: Segoe body legible; Help content hierarchy still flatter than DESIGN.md scale."
+      "score": 7.2,
+      "rationale": "Unchanged body chrome; Help PageTitle aligns with Forge header language."
     },
     "spacingAndAlignment": {
-      "score": 7.8,
-      "rationale": "Secondary path buttons share a common right edge; Обработать right-clustered; console default height reduced."
+      "score": 7.6,
+      "rationale": "Layout density unchanged this batch."
     },
     "componentQuality": {
-      "score": 7.2,
-      "rationale": "Convert uses AppDialog/ModernButton Primary. Help still classic TreeView chrome but owner-draw selection. Console placeholder present."
+      "score": 7.3,
+      "rationale": "Mission checklist/CTA state machine improves; secondary path controls still stock (UI-F06 open)."
     },
     "layoutAndComposition": {
-      "score": 6.5,
-      "rationale": "Action bar composition improved. Nav still opens overlays over cards (full IA deferred); incremental selection fix helps."
+      "score": 8.3,
+      "rationale": "Shell composition intact; Help/Convert still overlays (UI-001)."
     },
     "consistency": {
-      "score": 7.0,
-      "rationale": "Help and Convert inherit ThemePalette much better than baseline; residual TreeView/disabled-CTA affordance gaps remain."
+      "score": 7.5,
+      "rationale": "Help gains Forge header mark + themed surfaces; still tree+RichEdit chrome vs main shell."
     },
     "uxAndUsability": {
-      "score": 7.5,
-      "rationale": "Status bar now syncs with console errors. Nav no longer falsely highlights Справка/Конвертация while overlays open."
+      "score": 8.3,
+      "rationale": "Live •/✓ checklist + muted→Primary CTA gate — biggest UX win this cycle."
     },
     "accessibility": {
       "score": 7.0,
-      "rationale": "FlaUI UIA2 exposes navProcess/navHelp/navConvert/buttonThemeToggle/buttonDevicesParams. Help search AccessibleName present. MCP snapshot still omits AutomationId field."
+      "rationale": "Names still good; Convert Invoke still times out (UI-F10)."
     },
     "responsiveBehavior": {
-      "score": 6.5,
-      "rationale": "Not retested this pass; prior resize behavior unchanged."
+      "score": 5.5,
+      "rationale": "NOT retested."
     },
     "interactionQuality": {
-      "score": 7.0,
-      "rationale": "Theme toggle and devices gate remain solid. Nav Invoke via some MCP paths can hang — FlaUI Click works."
+      "score": 7.1,
+      "rationale": "Theme + Help reliable; path-driven mission state works; Convert nav Invoke still hangs MCP / kills process."
     },
     "professionalPolish": {
-      "score": 6.8,
-      "rationale": "Idle console and CTA composition improved. UI-009 yellow idle strip and UI-010 field highlight still open."
+      "score": 7.8,
+      "rationale": "Ready/empty affordance now product-grade; residual overlay IA + Convert automation gap."
     }
   },
-  "visualScore": 7.0,
+  "visualScore": 7.5,
+  "forgeGoals": {
+    "originalityVsCardStack": {
+      "score": 8.0,
+      "note": "Structural redesign present — not incremental recolor."
+    },
+    "yellowAccentDiscipline": {
+      "score": 8.5,
+      "note": "No full-screen yellow; no yellow-as-error. Intentional accents only."
+    },
+    "lightDarkQuality": {
+      "score": 8.1,
+      "note": "Empty/ready + Help Dark/Light coherent this VERIFY."
+    },
+    "hierarchy": {
+      "score": 7.8,
+      "note": "Eye path logo → workspace → yellow CTA works."
+    },
+    "navRail": {
+      "score": 8.0,
+      "note": "Icon rail + yellow selected pill matches DESIGN. Dual yellow squares (header + rail top) are redundant."
+    },
+    "missionCta": {
+      "score": 8.6,
+      "note": "Live readiness checklist + gated Primary CTA verified Light/Dark."
+    },
+    "spacing": {
+      "score": 7.6,
+      "note": "Good density for desktop tool; console idle height still heavy."
+    },
+    "contrast": {
+      "score": 8.0,
+      "note": "Text on Canvas/Surface and OnPrimary on yellow read clearly in both themes."
+    }
+  },
   "screenshots": {
-    "before": [
-      "ui-audit/screenshots/before/main.png",
-      "ui-audit/screenshots/before/process.png",
-      "ui-audit/screenshots/before/help.png",
-      "ui-audit/screenshots/before/help-fullscreen.png",
-      "ui-audit/screenshots/before/convert.png",
-      "ui-audit/screenshots/before/convert-over-main.png",
-      "ui-audit/screenshots/before/convert-dark.png",
-      "ui-audit/screenshots/before/convert-over-main-dark.png",
+    "canonical": [
+      "ui-audit/screenshots/before/main-light.png",
       "ui-audit/screenshots/before/main-dark.png",
-      "ui-audit/screenshots/before/main-resized.png",
-      "ui-audit/screenshots/before/devices-attempt.png"
+      "ui-audit/screenshots/before/help-light.png"
     ],
-    "after": [
-      "ui-audit/screenshots/after/main.png",
-      "ui-audit/screenshots/after/main-dark.png",
-      "ui-audit/screenshots/after/help.png",
+    "forgeMirrors": [
+      "ui-audit/screenshots/forge/main-light.png",
+      "ui-audit/screenshots/forge/main-dark.png"
+    ],
+    "notes": "VERIFY 2026-10-08 evening: mission empty/ready Light+Dark; Help Forge header Light+Dark. Convert not captured (MCP hang).",
+    "afterVerify": [
+      "ui-audit/screenshots/after/main-light-mission-empty.png",
+      "ui-audit/screenshots/after/main-light-mission-ready.png",
+      "ui-audit/screenshots/after/main-dark-mission-ready.png",
+      "ui-audit/screenshots/after/main-dark-mission-empty.png",
+      "ui-audit/screenshots/after/help-light.png",
+      "ui-audit/screenshots/after/help-light-window.png",
       "ui-audit/screenshots/after/help-dark.png",
-      "ui-audit/screenshots/after/convert.png",
-      "ui-audit/screenshots/after/convert-dark.png",
-      "ui-audit/screenshots/after/convert-over-main.png",
-      "ui-audit/screenshots/after/convert-over-main-dark.png",
-      "ui-audit/screenshots/after/devices-attempt.png",
-      "ui-audit/screenshots/after/devices-attempt-dark.png",
-      "ui-audit/screenshots/after/main-with-help.png",
-      "ui-audit/screenshots/after/main-with-help-dark.png"
+      "ui-audit/screenshots/after/help-dark-window.png"
     ]
   },
   "topPriorityForImplementer": [
-    "UI-009",
-    "UI-010",
-    "UI-001"
+    "UI-001",
+    "UI-F10",
+    "UI-F05",
+    "UI-F06",
+    "UI-F04",
+    "UI-F07"
   ],
   "toolLimitations": [
-    "windows_launch has no WorkingDirectory parameter; launch used full EXE path and succeeded.",
-    "MCP windows_snapshot does not print AutomationId; FlaUI UIA2 element dump confirms IDs.",
-    "Repeated Invoke on NavigationItem via MCP sometimes hangs UIA (0x80131505); FlaUI Click and devices/theme Buttons remained reliable.",
-    "Owned dialogs (Помощь, Смена формата) often absent from windows_list_windows until focused by title.",
-    "Multi-DPI display scale not changed this pass."
+    "windows_click Invoke on nav «Конвертация» still times out; MCP returns 0x80131505 and LOGER process exits (reconfirmed VERIFY).",
+    "windows_snapshot exposes Name, not AutomationId.",
+    "Owned «Помощь» nests under LOGER in snapshot.",
+    "Multi-DPI / resize not exercised this VERIFY."
   ],
   "issues": [
+    {
+      "id": "UI-F01",
+      "screen": "Main/Обработка — Mission",
+      "severity": "P1",
+      "category": "UX / Forge goals",
+      "title": "Mission checklist is static copy, not live readiness",
+      "description": "DESIGN.md mission panel is «checklist + ready + CTA». Live «Запуск» shows four bullet steps as plain text with no check/skip/ready state as the user fills Источник / Посылки / Результат. The panel teaches but does not reflect progress.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main-light-mission-empty.png",
+        "also": [
+          "ui-audit/screenshots/after/main-light-mission-ready.png",
+          "ui-audit/screenshots/after/main-dark-mission-empty.png",
+          "ui-audit/screenshots/after/main-dark-mission-ready.png"
+        ],
+        "verified": true
+      },
+      "probableCause": "Mission panel bound to static Label text rather than form validation state.",
+      "recommendation": "Drive checklist rows from path/validation state (empty / ready / error) using Muted → Text → Success tokens; keep yellow for Primary CTA only. Optional: disable or mute CTA until minimum ready set.",
+      "acceptanceCriteria": [
+        "Each mission step visually reflects current readiness",
+        "CTA remains Primary yellow when actionable; disabled/muted state is obvious without yellow-as-error",
+        "Works in Light and Dark"
+      ],
+      "status": "verified",
+      "implementerNote": "UpdateReadyHint wired to path TextChanged; ✓/• live marks; Success when all ready. After screenshots: ui-audit/screenshots/after/ (auditor VERIFY).",
+      "afterScreenshotHints": [
+        "ui-audit/screenshots/after/main-light-mission-empty.png",
+        "ui-audit/screenshots/after/main-light-mission-ready.png",
+        "ui-audit/screenshots/after/main-dark-mission-empty.png"
+      ],
+      "auditorNote": "VERIFY live: empty checklist uses •; after filling Источник/Посылки/Результат textboxes all four rows flip to ✓. Works Light and Dark. Snapshot Name confirms ✓/• text."
+    },
+    {
+      "id": "UI-F02",
+      "screen": "Main/Обработка — Mission",
+      "severity": "P1",
+      "category": "UX affordance",
+      "title": "Primary «Обработать» looks fully armed on empty form",
+      "description": "Idle form shows solid Primary yellow «Обработать» while Источник, Посылки, and Результат are empty. Combined with static checklist, the CTA overpromises readiness.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main-light-mission-empty.png",
+        "also": [
+          "ui-audit/screenshots/after/main-light-mission-ready.png",
+          "ui-audit/screenshots/after/main-dark-mission-empty.png",
+          "ui-audit/screenshots/after/main-dark-mission-ready.png"
+        ],
+        "verified": true
+      },
+      "probableCause": "CTA always styled Primary; enablement not tied to required inputs (or enabled but styled the same when disabled).",
+      "recommendation": "Gate IsEnabled (or visual muted Secondary) until minimum required paths exist; keep OnPrimary yellow only when actionable.",
+      "acceptanceCriteria": [
+        "Empty-form CTA is visually non-primary or disabled",
+        "Ready-form CTA is unmistakable Primary",
+        "Light and Dark both clear"
+      ],
+      "status": "verified",
+      "implementerNote": "Option A: Enabled stays true; Tag ThemeTags.Primary only when log+devices+output filled; else Elevated secondary via ApplyProcessButtonState. IsPrimaryNamed removed so name alone cannot force yellow.",
+      "afterScreenshotHints": [
+        "ui-audit/screenshots/after/main-light-mission-empty.png",
+        "ui-audit/screenshots/after/main-light-mission-ready.png"
+      ],
+      "auditorNote": "VERIFY live: empty-form Обработать is elevated/secondary grey (not Primary yellow). After three paths filled, CTA becomes solid Primary yellow (Light+Dark). Enabled stays clickable (Option A)."
+    },
     {
       "id": "UI-001",
       "screen": "navigation / main",
       "severity": "P1",
-      "category": "ux-layout",
-      "title": "Nav Справка/Конвертация open dialogs instead of in-app sections",
-      "description": "DESIGN.md describes Header + slim nav (Обработка / Справка / Конвертация) + content. Live behavior: Обработка is the only in-place section; Справка opens owned Form «Помощь»; Конвертация opens modal «Смена формата» while process cards remain visible underneath. Incremental fix: navHelp/navConvert no longer steal selected state — nav stays on Обработка while overlays open.",
+      "category": "IA / Layout",
+      "title": "Справка/Конвертация remain overlays over process workspace",
+      "description": "Forge shell adds a true nav rail, but Справка still opens owned «Помощь» over the left of the process layout (cards remain underneath). Full in-place panes deferred from prior pass. Convert not retested this run due to MCP hang.",
       "evidence": {
-        "screenshot": "ui-audit/screenshots/after/convert-over-main-dark.png",
+        "screenshot": "ui-audit/screenshots/after/help-light.png",
         "also": [
-          "ui-audit/screenshots/after/convert.png",
-          "ui-audit/screenshots/before/convert-over-main.png"
+          "ui-audit/screenshots/after/help-dark.png"
         ],
-        "visuallyVerified": true
+        "verified": true,
+        "notes": "Help still owned overlay over process cards. Convert not opened (UI-F10 hang)."
       },
-      "reproduction": [
-        "Launch LOGER",
-        "Click nav «Справка» or «Конвертация»",
-        "Observe nav selection remains on «Обработка» while overlay is open"
-      ],
-      "recommendation": "Either (A) make Справка/Конвертация true content panes that replace cardsHost, matching DESIGN.md, or (B) keep dialogs but demote them from primary nav to header actions so nav only switches real sections. Prefer (A) for premium IA.",
+      "probableCause": "Nav items still launch dialogs/forms rather than swapping workspaceHost content.",
+      "recommendation": "Prefer in-place content panes for Help/Convert inside Forge shell; if overlays stay, ensure selection/IA story matches DESIGN (active destination).",
       "acceptanceCriteria": [
-        "Primary nav either switches in-place content OR is not used for modal-only destinations",
-        "No process card stack visible underneath an active «section» destination",
-        "Active nav state matches the visible primary content"
+        "Primary nav destination matches visible primary content",
+        "No process card stack competing under an active section destination"
+      ],
+      "status": "failed",
+      "auditorNote": "VERIFY failed vs original AC: Справка still opens Помощь over process workspace (cards remain underneath). Convert not retested visually — Invoke hang. Forge header polish on Help is real but tracked/verified under UI-F03; does not satisfy in-place destination AC. Reopen for implementer if in-place panes still desired; otherwise re-scope AC explicitly.",
+      "implementerNote": "Bounded polish only per brief: Help + Convert keep overlays (DESIGN.md). Forge header (Primary mark + PageTitle) + ThemePalette surfaces applied. In-place panes still deferred.",
+      "afterScreenshotHints": [
+        "ui-audit/screenshots/after/help-light.png",
+        "ui-audit/screenshots/after/convert-light.png"
+      ]
+    },
+    {
+      "id": "UI-F03",
+      "screen": "Help / Помощь",
+      "severity": "P2",
+      "category": "Consistency / Visual Design",
+      "title": "Help chrome still lag Forge shell",
+      "description": "«Помощь» is a classic tree + RichEdit document overlay. It does not reuse icon-rail language, mission surfaces, or Forge header density. Reads as a second product generation behind the main shell.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/help-light-window.png",
+        "also": [
+          "ui-audit/screenshots/after/help-dark-window.png",
+          "ui-audit/screenshots/after/help-light.png",
+          "ui-audit/screenshots/after/help-dark.png"
+        ],
+        "verified": true
+      },
+      "probableCause": "HelpForm not fully migrated to Forge surfaces / Modern* controls.",
+      "recommendation": "Restyle Help as Forge elevated Surface: themed tree, Section typography, Primary selection wash, shared radius tokens; optionally dock as workspace pane.",
+      "acceptanceCriteria": [
+        "Help Light/Dark match ThemePalette surface hierarchy",
+        "Selection/search chrome feel native to Forge shell"
       ],
       "status": "verified",
-      "implementerNote": "2026-10-08: Full in-place panes (A) deferred. Incremental: navHelp/navConvert no longer select as active while overlays open; nav stays on Обработка.",
-      "auditorNote": "VERIFY 2026-10-08: Incremental acceptance MET (Обработка stays selected under Help/Convert — convert-over-main-dark.png, convert.png). Full IA (in-place panes / no cards under section) still PENDING — tracked as residual on this ID."
+      "implementerNote": "Added Forge header (Primary diamond + PageTitle), Header/Elevated tags, ThemeForm retained. Content system unchanged.",
+      "afterScreenshotHints": [
+        "ui-audit/screenshots/after/help-light.png",
+        "ui-audit/screenshots/after/help-dark.png"
+      ],
+      "auditorNote": "VERIFY live: Help shows Forge header (Помощь PageTitle + Primary yellow mark), themed Light/Dark surfaces, yellow selection wash on tree. Content still tree+RichEdit — acceptable for this AC batch; closer to shell than pre-fix classic chrome."
+    },
+    {
+      "id": "UI-F04",
+      "screen": "Main — Header / Nav",
+      "severity": "P2",
+      "category": "Visual Design",
+      "title": "Duplicate yellow brand marks (header + rail)",
+      "description": "Solid yellow square appears both beside «LOGER» in the header and again at the top of the nav rail (navBrandMark). Creates twin brand hotspots and slightly weakens accent discipline.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "also": [
+          "ui-audit/screenshots/before/main-dark.png"
+        ],
+        "verified": true
+      },
+      "probableCause": "Header brand mark and navBrandStrip both paint Primary diamond.",
+      "recommendation": "Keep one dominant mark (prefer header brand + wordmark; rail top can be spacer or subtle LOGER monogram without second full yellow square).",
+      "acceptanceCriteria": [
+        "Only one primary yellow brand diamond visible at a time in default layout",
+        "Selected nav pill remains the rail’s yellow accent"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-F05",
+      "screen": "Main — Console",
+      "severity": "P2",
+      "category": "Layout / Empty state",
+      "title": "Activity console still dominates idle vertical space",
+      "description": "Placeholder «Журнал обработки появится здесь» is good, but the idle console band still takes a large share of the window under a short mission/workspace column — especially noticeable in Light.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "also": [
+          "ui-audit/screenshots/before/main-dark.png"
+        ],
+        "verified": true
+      },
+      "probableCause": "Default splitter ratio still favors console height.",
+      "recommendation": "Lower default console fraction further; consider collapsed-by-default with peek strip until first log line.",
+      "acceptanceCriteria": [
+        "On default 1080p window, workspace+mission clearly dominate idle height",
+        "Placeholder remains when collapsed/peek"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-F06",
+      "screen": "Main — Cards",
+      "severity": "P2",
+      "category": "Component Quality",
+      "title": "Secondary controls undercut Forge premium shell",
+      "description": "Path textboxes and Обзор / Создать… / Параметры / Посылки buttons read as stock WinForms chrome next to custom nav pills and Primary CTA. Light theme exposes this gap more than Dark.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true
+      },
+      "probableCause": "Mixed Modern* CTA/nav with default Button/TextBox rendering on cards.",
+      "recommendation": "Unify secondary actions to ModernButton ghost/default; inputs to bordered Elevated fields with Radius.Md and Border tokens.",
+      "acceptanceCriteria": [
+        "Secondary buttons share one visual family across cards",
+        "Inputs match Surface/Border tokens in Light and Dark"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-F07",
+      "screen": "Main — Dark",
+      "severity": "P2",
+      "category": "Visual Design / Theme",
+      "title": "Dark surface elevation is too flat vs Forge atmosphere",
+      "description": "Dark Canvas/Surface/Elevated cards are close in value; workspace lacks the layered depth DESIGN references (elevated surfaces / soft borders). Light feels airier and more premium than Dark.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-dark.png",
+        "also": [
+          "ui-audit/screenshots/before/main-light.png"
+        ],
+        "verified": true
+      },
+      "probableCause": "Card fill too close to Canvas; borders low-contrast; no subtle Elevated differentiation.",
+      "recommendation": "Increase Dark Elevated vs Canvas delta; strengthen Border on cards; keep no multi-layer shadows per DESIGN performance rules.",
+      "acceptanceCriteria": [
+        "Dark cards clearly sit above Canvas without relying on heavy shadows",
+        "Light/Dark feel equally finished"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-F08",
+      "screen": "Main — Theme toggle",
+      "severity": "P3",
+      "category": "Polish",
+      "title": "Theme control is a generic «Тема» chip",
+      "description": "Header right edge has a small outlined «Тема» button. Functionally fine; as a dual-theme product story it underplays Light/Dark as first-class Forge features.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true
+      },
+      "probableCause": "Minimal text toggle without sun/moon or segmented control.",
+      "recommendation": "Icon+tooltip segmented Light/Dark control using Border/Primary selected state; keep AccessibleName flip text.",
+      "acceptanceCriteria": [
+        "Theme control communicates current mode at a glance",
+        "UIA name remains clear for both states"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-F09",
+      "screen": "Main — Result / Mission",
+      "severity": "P3",
+      "category": "Layout",
+      "title": "Результат card competes with mission column width",
+      "description": "Результат sits as a narrow mid-column card beside the stacked inputs while «Запуск» owns the far right. Save path field looks cramped vs left-column inputs; composition is readable but slightly awkward vs DESIGN «workspace (inputs + output) | mission».",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true
+      },
+      "probableCause": "cardsHost two-column grid places output beside inputs rather than stacking output into left workspace under inputs.",
+      "recommendation": "Either widen Result within workspace grid or stack Result under inputs in left column so mission panel is purely checklist+CTA.",
+      "acceptanceCriteria": [
+        "Output path field width comparable to other path fields",
+        "Mission panel reads as dedicated CTA column"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-F10",
+      "screen": "navigation — Конвертация",
+      "severity": "P2",
+      "category": "Interaction",
+      "title": "Nav «Конвертация» Invoke hangs / unstable under Windows MCP",
+      "description": "Two Invoke attempts on Конвертация timed out (UIA Timeout). First hang correlated with MCP 0x80131505 and LOGER process exit. Blocks automated Convert visual audit.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true,
+        "notes": "Functional bug for automation path; may also affect assistive Invoke. Manual click not confirmed this pass."
+      },
+      "probableCause": "Modal Convert shown on UI thread blocking UIA Invoke return; or NavigationItem Invoke handler deadlock.",
+      "recommendation": "Ensure Convert open is async/non-blocking for UIA Invoke; verify with FlaUI Click and Invoke; add AutomationId navConvert regression.",
+      "acceptanceCriteria": [
+        "FlaUI Invoke and Click both open Convert without hanging host",
+        "LOGER remains responsive after open/close"
+      ],
+      "status": "open",
+      "auditorNote": "Reconfirmed VERIFY 2026-10-08: windows_click Конвертация → UIA Timeout; MCP 0x80131505; LOGER exited. Still open."
+    },
+    {
+      "id": "UI-009",
+      "screen": "process",
+      "severity": "P3",
+      "category": "visual",
+      "title": "Idle yellow strip between cards and console",
+      "description": "Prior idle Primary band above console. Fresh Forge Light/Dark captures show no Primary progress-like strip between workspace and console — only intentional yellow mission underline + CTA + nav/brand accents.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/before/main-dark.png",
+        "also": [
+          "ui-audit/screenshots/before/main-light.png"
+        ],
+        "verified": true
+      },
+      "recommendation": "Keep splitter non-Primary at idle.",
+      "acceptanceCriteria": [
+        "Idle UI does not show Primary-colored progress-like bar"
+      ],
+      "status": "verified",
+      "auditorNote": "Forge audit 2026-10-08: defect not observed on fresh Release EXE captures."
+    },
+    {
+      "id": "UI-010",
+      "screen": "process",
+      "severity": "P3",
+      "category": "ux-feedback",
+      "title": "Validation errors are console-only without field highlight",
+      "description": "Not retested with devices gate this Forge pass. Remains open as residual from prior audit.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/devices-attempt.png",
+        "verified": false
+      },
+      "recommendation": "Error/Warning border on failing card/field; semantic colors only.",
+      "acceptanceCriteria": [
+        "Failing step identifiable without reading console"
+      ],
+      "status": "not_tested"
     },
     {
       "id": "UI-002",
       "screen": "help",
       "severity": "P2",
       "category": "consistency-polish",
-      "title": "Help window ignores ThemePalette / AntdUI visual language",
-      "description": "«Помощь» previously used classic TreeView with gray selection and no brand chrome. After fix: ThemePalette backgrounds, Primary-tint selection (clear gold in light; muted olive wash in dark), search AccessibleName/placeholder «Поиск по справке». Tree still uses classic +/- expanders.",
+      "title": "Help ThemePalette incremental (superseded by UI-F03)",
+      "description": "Prior Help theming improvements exist; Forge pass still finds Help visually behind shell — tracked as UI-F03.",
       "evidence": {
-        "screenshot": "ui-audit/screenshots/after/help.png",
-        "also": [
-          "ui-audit/screenshots/after/help-dark.png",
-          "ui-audit/screenshots/before/help.png"
-        ],
-        "visuallyVerified": true
+        "screenshot": "ui-audit/screenshots/before/help-light.png",
+        "verified": true
       },
-      "reproduction": [
-        "Click nav «Справка»",
-        "Inspect tree selection color + search field name in UIA",
-        "Toggle dark theme and reopen Help"
-      ],
-      "recommendation": "Restyle Help to ThemePalette: Surface/Elevated panels, Border tokens, Primary selection, Segoe UI Variable scale. Replace or theme TreeView; add search placeholder «Поиск по справке».",
-      "acceptanceCriteria": [
-        "Help respects Light/Dark tokens from DESIGN.md",
-        "Selected topic uses Primary-tinted selection, not generic gray-only",
-        "Search field has accessible name/placeholder"
-      ],
-      "status": "verified",
-      "auditorNote": "Light selection gold OK; dark selection is low-contrast olive (still non-gray). Search UIA name «Поиск по справке» confirmed. Visible cue banner weak when empty."
+      "recommendation": "See UI-F03.",
+      "acceptanceCriteria": [],
+      "status": "open",
+      "auditorNote": "Superseded for implementer priority by UI-F03; keep ID for history."
     },
     {
       "id": "UI-003",
       "screen": "convert",
       "severity": "P2",
       "category": "consistency-color",
-      "title": "Convert dialog lacks Primary CTA and feels unthemed",
-      "description": "«Смена формата» now uses themed dialog chrome and solid Primary yellow «Преобразовать». Открыть/Закрыть remain secondary. FlaUI confirms Преобразовать IsEnabled=false with empty inputs, but fill stays solid Primary yellow (weak disabled affordance).",
+      "title": "Convert dialog Primary CTA (not retested)",
+      "description": "Prior VERIFY claimed themed Convert + Primary «Преобразовать». This Forge AUDIT could not reopen Convert (UI-F10).",
       "evidence": {
         "screenshot": "ui-audit/screenshots/after/convert.png",
-        "also": [
-          "ui-audit/screenshots/after/convert-dark.png",
-          "ui-audit/screenshots/before/convert.png",
-          "ui-audit/screenshots/after/convert-btn-enabled.txt"
-        ],
-        "visuallyVerified": true
+        "verified": false
       },
-      "reproduction": [
-        "Click «Конвертация»",
-        "Compare footer Primary to main «Обработать»"
-      ],
-      "recommendation": "Style dialog with Surface background, Primary «Преобразовать» when enabled; keep ghost/default for others; muted labels.",
+      "recommendation": "Retest after UI-F10; confirm disabled affordance residual.",
       "acceptanceCriteria": [
-        "Enabled primary convert action uses Primary token",
-        "Dialog backgrounds match theme Canvas/Surface roles",
-        "Disabled state remains clearly non-interactive without looking broken"
+        "Enabled primary uses Primary token",
+        "Disabled state clearly non-interactive"
       ],
-      "status": "verified",
-      "auditorNote": "AC1–2 met. AC3 residual: disabled Преобразовать still solid yellow (IsEnabled=false) — polish residual, not enough to fail Primary CTA delivery."
+      "status": "not_tested"
     },
     {
       "id": "UI-004",
       "screen": "process",
       "severity": "P2",
       "category": "ux-feedback",
-      "title": "Status bar contradicts console error state",
-      "description": "After «Устройства и параметры» without packets file, console shows error and statusBadge now reads «Нужен файл посылок» in semantic Error red (light and dark). Previously status stayed «Готово к обработке».",
+      "title": "Status bar sync with console errors",
+      "description": "Previously verified. Not retested this Forge pass.",
       "evidence": {
         "screenshot": "ui-audit/screenshots/after/devices-attempt.png",
-        "also": [
-          "ui-audit/screenshots/after/devices-attempt-dark.png",
-          "ui-audit/screenshots/before/devices-attempt.png"
-        ],
-        "visuallyVerified": true
+        "verified": false
       },
-      "reproduction": [
-        "On empty process form click «Устройства и параметры»",
-        "Read console vs status bar"
-      ],
-      "recommendation": "On validation/error, update status bar to Error/Warning role text using semantic Error color.",
+      "recommendation": "Keep statusBadge semantic sync.",
       "acceptanceCriteria": [
-        "Status bar reflects error/ready consistently with last user action",
-        "Error text uses semantic (non-yellow-fill) error styling per DESIGN.md"
+        "Status reflects last validation/error"
       ],
-      "status": "verified"
+      "status": "not_tested"
     },
     {
       "id": "UI-005",
       "screen": "process",
       "severity": "P2",
       "category": "empty-state",
-      "title": "Activity console empty state is a large dead zone",
-      "description": "Idle console now shows muted placeholder «Журнал обработки появится здесь» and default height is shorter (~30% cap), leaving more room for cards.",
+      "title": "Console empty placeholder (partially addressed)",
+      "description": "Placeholder present on Forge idle. Height still an issue — continue as UI-F05.",
       "evidence": {
-        "screenshot": "ui-audit/screenshots/after/main.png",
-        "also": [
-          "ui-audit/screenshots/after/main-dark.png",
-          "ui-audit/screenshots/before/main.png"
-        ],
-        "visuallyVerified": true
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true
       },
-      "reproduction": [
-        "Launch LOGER with no files",
-        "Observe bottom pane before any action"
-      ],
-      "recommendation": "Add muted placeholder; shorter default splitter ratio.",
+      "recommendation": "See UI-F05 for remaining height work.",
       "acceptanceCriteria": [
-        "Idle console communicates purpose without looking broken",
-        "Default splitter leaves more room for cards on typical 1080p window"
+        "Idle console communicates purpose"
       ],
-      "status": "verified"
+      "status": "verified",
+      "auditorNote": "Placeholder AC met; height residual moved to UI-F05."
     },
     {
       "id": "UI-006",
       "screen": "process",
       "severity": "P3",
       "category": "spacing-alignment",
-      "title": "Secondary action buttons create ragged right edge",
-      "description": "Secondary path-row buttons (Посылки / Создать… / Создать .xlsx / Параметры) now share a common right edge across cards 1–4; Обзор column remains aligned.",
+      "title": "Secondary button column alignment",
+      "description": "Not carefully re-measured this pass; Forge cards retain Обзор + secondary pairs. Treat as low priority vs UI-F06 component unification.",
       "evidence": {
-        "screenshot": "ui-audit/screenshots/after/main.png",
-        "also": [
-          "ui-audit/screenshots/after/main-dark.png",
-          "ui-audit/screenshots/before/main.png"
-        ],
-        "visuallyVerified": true
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true
       },
-      "reproduction": [
-        "Open Обработка",
-        "Visually align right edges of secondary buttons across cards 1–4"
-      ],
-      "recommendation": "Fixed min-width for secondary actions or equal-width button column.",
+      "recommendation": "Align with UI-F06 ModernButton column.",
       "acceptanceCriteria": [
-        "Secondary buttons share a common right edge across cards",
-        "Обзор column remains aligned"
+        "Secondary buttons share a common right edge across cards"
       ],
-      "status": "verified"
+      "status": "open"
     },
     {
       "id": "UI-007",
       "screen": "process",
       "severity": "P3",
       "category": "layout",
-      "title": "Primary CTA «Обработать» is left-anchored with large trailing void",
-      "description": "«Обработать» is now right-aligned in the action bar as an intentional cluster (Primary remains dominant yellow OnPrimary).",
+      "title": "Primary CTA left-anchored with trailing void",
+      "description": "Superseded by Forge mission panel: «Обработать» now sits as full-width Primary in Запуск column — intentional composition.",
       "evidence": {
-        "screenshot": "ui-audit/screenshots/after/main.png",
-        "also": [
-          "ui-audit/screenshots/after/main-dark.png",
-          "ui-audit/screenshots/before/main.png"
-        ],
-        "visuallyVerified": true
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true
       },
-      "reproduction": [
-        "View actionBar under card 4 on default window size"
-      ],
-      "recommendation": "Right-aligned action cluster or full-width Primary.",
+      "recommendation": "None — closed by Forge layout.",
       "acceptanceCriteria": [
-        "Action bar reads as intentional composition, not leftover empty strip",
-        "Primary remains the dominant CTA"
+        "Action bar reads as intentional composition"
       ],
       "status": "verified"
     },
@@ -339,70 +612,41 @@
       "screen": "accessibility",
       "severity": "P2",
       "category": "accessibility",
-      "title": "Documented AutomationIds not visible in UIA snapshot",
-      "description": "FlaUI UIA2 now finds AutomationIds navProcess, navHelp, navConvert, buttonThemeToggle, buttonDevicesParams with localized Name preserved. MCP windows_snapshot still shows Name-only (tool format limitation).",
+      "title": "AutomationIds vs MCP snapshot",
+      "description": "MCP snapshot still Name-only. Nav buttons expose localized Names (Обработка/Справка/Конвертация); theme AccessibleName flips. FlaUI AutomationId not re-dumped this pass.",
       "evidence": {
-        "screenshot": "ui-audit/screenshots/after/main.png",
-        "visuallyVerified": true,
-        "notes": "Verified via FlaUI UIA2 FindFirstDescendant ByAutomationId on live window; also Loger.UiRunner elements.json"
+        "screenshot": "ui-audit/screenshots/before/main-light.png",
+        "verified": true,
+        "notes": "Snapshot Names confirmed live."
       },
-      "reproduction": [
-        "Launch LOGER",
-        "FlaUI find by AutomationId navProcess / buttonThemeToggle / buttonDevicesParams"
-      ],
-      "recommendation": "Set AutomationProperties.AutomationId on NavigationItem and theme/devices buttons.",
+      "recommendation": "Keep AutomationIds; document MCP Name-only limitation.",
       "acceptanceCriteria": [
-        "FlaUI/UIA exposes navProcess, navHelp, navConvert, buttonThemeToggle, buttonDevicesParams",
-        "Existing Name/localized text preserved for users"
+        "FlaUI exposes navProcess/navHelp/navConvert/buttonThemeToggle"
       ],
-      "status": "verified",
-      "auditorNote": "Raw System.Windows.Automation (UIA3) PropertyCondition may still miss nav* (numeric Pane ids observed); FlaUI UIA2 path used by UiRunner succeeds — AC references FlaUI."
-    },
-    {
-      "id": "UI-009",
-      "screen": "process",
-      "severity": "P3",
-      "category": "visual",
-      "title": "Idle yellow strip between cards and console looks like stuck progress",
-      "description": "Idle Primary-colored horizontal band between card stack and activity console still present in after captures (especially dark). Not in this implementer batch.",
-      "evidence": {
-        "screenshot": "ui-audit/screenshots/after/main-dark.png",
-        "also": [
-          "ui-audit/screenshots/before/main-dark.png"
-        ],
-        "visuallyVerified": true
-      },
-      "reproduction": [
-        "Toggle dark theme on empty form",
-        "Observe band above console without running a job"
-      ],
-      "recommendation": "If splitter: use Border/Elevated, not Primary. If progress: hide at idle.",
-      "acceptanceCriteria": [
-        "Idle UI does not show Primary-colored progress-like bar",
-        "During processing, progress uses Primary intentionally"
-      ],
-      "status": "open"
-    },
-    {
-      "id": "UI-010",
-      "screen": "process",
-      "severity": "P3",
-      "category": "ux-feedback",
-      "title": "Validation errors are console-only without field highlight",
-      "description": "Devices gate now updates status bar (UI-004) but still does not mark cardDevices / packets path field with Error/Warning border. Not in this implementer batch.",
-      "evidence": {
-        "screenshot": "ui-audit/screenshots/after/devices-attempt.png",
-        "visuallyVerified": true
-      },
-      "reproduction": [
-        "Click «Устройства и параметры» with empty packets path"
-      ],
-      "recommendation": "Apply Warning/Error border on cardDevices and focus packets path textbox; keep console message.",
-      "acceptanceCriteria": [
-        "Failing step is visually identifiable without reading console",
-        "No reliance on yellow fill for error (semantic colors)"
-      ],
-      "status": "open"
+      "status": "not_tested"
     }
-  ]
+  ],
+  "verifiedAt": "2026-10-08T22:39:12+05:00",
+  "verifyRunId": "forge-verify-2026-10-08",
+  "verifyScope": [
+    "UI-F01",
+    "UI-F02",
+    "UI-001",
+    "UI-F03"
+  ],
+  "previousVisualScore": 7.4,
+  "verifySummary": {
+    "verified": [
+      "UI-F01",
+      "UI-F02",
+      "UI-F03"
+    ],
+    "failed": [
+      "UI-001"
+    ],
+    "not_tested": [],
+    "aggregateScore": 7.5,
+    "previousAggregateScore": 7.4,
+    "notesRu": "Миссия: • на пустой форме и серый CTA; ✓ и Primary yellow после заполнения путей — Light/Dark OK. Help: Forge header с жёлтой меткой. UI-001 провален: оверлей Справки поверх карточек Обработки; Convert снова повесил MCP."
+  }
 }

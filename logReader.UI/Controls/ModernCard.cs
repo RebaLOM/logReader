@@ -1,9 +1,10 @@
 using System.ComponentModel;
+using System.Drawing.Drawing2D;
 using logReader.UI.Theme;
 
 namespace logReader.UI.Controls;
 
-// Карточка-поверхность: border + padding, без теней (perf).
+// Карточка-поверхность Forge: скругление + border, без теней (perf).
 public class ModernCard : Panel
 {
     private readonly Label _title;
@@ -45,21 +46,41 @@ public class ModernCard : Panel
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        // Полная заливка — иначе при ресайзе остаются «полоски» от предыдущих кадров.
+        // Углы вне скругления совпадают с фоном workspace (Surface), не с Canvas окна.
+        Color behind = Parent?.BackColor ?? AppTheme.Palette.Surface;
+        using (var clear = new SolidBrush(behind))
+            e.Graphics.FillRectangle(clear, ClientRectangle);
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = RoundedRect(new Rectangle(0, 0, Width - 1, Height - 1), Radius.Lg);
         using var brush = new SolidBrush(BackColor);
-        e.Graphics.FillRectangle(brush, ClientRectangle);
+        e.Graphics.FillPath(brush, path);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         ThemePalette p = AppTheme.Palette;
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var pen = new Pen(p.Border);
-        e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        using var path = RoundedRect(new Rectangle(0, 0, Width - 1, Height - 1), Radius.Lg);
+        e.Graphics.DrawPath(pen, path);
     }
 
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
         ApplyTheme(AppTheme.Palette);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
+    {
+        int d = Math.Max(2, radius * 2);
+        var path = new GraphicsPath();
+        path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
+        path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
+        path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
+        path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 }

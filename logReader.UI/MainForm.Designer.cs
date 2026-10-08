@@ -16,17 +16,33 @@ namespace logReader.UI
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            components = new System.ComponentModel.Container();
             rootLayout = new TableLayoutPanel();
             headerPanel = new Panel();
             brandAccent = new Panel();
             labelBrand = new Label();
+            labelPageTitle = new Label();
+            labelPageSubtitle = new Label();
             buttonThemeToggle = new Button();
             bodyLayout = new TableLayoutPanel();
             navPanel = new Panel();
+            navBrandStrip = new Panel();
+            navBrandMark = new Panel();
             navProcess = new Controls.NavigationItem();
             navHelp = new Controls.NavigationItem();
             navConvert = new Controls.NavigationItem();
             contentSplit = new SplitContainer();
+            workspaceHost = new Panel();
+            missionPanel = new Panel();
+            missionAccent = new Panel();
+            labelMissionTitle = new Label();
+            labelReadyHint = new Label();
+            buttonProcess = new Button();
+            buttonCancel = new Button();
+            progressBarProcess = new ProgressBar();
+            labelProgress = new Label();
+            buttonHelp = new Button();
+            buttonTrcToAsc = new Button();
             workScroll = new Panel();
             cardsHost = new Panel();
             cardLogs = new Controls.ModernCard();
@@ -52,31 +68,27 @@ namespace logReader.UI
             buttonOutput = new Button();
             buttonOpenOutput = new Button();
             buttonSaveOptions = new Button();
-            actionBar = new Panel();
-            buttonProcess = new Button();
-            buttonCancel = new Button();
-            buttonHelp = new Button();
-            buttonTrcToAsc = new Button();
-            progressBarProcess = new ProgressBar();
-            labelProgress = new Label();
             textBoxLog = new TextBox();
             statusBar = new Panel();
             statusBadge = new Controls.StatusBadge();
+            toolTipNav = new ToolTip(components);
             rootLayout.SuspendLayout();
             headerPanel.SuspendLayout();
             bodyLayout.SuspendLayout();
             navPanel.SuspendLayout();
+            navBrandStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)contentSplit).BeginInit();
             contentSplit.Panel1.SuspendLayout();
             contentSplit.Panel2.SuspendLayout();
             contentSplit.SuspendLayout();
+            workspaceHost.SuspendLayout();
+            missionPanel.SuspendLayout();
             workScroll.SuspendLayout();
             cardsHost.SuspendLayout();
             cardLogs.SuspendLayout();
             cardDevices.SuspendLayout();
             cardComposites.SuspendLayout();
             cardOutput.SuspendLayout();
-            actionBar.SuspendLayout();
             statusBar.SuspendLayout();
             SuspendLayout();
             // 
@@ -90,13 +102,15 @@ namespace logReader.UI
             rootLayout.Dock = DockStyle.Fill;
             rootLayout.Name = "rootLayout";
             rootLayout.RowCount = 3;
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56F));
             rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
             // 
             // headerPanel
             // 
             headerPanel.Controls.Add(buttonThemeToggle);
+            headerPanel.Controls.Add(labelPageSubtitle);
+            headerPanel.Controls.Add(labelPageTitle);
             headerPanel.Controls.Add(labelBrand);
             headerPanel.Controls.Add(brandAccent);
             headerPanel.Dock = DockStyle.Fill;
@@ -105,33 +119,49 @@ namespace logReader.UI
             // 
             // brandAccent
             // 
-            brandAccent.Location = new Point(16, 14);
+            brandAccent.Location = new Point(16, 19);
             brandAccent.Name = "brandAccent";
-            brandAccent.Size = new Size(4, 24);
+            brandAccent.Size = new Size(18, 18);
             // 
             // labelBrand
             // 
             labelBrand.AutoSize = true;
-            labelBrand.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
-            labelBrand.Location = new Point(28, 10);
+            labelBrand.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+            labelBrand.Location = new Point(42, 12);
             labelBrand.Name = "labelBrand";
             labelBrand.Text = "LOGER";
             // 
-            // buttonThemeToggle — позиция в LayoutHeader(); справа в шапке рядом с brand.
+            // labelPageTitle
+            // 
+            labelPageTitle.AutoSize = true;
+            labelPageTitle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+            labelPageTitle.Location = new Point(140, 14);
+            labelPageTitle.Name = "labelPageTitle";
+            labelPageTitle.Text = "Рабочая область";
+            // 
+            // labelPageSubtitle
+            // 
+            labelPageSubtitle.AutoSize = true;
+            labelPageSubtitle.Font = new Font("Segoe UI", 8.5F);
+            labelPageSubtitle.Location = new Point(320, 20);
+            labelPageSubtitle.Name = "labelPageSubtitle";
+            labelPageSubtitle.Text = "Обработка CAN-логов и экспорт";
+            // 
+            // buttonThemeToggle — позиция в LayoutHeader(); справа в шапке.
             // 
             buttonThemeToggle.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonThemeToggle.Location = new Point(748, 10);
-            buttonThemeToggle.AccessibleName = "Тёмная тема";
+            buttonThemeToggle.Location = new Point(960, 12);
+            buttonThemeToggle.AccessibleName = "Тема";
             buttonThemeToggle.Name = "buttonThemeToggle";
-            buttonThemeToggle.Size = new Size(130, 28);
+            buttonThemeToggle.Size = new Size(72, 28);
             buttonThemeToggle.TabIndex = 50;
-            buttonThemeToggle.Text = "Тёмная тема";
+            buttonThemeToggle.Text = "Тема";
             buttonThemeToggle.Click += buttonThemeToggle_Click;
             // 
             // bodyLayout
             // 
             bodyLayout.ColumnCount = 2;
-            bodyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148F));
+            bodyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72F));
             bodyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             bodyLayout.Controls.Add(navPanel, 0, 0);
             bodyLayout.Controls.Add(contentSplit, 1, 0);
@@ -146,15 +176,31 @@ namespace logReader.UI
             navPanel.Controls.Add(navConvert);
             navPanel.Controls.Add(navHelp);
             navPanel.Controls.Add(navProcess);
+            navPanel.Controls.Add(navBrandStrip);
             navPanel.Dock = DockStyle.Fill;
             navPanel.Name = "navPanel";
-            navPanel.Padding = new Padding(8, 12, 8, 8);
+            navPanel.Padding = new Padding(8, 8, 8, 8);
+            // 
+            // navBrandStrip
+            // 
+            navBrandStrip.Controls.Add(navBrandMark);
+            navBrandStrip.Dock = DockStyle.Top;
+            navBrandStrip.Name = "navBrandStrip";
+            navBrandStrip.Size = new Size(56, 40);
+            // 
+            // navBrandMark
+            // 
+            navBrandMark.Location = new Point(19, 11);
+            navBrandMark.Name = "navBrandMark";
+            navBrandMark.Size = new Size(18, 18);
             // 
             // navProcess — Name = AutomationId; AccessibleName = видимый текст.
             // 
             navProcess.AccessibleName = "Обработка";
             navProcess.Dock = DockStyle.Top;
+            navProcess.Icon = Icons.IconKind.Workspace;
             navProcess.Name = "navProcess";
+            navProcess.RailMode = true;
             navProcess.Selected = true;
             navProcess.Text = "Обработка";
             navProcess.Click += navProcess_Click;
@@ -163,7 +209,9 @@ namespace logReader.UI
             // 
             navHelp.AccessibleName = "Справка";
             navHelp.Dock = DockStyle.Top;
+            navHelp.Icon = Icons.IconKind.Help;
             navHelp.Name = "navHelp";
+            navHelp.RailMode = true;
             navHelp.Text = "Справка";
             navHelp.Click += navHelp_Click;
             // 
@@ -171,7 +219,9 @@ namespace logReader.UI
             // 
             navConvert.AccessibleName = "Конвертация";
             navConvert.Dock = DockStyle.Top;
+            navConvert.Icon = Icons.IconKind.Convert;
             navConvert.Name = "navConvert";
+            navConvert.RailMode = true;
             navConvert.Text = "Конвертация";
             navConvert.Click += navConvert_Click;
             // 
@@ -179,14 +229,122 @@ namespace logReader.UI
             // 
             contentSplit.Dock = DockStyle.Fill;
             contentSplit.Orientation = Orientation.Horizontal;
-            contentSplit.Panel1.Controls.Add(workScroll);
+            contentSplit.Panel1.Controls.Add(workspaceHost);
             contentSplit.Panel1MinSize = 320;
             contentSplit.Panel2.Controls.Add(textBoxLog);
-            contentSplit.Panel2MinSize = 80;
+            contentSplit.Panel2MinSize = 72;
             contentSplit.Name = "contentSplit";
-            contentSplit.SplitterDistance = 420;
+            contentSplit.SplitterDistance = 480;
             contentSplit.SplitterWidth = 6;
             contentSplit.TabStop = false;
+            // 
+            // workspaceHost — слева карточки, справа mission CTA.
+            // 
+            workspaceHost.Controls.Add(workScroll);
+            workspaceHost.Controls.Add(missionPanel);
+            workspaceHost.Dock = DockStyle.Fill;
+            workspaceHost.Name = "workspaceHost";
+            workspaceHost.Padding = new Padding(0);
+            // 
+            // missionPanel
+            // 
+            missionPanel.Controls.Add(labelProgress);
+            missionPanel.Controls.Add(progressBarProcess);
+            missionPanel.Controls.Add(buttonCancel);
+            missionPanel.Controls.Add(buttonProcess);
+            missionPanel.Controls.Add(labelReadyHint);
+            missionPanel.Controls.Add(labelMissionTitle);
+            missionPanel.Controls.Add(buttonTrcToAsc);
+            missionPanel.Controls.Add(buttonHelp);
+            missionPanel.Controls.Add(missionAccent);
+            missionPanel.Dock = DockStyle.Right;
+            missionPanel.Name = "missionPanel";
+            missionPanel.Padding = new Padding(16, 20, 16, 16);
+            missionPanel.Size = new Size(280, 480);
+            // 
+            // missionAccent — жёлтая полоска идентичности панели запуска.
+            // 
+            missionAccent.Dock = DockStyle.Top;
+            missionAccent.Name = "missionAccent";
+            missionAccent.Size = new Size(280, 3);
+            // 
+            // labelMissionTitle
+            // 
+            labelMissionTitle.AutoSize = true;
+            labelMissionTitle.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            labelMissionTitle.Location = new Point(16, 16);
+            labelMissionTitle.Name = "labelMissionTitle";
+            labelMissionTitle.Text = "Запуск";
+            // 
+            // labelReadyHint
+            // 
+            labelReadyHint.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            labelReadyHint.Font = new Font("Segoe UI", 8.5F);
+            labelReadyHint.Location = new Point(16, 44);
+            labelReadyHint.Name = "labelReadyHint";
+            labelReadyHint.Size = new Size(248, 96);
+            labelReadyHint.Text = "• Укажите источник логов\r\n• Загрузите посылки\r\n• Выберите файл результата\r\n• Нажмите «Обработать»";
+            // 
+            // buttonProcess
+            // 
+            buttonProcess.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            buttonProcess.Location = new Point(16, 160);
+            buttonProcess.Name = "buttonProcess";
+            buttonProcess.Size = new Size(248, 40);
+            buttonProcess.TabIndex = 14;
+            buttonProcess.Text = "Обработать";
+            buttonProcess.Click += buttonProcess_Click;
+            // 
+            // buttonCancel
+            // 
+            buttonCancel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            buttonCancel.Enabled = false;
+            buttonCancel.Location = new Point(16, 208);
+            buttonCancel.Name = "buttonCancel";
+            buttonCancel.Size = new Size(248, 32);
+            buttonCancel.TabIndex = 15;
+            buttonCancel.Text = "Отмена";
+            buttonCancel.Visible = false;
+            buttonCancel.Click += buttonCancel_Click;
+            // 
+            // progressBarProcess
+            // 
+            progressBarProcess.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            progressBarProcess.Location = new Point(16, 252);
+            progressBarProcess.Maximum = 1000;
+            progressBarProcess.Name = "progressBarProcess";
+            progressBarProcess.Size = new Size(248, 12);
+            progressBarProcess.TabStop = false;
+            progressBarProcess.Visible = false;
+            // 
+            // labelProgress
+            // 
+            labelProgress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            labelProgress.AutoEllipsis = true;
+            labelProgress.Location = new Point(16, 272);
+            labelProgress.Name = "labelProgress";
+            labelProgress.Size = new Size(248, 20);
+            labelProgress.Visible = false;
+            // 
+            // buttonHelp — скрыта; обработчик открывает справку из nav.
+            // 
+            buttonHelp.Location = new Point(16, 300);
+            buttonHelp.Name = "buttonHelp";
+            buttonHelp.Size = new Size(88, 32);
+            buttonHelp.TabIndex = 16;
+            buttonHelp.Text = "Помощь";
+            buttonHelp.Visible = false;
+            buttonHelp.Click += buttonHelp_Click;
+            // 
+            // buttonTrcToAsc — скрыта; обработчик открывает конвертацию из nav.
+            // 
+            buttonTrcToAsc.Location = new Point(112, 300);
+            buttonTrcToAsc.Name = "buttonTrcToAsc";
+            buttonTrcToAsc.Size = new Size(120, 32);
+            buttonTrcToAsc.TabIndex = 17;
+            buttonTrcToAsc.Text = "Смена формата";
+            buttonTrcToAsc.Visible = false;
+            buttonTrcToAsc.Click += buttonFormatConvert_Click;
             // 
             // workScroll
             // 
@@ -194,31 +352,30 @@ namespace logReader.UI
             workScroll.Controls.Add(cardsHost);
             workScroll.Dock = DockStyle.Fill;
             workScroll.Name = "workScroll";
-            workScroll.Padding = new Padding(12, 8, 12, 8);
+            workScroll.Padding = new Padding(12, 12, 12, 12);
             // 
             // cardsHost
             // 
             cardsHost.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            cardsHost.Controls.Add(actionBar);
             cardsHost.Controls.Add(cardOutput);
             cardsHost.Controls.Add(cardComposites);
             cardsHost.Controls.Add(cardDevices);
             cardsHost.Controls.Add(cardLogs);
-            cardsHost.Location = new Point(12, 8);
+            cardsHost.Location = new Point(12, 12);
             cardsHost.Name = "cardsHost";
-            cardsHost.Size = new Size(700, 520);
+            cardsHost.Size = new Size(700, 360);
             // 
             // cardLogs
             // 
-            cardLogs.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            cardLogs.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             cardLogs.Controls.Add(buttonViewLog);
             cardLogs.Controls.Add(buttonCANlog);
             cardLogs.Controls.Add(textBoxCanLog);
             cardLogs.Controls.Add(labelCANlog);
             cardLogs.Location = new Point(0, 0);
             cardLogs.Name = "cardLogs";
-            cardLogs.Size = new Size(700, 100);
-            cardLogs.Title = "1. Источник логов";
+            cardLogs.Size = new Size(400, 100);
+            cardLogs.Title = "Источник логов";
             // 
             // labelCANlog
             // 
@@ -232,13 +389,13 @@ namespace logReader.UI
             textBoxCanLog.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxCanLog.Location = new Point(16, 56);
             textBoxCanLog.Name = "textBoxCanLog";
-            textBoxCanLog.Size = new Size(520, 23);
+            textBoxCanLog.Size = new Size(220, 23);
             textBoxCanLog.TabIndex = 0;
             // 
             // buttonCANlog
             // 
             buttonCANlog.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonCANlog.Location = new Point(544, 54);
+            buttonCANlog.Location = new Point(244, 54);
             buttonCANlog.Name = "buttonCANlog";
             buttonCANlog.Size = new Size(72, 28);
             buttonCANlog.TabIndex = 1;
@@ -248,7 +405,7 @@ namespace logReader.UI
             // buttonViewLog
             // 
             buttonViewLog.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonViewLog.Location = new Point(620, 54);
+            buttonViewLog.Location = new Point(320, 54);
             buttonViewLog.Name = "buttonViewLog";
             buttonViewLog.Size = new Size(64, 28);
             buttonViewLog.TabIndex = 2;
@@ -257,17 +414,17 @@ namespace logReader.UI
             // 
             // cardDevices
             // 
-            cardDevices.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            cardDevices.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             cardDevices.Controls.Add(labelFilterStatus);
             cardDevices.Controls.Add(buttonDevicesCreateOrAdd);
             cardDevices.Controls.Add(buttonDevicesParams);
             cardDevices.Controls.Add(buttonDevices);
             cardDevices.Controls.Add(textBoxDevices);
             cardDevices.Controls.Add(labelDevices);
-            cardDevices.Location = new Point(0, 108);
+            cardDevices.Location = new Point(0, 112);
             cardDevices.Name = "cardDevices";
-            cardDevices.Size = new Size(700, 124);
-            cardDevices.Title = "2. Посылки и фильтры";
+            cardDevices.Size = new Size(400, 124);
+            cardDevices.Title = "Посылки и фильтры";
             // 
             // labelDevices
             // 
@@ -281,14 +438,14 @@ namespace logReader.UI
             textBoxDevices.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxDevices.Location = new Point(16, 56);
             textBoxDevices.Name = "textBoxDevices";
-            textBoxDevices.Size = new Size(520, 23);
+            textBoxDevices.Size = new Size(220, 23);
             textBoxDevices.TabIndex = 3;
             textBoxDevices.TextChanged += textBoxDevices_TextChanged;
             // 
             // buttonDevices
             // 
             buttonDevices.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonDevices.Location = new Point(544, 54);
+            buttonDevices.Location = new Point(244, 54);
             buttonDevices.Name = "buttonDevices";
             buttonDevices.Size = new Size(72, 28);
             buttonDevices.TabIndex = 4;
@@ -308,7 +465,7 @@ namespace logReader.UI
             // buttonDevicesCreateOrAdd
             // 
             buttonDevicesCreateOrAdd.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonDevicesCreateOrAdd.Location = new Point(620, 54);
+            buttonDevicesCreateOrAdd.Location = new Point(320, 54);
             buttonDevicesCreateOrAdd.Name = "buttonDevicesCreateOrAdd";
             buttonDevicesCreateOrAdd.Size = new Size(64, 28);
             buttonDevicesCreateOrAdd.TabIndex = 6;
@@ -321,20 +478,20 @@ namespace logReader.UI
             labelFilterStatus.AutoEllipsis = true;
             labelFilterStatus.Location = new Point(196, 92);
             labelFilterStatus.Name = "labelFilterStatus";
-            labelFilterStatus.Size = new Size(488, 16);
+            labelFilterStatus.Size = new Size(188, 16);
             labelFilterStatus.Text = "Фильтры: не заданы";
             // 
             // cardComposites
             // 
-            cardComposites.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            cardComposites.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             cardComposites.Controls.Add(buttonCompositesCreateOrAdd);
             cardComposites.Controls.Add(buttonComposites);
             cardComposites.Controls.Add(textBoxComposites);
             cardComposites.Controls.Add(labelComposites);
-            cardComposites.Location = new Point(0, 240);
+            cardComposites.Location = new Point(0, 248);
             cardComposites.Name = "cardComposites";
-            cardComposites.Size = new Size(700, 100);
-            cardComposites.Title = "3. Составные параметры (опционально)";
+            cardComposites.Size = new Size(400, 100);
+            cardComposites.Title = "Составные параметры";
             // 
             // labelComposites
             // 
@@ -348,14 +505,14 @@ namespace logReader.UI
             textBoxComposites.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxComposites.Location = new Point(16, 56);
             textBoxComposites.Name = "textBoxComposites";
-            textBoxComposites.Size = new Size(520, 23);
+            textBoxComposites.Size = new Size(220, 23);
             textBoxComposites.TabIndex = 7;
             textBoxComposites.TextChanged += textBoxComposites_TextChanged;
             // 
             // buttonComposites
             // 
             buttonComposites.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonComposites.Location = new Point(544, 54);
+            buttonComposites.Location = new Point(244, 54);
             buttonComposites.Name = "buttonComposites";
             buttonComposites.Size = new Size(72, 28);
             buttonComposites.TabIndex = 8;
@@ -365,7 +522,7 @@ namespace logReader.UI
             // buttonCompositesCreateOrAdd
             // 
             buttonCompositesCreateOrAdd.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonCompositesCreateOrAdd.Location = new Point(620, 54);
+            buttonCompositesCreateOrAdd.Location = new Point(320, 54);
             buttonCompositesCreateOrAdd.Name = "buttonCompositesCreateOrAdd";
             buttonCompositesCreateOrAdd.Size = new Size(64, 28);
             buttonCompositesCreateOrAdd.TabIndex = 9;
@@ -374,16 +531,16 @@ namespace logReader.UI
             // 
             // cardOutput
             // 
-            cardOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            cardOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             cardOutput.Controls.Add(buttonSaveOptions);
             cardOutput.Controls.Add(buttonOpenOutput);
             cardOutput.Controls.Add(buttonOutput);
             cardOutput.Controls.Add(textBoxOutput);
             cardOutput.Controls.Add(labelResult);
-            cardOutput.Location = new Point(0, 348);
+            cardOutput.Location = new Point(412, 0);
             cardOutput.Name = "cardOutput";
-            cardOutput.Size = new Size(700, 100);
-            cardOutput.Title = "4. Выходной файл";
+            cardOutput.Size = new Size(280, 348);
+            cardOutput.Title = "Результат";
             // 
             // labelResult
             // 
@@ -397,14 +554,14 @@ namespace logReader.UI
             textBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textBoxOutput.Location = new Point(16, 56);
             textBoxOutput.Name = "textBoxOutput";
-            textBoxOutput.Size = new Size(448, 23);
+            textBoxOutput.Size = new Size(120, 23);
             textBoxOutput.TabIndex = 10;
             textBoxOutput.TextChanged += textBoxOutput_TextChanged;
             // 
             // buttonOutput
             // 
             buttonOutput.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonOutput.Location = new Point(472, 54);
+            buttonOutput.Location = new Point(144, 54);
             buttonOutput.Name = "buttonOutput";
             buttonOutput.Size = new Size(72, 28);
             buttonOutput.TabIndex = 11;
@@ -414,7 +571,7 @@ namespace logReader.UI
             // buttonOpenOutput
             // 
             buttonOpenOutput.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonOpenOutput.Location = new Point(548, 54);
+            buttonOpenOutput.Location = new Point(144, 88);
             buttonOpenOutput.Name = "buttonOpenOutput";
             buttonOpenOutput.Size = new Size(64, 28);
             buttonOpenOutput.TabIndex = 12;
@@ -425,84 +582,12 @@ namespace logReader.UI
             // buttonSaveOptions
             // 
             buttonSaveOptions.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            buttonSaveOptions.Location = new Point(616, 54);
+            buttonSaveOptions.Location = new Point(212, 54);
             buttonSaveOptions.Name = "buttonSaveOptions";
             buttonSaveOptions.Size = new Size(68, 28);
             buttonSaveOptions.TabIndex = 13;
             buttonSaveOptions.Text = "Параметры";
             buttonSaveOptions.Click += buttonSaveOptions_Click;
-            // 
-            // actionBar
-            // 
-            actionBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            actionBar.Controls.Add(labelProgress);
-            actionBar.Controls.Add(progressBarProcess);
-            actionBar.Controls.Add(buttonTrcToAsc);
-            actionBar.Controls.Add(buttonHelp);
-            actionBar.Controls.Add(buttonCancel);
-            actionBar.Controls.Add(buttonProcess);
-            actionBar.Location = new Point(0, 456);
-            actionBar.Name = "actionBar";
-            actionBar.Size = new Size(700, 56);
-            // 
-            // buttonProcess
-            // 
-            buttonProcess.Location = new Point(0, 8);
-            buttonProcess.Name = "buttonProcess";
-            buttonProcess.Size = new Size(120, 32);
-            buttonProcess.TabIndex = 14;
-            buttonProcess.Text = "Обработать";
-            buttonProcess.Click += buttonProcess_Click;
-            // 
-            // buttonCancel
-            // 
-            buttonCancel.Enabled = false;
-            buttonCancel.Location = new Point(128, 8);
-            buttonCancel.Name = "buttonCancel";
-            buttonCancel.Size = new Size(88, 32);
-            buttonCancel.TabIndex = 15;
-            buttonCancel.Text = "Отмена";
-            buttonCancel.Visible = false;
-            buttonCancel.Click += buttonCancel_Click;
-            // 
-            // buttonHelp
-            // 
-            buttonHelp.Location = new Point(224, 8);
-            buttonHelp.Name = "buttonHelp";
-            buttonHelp.Size = new Size(88, 32);
-            buttonHelp.TabIndex = 16;
-            buttonHelp.Text = "Помощь";
-            buttonHelp.Visible = false;
-            buttonHelp.Click += buttonHelp_Click;
-            // 
-            // buttonTrcToAsc
-            // 
-            buttonTrcToAsc.Location = new Point(320, 8);
-            buttonTrcToAsc.Name = "buttonTrcToAsc";
-            buttonTrcToAsc.Size = new Size(120, 32);
-            buttonTrcToAsc.TabIndex = 17;
-            buttonTrcToAsc.Text = "Смена формата";
-            buttonTrcToAsc.Visible = false;
-            buttonTrcToAsc.Click += buttonFormatConvert_Click;
-            // 
-            // progressBarProcess
-            // 
-            progressBarProcess.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            progressBarProcess.Location = new Point(224, 14);
-            progressBarProcess.Maximum = 1000;
-            progressBarProcess.Name = "progressBarProcess";
-            progressBarProcess.Size = new Size(280, 12);
-            progressBarProcess.TabStop = false;
-            progressBarProcess.Visible = false;
-            // 
-            // labelProgress
-            // 
-            labelProgress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            labelProgress.AutoEllipsis = true;
-            labelProgress.Location = new Point(512, 12);
-            labelProgress.Name = "labelProgress";
-            labelProgress.Size = new Size(180, 20);
-            labelProgress.Visible = false;
             // 
             // textBoxLog
             // 
@@ -520,7 +605,7 @@ namespace logReader.UI
             statusBar.Controls.Add(statusBadge);
             statusBar.Dock = DockStyle.Fill;
             statusBar.Name = "statusBar";
-            statusBar.Padding = new Padding(12, 4, 12, 4);
+            statusBar.Padding = new Padding(12, 6, 12, 6);
             // 
             // statusBadge
             // 
@@ -532,11 +617,10 @@ namespace logReader.UI
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            // Высота: карточки (~520) + журнал + шапка/статус без прокрутки до «Обработать».
-            ClientSize = new Size(920, 760);
+            ClientSize = new Size(1080, 780);
             Controls.Add(rootLayout);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MinimumSize = new Size(780, 640);
+            MinimumSize = new Size(900, 680);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "LOGER";
@@ -545,11 +629,15 @@ namespace logReader.UI
             headerPanel.PerformLayout();
             bodyLayout.ResumeLayout(false);
             navPanel.ResumeLayout(false);
+            navBrandStrip.ResumeLayout(false);
             contentSplit.Panel1.ResumeLayout(false);
             contentSplit.Panel2.ResumeLayout(false);
             contentSplit.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)contentSplit).EndInit();
             contentSplit.ResumeLayout(false);
+            workspaceHost.ResumeLayout(false);
+            missionPanel.ResumeLayout(false);
+            missionPanel.PerformLayout();
             workScroll.ResumeLayout(false);
             cardsHost.ResumeLayout(false);
             cardLogs.ResumeLayout(false);
@@ -560,7 +648,6 @@ namespace logReader.UI
             cardComposites.PerformLayout();
             cardOutput.ResumeLayout(false);
             cardOutput.PerformLayout();
-            actionBar.ResumeLayout(false);
             statusBar.ResumeLayout(false);
             ResumeLayout(false);
         }
@@ -572,21 +659,30 @@ namespace logReader.UI
         private Panel headerPanel;
         private Panel brandAccent;
         private Label labelBrand;
+        private Label labelPageTitle;
+        private Label labelPageSubtitle;
         private Button buttonThemeToggle;
         private Panel navPanel;
+        private Panel navBrandStrip;
+        private Panel navBrandMark;
         private Controls.NavigationItem navProcess;
         private Controls.NavigationItem navHelp;
         private Controls.NavigationItem navConvert;
         private SplitContainer contentSplit;
+        private Panel workspaceHost;
         private Panel workScroll;
         private Panel cardsHost;
+        private Panel missionPanel;
+        private Panel missionAccent;
+        private Label labelMissionTitle;
+        private Label labelReadyHint;
         private Controls.ModernCard cardLogs;
         private Controls.ModernCard cardDevices;
         private Controls.ModernCard cardComposites;
         private Controls.ModernCard cardOutput;
-        private Panel actionBar;
         private Panel statusBar;
         private Controls.StatusBadge statusBadge;
+        private ToolTip toolTipNav;
         private Label labelCANlog;
         private Label labelDevices;
         private Label labelComposites;

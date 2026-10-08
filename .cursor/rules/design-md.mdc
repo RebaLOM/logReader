@@ -1,20 +1,21 @@
 ---
-description: Следовать DESIGN.md при любых UI/тема-правках WinForms
+description: Следовать DESIGN.md (Forge) при любых UI/тема-правках WinForms
 globs: logReader.UI/**/*.{cs,resx}
 alwaysApply: false
 ---
 
-# DESIGN.md — LOGER UI
+# DESIGN.md — LOGER Forge UI
 
-При работе с UI читай корневой `DESIGN.md`.
+При работе с UI читай корневой `DESIGN.md` (концепт **Forge**).
 
 ## Обязательно
 
-- Цвета только из `ThemePalette` / `AppTheme` (чёрно-жёлтый primary).
-- Сохранять Light/Dark и переключатель темы.
-- Жёлтый — акцент (CTA, nav, brand mark), не фон всего экрана.
+- Цвета только из `ThemePalette` / `AppTheme` (жёлтый Primary).
+- Light и Dark — равноправные темы; переключатель в шапке.
+- Жёлтый — акцент (CTA, rail selection, brand mark), не фон всего экрана.
 - Success / Warning / Error не подменять Primary.
 - Контраст текста: `ThemeRegressionTests` (≥ 4.5 для primary/error и основного текста).
+- Shell: icon rail 72px, workspace + mission panel, AntdUI только для toast bridge.
 
 ## Не делать
 

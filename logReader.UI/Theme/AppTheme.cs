@@ -196,7 +196,8 @@ public static class AppTheme
         btn.UseVisualStyleBackColor = false;
         EnsureFont(btn, Typography.UiFamily, 9f, FontStyle.Regular);
 
-        if (ReferenceEquals(btn.Tag, ThemeTags.Primary) || IsPrimaryNamed(btn))
+        // Primary только по Tag — иначе «Обработать» всегда жёлтый даже на пустой форме.
+        if (ReferenceEquals(btn.Tag, ThemeTags.Primary))
         {
             btn.BackColor = p.Primary;
             btn.ForeColor = p.OnPrimary;
@@ -242,9 +243,6 @@ public static class AppTheme
         || string.Equals(lbl.Name, "labelProgress", StringComparison.Ordinal)
         || lbl.ForeColor == Color.DimGray
         || lbl.ForeColor == Color.DarkGray;
-
-    private static bool IsPrimaryNamed(Button btn) =>
-        string.Equals(btn.Name, "buttonProcess", StringComparison.Ordinal);
 
     // Меняем Font только при расхождении — иначе каждый Apply создаёт и Dispose'ит Font.
     private static void EnsureFont(Control control, string family, float size, FontStyle style)

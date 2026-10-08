@@ -30,14 +30,46 @@ namespace logReader.UI
                 throw new ArgumentException("Должна быть доступна хотя бы одна пара конвертации.", nameof(pairs));
 
             Text = "Смена формата";
-            ClientSize = new Size(560, 248);
-            Padding = new Padding(16);
+            ClientSize = new Size(560, 288);
+            Padding = new Padding(0);
 
-            var inputPathLabel = CreateMutedLabel("Файл для конвертации:", new Point(16, 16));
+            // Компактный Forge-header: жёлтая метка + заголовок (как Help / Main).
+            var header = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 44,
+                Padding = new Padding(16, 12, 16, 8),
+                Tag = ThemeTags.Header
+            };
+            var brandMark = new Panel
+            {
+                Location = new Point(16, 16),
+                Size = new Size(12, 12),
+                Name = "convertBrandMark"
+            };
+            var title = new Label
+            {
+                Text = "Конвертация",
+                AutoSize = true,
+                Location = new Point(36, 12),
+                Tag = ThemeTags.Brand,
+                Font = Typography.PageTitle()
+            };
+            header.Controls.Add(title);
+            header.Controls.Add(brandMark);
+
+            var body = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(16),
+                Tag = ThemeTags.Surface
+            };
+
+            var inputPathLabel = CreateMutedLabel("Файл для конвертации:", new Point(16, 8));
 
             _inputPathTextBox = new TextBox
             {
-                Location = new Point(16, 36),
+                Location = new Point(16, 28),
                 Size = new Size(440, 23),
                 Text = initialPath
             };
@@ -52,16 +84,16 @@ namespace logReader.UI
             {
                 Text = "Обзор",
                 Kind = ButtonKind.Secondary,
-                Location = new Point(464, 34),
+                Location = new Point(464, 26),
                 Size = new Size(80, 28)
             };
             _browseInputButton.Click += (_, _) => BrowseInputFile();
 
-            var pairLabel = CreateMutedLabel("Преобразование:", new Point(16, 72));
+            var pairLabel = CreateMutedLabel("Преобразование:", new Point(16, 64));
 
             _pairComboBox = new ComboBox
             {
-                Location = new Point(16, 92),
+                Location = new Point(16, 84),
                 Size = new Size(528, 23),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
@@ -76,11 +108,11 @@ namespace logReader.UI
                 UpdateConvertButtonState();
             };
 
-            var outputPathLabel = CreateMutedLabel("Файл после конвертации:", new Point(16, 128));
+            var outputPathLabel = CreateMutedLabel("Файл после конвертации:", new Point(16, 120));
 
             _outputPathTextBox = new TextBox
             {
-                Location = new Point(16, 148),
+                Location = new Point(16, 140),
                 Size = new Size(440, 23),
             };
             _outputPathTextBox.TextChanged += (_, _) =>
@@ -97,7 +129,7 @@ namespace logReader.UI
             {
                 Text = "Обзор",
                 Kind = ButtonKind.Secondary,
-                Location = new Point(464, 146),
+                Location = new Point(464, 138),
                 Size = new Size(80, 28)
             };
             _browseOutputButton.Click += (_, _) => BrowseOutputFile();
@@ -107,7 +139,7 @@ namespace logReader.UI
             {
                 Text = "Преобразовать",
                 Kind = ButtonKind.Primary,
-                Location = new Point(216, 200),
+                Location = new Point(216, 192),
                 Size = new Size(132, 32)
             };
             _convertButton.Click += convertButton_Click;
@@ -116,7 +148,7 @@ namespace logReader.UI
             {
                 Text = "Открыть",
                 Kind = ButtonKind.Secondary,
-                Location = new Point(356, 200),
+                Location = new Point(356, 192),
                 Size = new Size(88, 32),
                 Enabled = false
             };
@@ -127,29 +159,50 @@ namespace logReader.UI
                 Text = "Закрыть",
                 Kind = ButtonKind.Ghost,
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(452, 200),
+                Location = new Point(452, 192),
                 Size = new Size(92, 32)
             };
 
-            Controls.Add(inputPathLabel);
-            Controls.Add(_inputPathTextBox);
-            Controls.Add(_browseInputButton);
-            Controls.Add(pairLabel);
-            Controls.Add(_pairComboBox);
-            Controls.Add(outputPathLabel);
-            Controls.Add(_outputPathTextBox);
-            Controls.Add(_browseOutputButton);
-            Controls.Add(_convertButton);
-            Controls.Add(_openButton);
-            Controls.Add(_cancelButton);
+            body.Controls.Add(inputPathLabel);
+            body.Controls.Add(_inputPathTextBox);
+            body.Controls.Add(_browseInputButton);
+            body.Controls.Add(pairLabel);
+            body.Controls.Add(_pairComboBox);
+            body.Controls.Add(outputPathLabel);
+            body.Controls.Add(_outputPathTextBox);
+            body.Controls.Add(_browseOutputButton);
+            body.Controls.Add(_convertButton);
+            body.Controls.Add(_openButton);
+            body.Controls.Add(_cancelButton);
+
+            // Fill сначала, Top после — чтобы header остался сверху.
+            Controls.Add(body);
+            Controls.Add(header);
 
             AcceptButton = _convertButton;
             CancelButton = _cancelButton;
+
+            void ApplyConvertChrome()
+            {
+                ThemePalette p = AppTheme.Palette;
+                brandMark.BackColor = p.Primary;
+                header.BackColor = p.Surface;
+                body.BackColor = p.Surface;
+            }
 
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
             UiScaling.Apply(this);
             ThemeForm.Wire(this);
+            Load += (_, _) => ApplyConvertChrome();
+            Shown += (_, _) => ApplyConvertChrome();
+            EventHandler onTheme = (_, _) =>
+            {
+                if (!IsDisposed && IsHandleCreated)
+                    BeginInvoke(ApplyConvertChrome);
+            };
+            AppTheme.Changed += onTheme;
+            FormClosed += (_, _) => AppTheme.Changed -= onTheme;
         }
 
         private static Label CreateMutedLabel(string text, Point location) => new()
