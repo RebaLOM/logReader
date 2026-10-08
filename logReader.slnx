@@ -3,4 +3,5 @@
   <Project Path="logReader/logReader.csproj" />
   <Project Path="logReader.Tests/logReader.Tests.csproj" />
   <Project Path="logReader.UI.Tests/logReader.UI.Tests.csproj" />
+  <Project Path="tools/Loger.UiRunner/Loger.UiRunner.csproj" />
 </Solution>

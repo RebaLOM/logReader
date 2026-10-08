@@ -121,6 +121,7 @@ namespace logReader.UI
             // 
             buttonThemeToggle.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             buttonThemeToggle.Location = new Point(748, 10);
+            buttonThemeToggle.AccessibleName = "Тёмная тема";
             buttonThemeToggle.Name = "buttonThemeToggle";
             buttonThemeToggle.Size = new Size(130, 28);
             buttonThemeToggle.TabIndex = 50;
@@ -149,8 +150,9 @@ namespace logReader.UI
             navPanel.Name = "navPanel";
             navPanel.Padding = new Padding(8, 12, 8, 8);
             // 
-            // navProcess
+            // navProcess — Name = AutomationId; AccessibleName = видимый текст.
             // 
+            navProcess.AccessibleName = "Обработка";
             navProcess.Dock = DockStyle.Top;
             navProcess.Name = "navProcess";
             navProcess.Selected = true;
@@ -159,6 +161,7 @@ namespace logReader.UI
             // 
             // navHelp
             // 
+            navHelp.AccessibleName = "Справка";
             navHelp.Dock = DockStyle.Top;
             navHelp.Name = "navHelp";
             navHelp.Text = "Справка";
@@ -166,6 +169,7 @@ namespace logReader.UI
             // 
             // navConvert
             // 
+            navConvert.AccessibleName = "Конвертация";
             navConvert.Dock = DockStyle.Top;
             navConvert.Name = "navConvert";
             navConvert.Text = "Конвертация";
@@ -293,6 +297,7 @@ namespace logReader.UI
             // 
             // buttonDevicesParams
             // 
+            buttonDevicesParams.AccessibleName = "Устройства и параметры";
             buttonDevicesParams.Location = new Point(16, 86);
             buttonDevicesParams.Name = "buttonDevicesParams";
             buttonDevicesParams.Size = new Size(190, 28);
@@ -501,9 +506,11 @@ namespace logReader.UI
             // 
             // textBoxLog
             // 
+            textBoxLog.AccessibleName = "Журнал обработки";
             textBoxLog.Dock = DockStyle.Fill;
             textBoxLog.Multiline = true;
             textBoxLog.Name = "textBoxLog";
+            textBoxLog.PlaceholderText = "Журнал обработки появится здесь";
             textBoxLog.ReadOnly = true;
             textBoxLog.ScrollBars = ScrollBars.Vertical;
             textBoxLog.TabIndex = 18;

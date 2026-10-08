@@ -1,13 +1,18 @@
+using logReader.UI.Controls;
 using logReader.UI.Theme;
+
 namespace logReader.UI
 {
-    internal sealed class FormatConversionDialog : Form
+    internal sealed class FormatConversionDialog : AppDialog
     {
         private readonly TextBox _inputPathTextBox;
         private readonly TextBox _outputPathTextBox;
         private readonly ComboBox _pairComboBox;
-        private readonly Button _convertButton;
-        private readonly Button _openButton;
+        private readonly ModernButton _convertButton;
+        private readonly ModernButton _openButton;
+        private readonly ModernButton _browseInputButton;
+        private readonly ModernButton _browseOutputButton;
+        private readonly ModernButton _cancelButton;
         private readonly List<FormatConversionPair> _pairs;
         private readonly Action<string> _log;
         private bool _suppressOutputTextChanged;
@@ -25,24 +30,15 @@ namespace logReader.UI
                 throw new ArgumentException("Должна быть доступна хотя бы одна пара конвертации.", nameof(pairs));
 
             Text = "Смена формата";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            StartPosition = FormStartPosition.CenterParent;
-            MinimizeBox = false;
-            MaximizeBox = false;
-            ShowInTaskbar = false;
-            ClientSize = new Size(560, 230);
+            ClientSize = new Size(560, 248);
+            Padding = new Padding(16);
 
-            var inputPathLabel = new Label
-            {
-                AutoSize = true,
-                Location = new Point(12, 12),
-                Text = "Файл для конвертации:"
-            };
+            var inputPathLabel = CreateMutedLabel("Файл для конвертации:", new Point(16, 16));
 
             _inputPathTextBox = new TextBox
             {
-                Location = new Point(12, 32),
-                Size = new Size(456, 23),
+                Location = new Point(16, 36),
+                Size = new Size(440, 23),
                 Text = initialPath
             };
             _inputPathTextBox.TextChanged += (_, _) =>
@@ -52,25 +48,21 @@ namespace logReader.UI
                 UpdateConvertButtonState();
             };
 
-            var browseInputButton = new Button
+            _browseInputButton = new ModernButton
             {
                 Text = "Обзор",
-                Location = new Point(474, 31),
-                Size = new Size(74, 25)
+                Kind = ButtonKind.Secondary,
+                Location = new Point(464, 34),
+                Size = new Size(80, 28)
             };
-            browseInputButton.Click += (_, _) => BrowseInputFile();
+            _browseInputButton.Click += (_, _) => BrowseInputFile();
 
-            var pairLabel = new Label
-            {
-                AutoSize = true,
-                Location = new Point(12, 68),
-                Text = "Преобразование:"
-            };
+            var pairLabel = CreateMutedLabel("Преобразование:", new Point(16, 72));
 
             _pairComboBox = new ComboBox
             {
-                Location = new Point(12, 88),
-                Size = new Size(536, 23),
+                Location = new Point(16, 92),
+                Size = new Size(528, 23),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             _pairComboBox.DisplayMember = nameof(FormatConversionPair.DisplayName);
@@ -84,17 +76,12 @@ namespace logReader.UI
                 UpdateConvertButtonState();
             };
 
-            var outputPathLabel = new Label
-            {
-                AutoSize = true,
-                Location = new Point(12, 124),
-                Text = "Файл после конвертации:"
-            };
+            var outputPathLabel = CreateMutedLabel("Файл после конвертации:", new Point(16, 128));
 
             _outputPathTextBox = new TextBox
             {
-                Location = new Point(12, 144),
-                Size = new Size(456, 23),
+                Location = new Point(16, 148),
+                Size = new Size(440, 23),
             };
             _outputPathTextBox.TextChanged += (_, _) =>
             {
@@ -106,59 +93,73 @@ namespace logReader.UI
                 UpdateConvertButtonState();
             };
 
-            var browseOutputButton = new Button
+            _browseOutputButton = new ModernButton
             {
                 Text = "Обзор",
-                Location = new Point(474, 143),
-                Size = new Size(74, 25)
+                Kind = ButtonKind.Secondary,
+                Location = new Point(464, 146),
+                Size = new Size(80, 28)
             };
-            browseOutputButton.Click += (_, _) => BrowseOutputFile();
+            _browseOutputButton.Click += (_, _) => BrowseOutputFile();
 
-            _convertButton = new Button
+            // Primary CTA — только когда Enabled; disabled остаётся неинтерактивным.
+            _convertButton = new ModernButton
             {
                 Text = "Преобразовать",
-                Location = new Point(220, 188),
-                Size = new Size(128, 28)
+                Kind = ButtonKind.Primary,
+                Location = new Point(216, 200),
+                Size = new Size(132, 32)
             };
             _convertButton.Click += convertButton_Click;
 
-            _openButton = new Button
+            _openButton = new ModernButton
             {
                 Text = "Открыть",
-                Location = new Point(354, 188),
-                Size = new Size(88, 28),
+                Kind = ButtonKind.Secondary,
+                Location = new Point(356, 200),
+                Size = new Size(88, 32),
                 Enabled = false
             };
             _openButton.Click += openButton_Click;
 
-            var cancelButton = new Button
+            _cancelButton = new ModernButton
             {
                 Text = "Закрыть",
+                Kind = ButtonKind.Ghost,
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(448, 188),
-                Size = new Size(100, 28)
+                Location = new Point(452, 200),
+                Size = new Size(92, 32)
             };
 
             Controls.Add(inputPathLabel);
             Controls.Add(_inputPathTextBox);
-            Controls.Add(browseInputButton);
+            Controls.Add(_browseInputButton);
             Controls.Add(pairLabel);
             Controls.Add(_pairComboBox);
             Controls.Add(outputPathLabel);
             Controls.Add(_outputPathTextBox);
-            Controls.Add(browseOutputButton);
+            Controls.Add(_browseOutputButton);
             Controls.Add(_convertButton);
             Controls.Add(_openButton);
-            Controls.Add(cancelButton);
+            Controls.Add(_cancelButton);
 
             AcceptButton = _convertButton;
-            CancelButton = cancelButton;
+            CancelButton = _cancelButton;
 
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
             UiScaling.Apply(this);
             ThemeForm.Wire(this);
         }
+
+        private static Label CreateMutedLabel(string text, Point location) => new()
+        {
+            AutoSize = true,
+            Location = location,
+            Text = text,
+            Tag = ThemeTags.Muted,
+            Font = Typography.Caption(),
+        };
 
         private async void convertButton_Click(object? sender, EventArgs e)
         {
@@ -326,21 +327,16 @@ namespace logReader.UI
             _inputPathTextBox.Enabled = !busy;
             _outputPathTextBox.Enabled = !busy;
             _pairComboBox.Enabled = !busy;
-            foreach (Control control in Controls)
-            {
-                if (control is Button button
-                    && button != _convertButton
-                    && button != _openButton)
-                {
-                    button.Enabled = !busy;
-                }
-            }
+            _browseInputButton.Enabled = !busy;
+            _browseOutputButton.Enabled = !busy;
+            _cancelButton.Enabled = !busy;
 
             _convertButton.Enabled = !busy
                 && _pairComboBox.SelectedItem != null
                 && !string.IsNullOrWhiteSpace(_inputPathTextBox.Text)
                 && !string.IsNullOrWhiteSpace(_outputPathTextBox.Text);
             _convertButton.Text = busy ? "Преобразование..." : "Преобразовать";
+            _convertButton.ApplyTheme(AppTheme.Palette);
 
             if (busy)
                 _openButton.Enabled = false;
@@ -406,6 +402,7 @@ namespace logReader.UI
             _convertButton.Enabled = _pairComboBox.SelectedItem != null
                 && !string.IsNullOrWhiteSpace(_inputPathTextBox.Text)
                 && !string.IsNullOrWhiteSpace(_outputPathTextBox.Text);
+            _convertButton.ApplyTheme(AppTheme.Palette);
         }
     }
 

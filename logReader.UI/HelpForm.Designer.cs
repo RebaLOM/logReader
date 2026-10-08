@@ -31,17 +31,19 @@ namespace logReader.UI
             // 
             panelSearch.Controls.Add(textBoxSearch);
             panelSearch.Dock = DockStyle.Top;
-            panelSearch.Padding = new Padding(8, 8, 8, 4);
-            panelSearch.Size = new Size(900, 40);
+            panelSearch.Name = "panelSearch";
+            panelSearch.Padding = new Padding(12, 8, 12, 8);
+            panelSearch.Size = new Size(900, 44);
             panelSearch.TabIndex = 0;
             // 
             // textBoxSearch
             // 
+            textBoxSearch.AccessibleName = "Поиск по справке";
             textBoxSearch.Dock = DockStyle.Fill;
-            textBoxSearch.Location = new Point(8, 8);
+            textBoxSearch.Location = new Point(12, 8);
             textBoxSearch.Name = "textBoxSearch";
             textBoxSearch.PlaceholderText = "Поиск по справке…";
-            textBoxSearch.Size = new Size(884, 23);
+            textBoxSearch.Size = new Size(876, 23);
             textBoxSearch.TabIndex = 0;
             textBoxSearch.TextChanged += textBoxSearch_TextChanged;
             // 
@@ -62,16 +64,18 @@ namespace logReader.UI
             splitContainer.Panel2.Controls.Add(richTextBoxHelp);
             splitContainer.Panel2.Padding = new Padding(0, 0, 4, 4);
             splitContainer.Size = new Size(900, 560);
-            splitContainer.SplitterDistance = 260;
+            splitContainer.SplitterDistance = 300;
+            splitContainer.Panel1MinSize = 220;
             splitContainer.TabIndex = 1;
             // 
             // treeViewTopics
             // 
             treeViewTopics.Dock = DockStyle.Fill;
+            treeViewTopics.FullRowSelect = true;
             treeViewTopics.HideSelection = false;
             treeViewTopics.Location = new Point(4, 0);
             treeViewTopics.Name = "treeViewTopics";
-            treeViewTopics.ShowLines = true;
+            treeViewTopics.ShowLines = false;
             treeViewTopics.ShowPlusMinus = true;
             treeViewTopics.Size = new Size(256, 556);
             treeViewTopics.TabIndex = 0;
@@ -79,7 +83,6 @@ namespace logReader.UI
             // 
             // richTextBoxHelp
             // 
-            richTextBoxHelp.BackColor = Color.White;
             richTextBoxHelp.BorderStyle = BorderStyle.None;
             richTextBoxHelp.Dock = DockStyle.Fill;
             richTextBoxHelp.Location = new Point(0, 0);

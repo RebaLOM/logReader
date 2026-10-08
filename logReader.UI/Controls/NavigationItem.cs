@@ -15,6 +15,9 @@ public class NavigationItem : Control
         Height = 40;
         Cursor = Cursors.Hand;
         Font = Typography.Body();
+        // PushButton + AccessibleName: FlaUI видит и AutomationId (Name), и локализованный текст.
+        AccessibleRole = AccessibleRole.PushButton;
+        TabStop = true;
     }
 
     protected override void OnPaintBackground(PaintEventArgs e)
@@ -35,6 +38,29 @@ public class NavigationItem : Control
             _selected = value;
             Invalidate();
         }
+    }
+
+    protected override void OnTextChanged(EventArgs e)
+    {
+        base.OnTextChanged(e);
+        // Visible label for AT; Designer Name stays as UIA AutomationId.
+        AccessibleName = Text;
+    }
+
+    protected override AccessibleObject CreateAccessibilityInstance() => new NavigationItemAccessibleObject(this);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        // TabStop=true + PushButton: Space/Enter должны активировать как клик (UIA DoDefaultAction недостаточно).
+        if (e.KeyCode is Keys.Space or Keys.Enter)
+        {
+            OnClick(EventArgs.Empty);
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
     }
 
     protected override void OnMouseEnter(EventArgs e)
@@ -71,5 +97,31 @@ public class NavigationItem : Control
             new Rectangle(Spacing.Md, 0, Width - Spacing.Md, Height),
             _selected ? p.Text : p.TextSecondary,
             TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+    }
+
+    private sealed class NavigationItemAccessibleObject : ControlAccessibleObject
+    {
+        public NavigationItemAccessibleObject(NavigationItem owner) : base(owner) { }
+
+        public override string? Name
+        {
+            get
+            {
+                if (Owner is not NavigationItem owner)
+                    return base.Name;
+                return string.IsNullOrEmpty(owner.AccessibleName) ? owner.Text : owner.AccessibleName;
+            }
+            set => base.Name = value;
+        }
+
+        public override AccessibleRole Role => AccessibleRole.PushButton;
+
+        public override string? DefaultAction => "Нажать";
+
+        public override void DoDefaultAction()
+        {
+            if (Owner is NavigationItem owner)
+                owner.OnClick(EventArgs.Empty);
+        }
     }
 }

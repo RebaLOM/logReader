@@ -35,10 +35,21 @@ bld/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
-.cursor/
+# Ignore Cursor local install noise, but allow selected workflow files.
+.cursor/*
 # Keep the Cloud Agent environment definition under version control.
 !.cursor/environment.json
 !.cursor/install.sh
+# Dual-agent LOGER UI workflow (portable; machine MCP path stays in ignored mcp.json).
+!.cursor/agents/
+.cursor/agents/*
+!.cursor/agents/ui-auditor.md
+!.cursor/agents/ui-implementer.md
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/ui-workflow.mdc
+!.cursor/rules/design-md.mdc
+!.cursor/mcp.json.example
 .vscode/*
 !.vscode/extensions.json
 !.vscode/launch.json
@@ -371,3 +382,11 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 _build_out
+
+# LOGER UI audit artifacts (screenshots may contain sensitive UI state)
+ui-audit/screenshots/
+ui-audit/reports/
+ui-audit/test-data/
+
+# Local FlaUI-MCP binary (~160MB); download from GitHub releases, do not commit
+tools/FlaUI-MCP/

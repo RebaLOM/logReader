@@ -1,0 +1,408 @@
+{
+  "project": "LOGER",
+  "runId": "audit-2026-10-08",
+  "status": "verified",
+  "auditedAt": "2026-10-08T20:15:00+05:00",
+  "verifiedAt": "2026-10-08T20:55:00+05:00",
+  "designBaseline": "DESIGN.md",
+  "exe": "C:/Users/Re/source/repos/RebaLOM/logReader/logReader.UI/bin/Debug/net10.0-windows/LOGER.exe",
+  "mcp": "project-0-logReader-windows",
+  "screensVisited": [
+    {
+      "id": "main-process",
+      "name": "Обработка (main)",
+      "status": "visited",
+      "themes": ["light", "dark"]
+    },
+    {
+      "id": "help",
+      "name": "Справка / Помощь",
+      "status": "visited",
+      "themes": ["light", "dark"],
+      "notes": "Owned Form «Помощь»; Primary-tint tree selection; search AccessibleName «Поиск по справке»"
+    },
+    {
+      "id": "convert",
+      "name": "Конвертация / Смена формата",
+      "status": "visited",
+      "themes": ["light", "dark"],
+      "notes": "Modal with Primary «Преобразовать»; IsEnabled=false when no input (still solid Primary fill)"
+    },
+    {
+      "id": "devices-params",
+      "name": "Устройства и параметры",
+      "status": "blocked",
+      "notes": "Safe block without packets file: console error + statusBadge «Нужен файл посылок» (Error). No user files used."
+    },
+    {
+      "id": "save-options",
+      "name": "Параметры сохранения",
+      "status": "not_tested"
+    },
+    {
+      "id": "log-view-populated",
+      "name": "Просмотр лога с данными",
+      "status": "not_tested"
+    },
+    {
+      "id": "multi-dpi",
+      "name": "Multi-DPI scaling",
+      "status": "not_tested"
+    }
+  ],
+  "scores": {
+    "visualAppeal": {
+      "score": 7.0,
+      "rationale": "Main action bar and console empty state feel intentional; Help/Convert closer to main brand. Still utility-grade, not premium."
+    },
+    "colorHarmony": {
+      "score": 7.5,
+      "rationale": "Primary yellow now appears on Convert CTA and Help selection (light). Dark Help selection is muted olive rather than clear Primary wash."
+    },
+    "typography": {
+      "score": 6.0,
+      "rationale": "Unchanged: Segoe body legible; Help content hierarchy still flatter than DESIGN.md scale."
+    },
+    "spacingAndAlignment": {
+      "score": 7.8,
+      "rationale": "Secondary path buttons share a common right edge; Обработать right-clustered; console default height reduced."
+    },
+    "componentQuality": {
+      "score": 7.2,
+      "rationale": "Convert uses AppDialog/ModernButton Primary. Help still classic TreeView chrome but owner-draw selection. Console placeholder present."
+    },
+    "layoutAndComposition": {
+      "score": 6.5,
+      "rationale": "Action bar composition improved. Nav still opens overlays over cards (full IA deferred); incremental selection fix helps."
+    },
+    "consistency": {
+      "score": 7.0,
+      "rationale": "Help and Convert inherit ThemePalette much better than baseline; residual TreeView/disabled-CTA affordance gaps remain."
+    },
+    "uxAndUsability": {
+      "score": 7.5,
+      "rationale": "Status bar now syncs with console errors. Nav no longer falsely highlights Справка/Конвертация while overlays open."
+    },
+    "accessibility": {
+      "score": 7.0,
+      "rationale": "FlaUI UIA2 exposes navProcess/navHelp/navConvert/buttonThemeToggle/buttonDevicesParams. Help search AccessibleName present. MCP snapshot still omits AutomationId field."
+    },
+    "responsiveBehavior": {
+      "score": 6.5,
+      "rationale": "Not retested this pass; prior resize behavior unchanged."
+    },
+    "interactionQuality": {
+      "score": 7.0,
+      "rationale": "Theme toggle and devices gate remain solid. Nav Invoke via some MCP paths can hang — FlaUI Click works."
+    },
+    "professionalPolish": {
+      "score": 6.8,
+      "rationale": "Idle console and CTA composition improved. UI-009 yellow idle strip and UI-010 field highlight still open."
+    }
+  },
+  "visualScore": 7.0,
+  "screenshots": {
+    "before": [
+      "ui-audit/screenshots/before/main.png",
+      "ui-audit/screenshots/before/process.png",
+      "ui-audit/screenshots/before/help.png",
+      "ui-audit/screenshots/before/help-fullscreen.png",
+      "ui-audit/screenshots/before/convert.png",
+      "ui-audit/screenshots/before/convert-over-main.png",
+      "ui-audit/screenshots/before/convert-dark.png",
+      "ui-audit/screenshots/before/convert-over-main-dark.png",
+      "ui-audit/screenshots/before/main-dark.png",
+      "ui-audit/screenshots/before/main-resized.png",
+      "ui-audit/screenshots/before/devices-attempt.png"
+    ],
+    "after": [
+      "ui-audit/screenshots/after/main.png",
+      "ui-audit/screenshots/after/main-dark.png",
+      "ui-audit/screenshots/after/help.png",
+      "ui-audit/screenshots/after/help-dark.png",
+      "ui-audit/screenshots/after/convert.png",
+      "ui-audit/screenshots/after/convert-dark.png",
+      "ui-audit/screenshots/after/convert-over-main.png",
+      "ui-audit/screenshots/after/convert-over-main-dark.png",
+      "ui-audit/screenshots/after/devices-attempt.png",
+      "ui-audit/screenshots/after/devices-attempt-dark.png",
+      "ui-audit/screenshots/after/main-with-help.png",
+      "ui-audit/screenshots/after/main-with-help-dark.png"
+    ]
+  },
+  "topPriorityForImplementer": [
+    "UI-009",
+    "UI-010",
+    "UI-001"
+  ],
+  "toolLimitations": [
+    "windows_launch has no WorkingDirectory parameter; launch used full EXE path and succeeded.",
+    "MCP windows_snapshot does not print AutomationId; FlaUI UIA2 element dump confirms IDs.",
+    "Repeated Invoke on NavigationItem via MCP sometimes hangs UIA (0x80131505); FlaUI Click and devices/theme Buttons remained reliable.",
+    "Owned dialogs (Помощь, Смена формата) often absent from windows_list_windows until focused by title.",
+    "Multi-DPI display scale not changed this pass."
+  ],
+  "issues": [
+    {
+      "id": "UI-001",
+      "screen": "navigation / main",
+      "severity": "P1",
+      "category": "ux-layout",
+      "title": "Nav Справка/Конвертация open dialogs instead of in-app sections",
+      "description": "DESIGN.md describes Header + slim nav (Обработка / Справка / Конвертация) + content. Live behavior: Обработка is the only in-place section; Справка opens owned Form «Помощь»; Конвертация opens modal «Смена формата» while process cards remain visible underneath. Incremental fix: navHelp/navConvert no longer steal selected state — nav stays on Обработка while overlays open.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/convert-over-main-dark.png",
+        "also": [
+          "ui-audit/screenshots/after/convert.png",
+          "ui-audit/screenshots/before/convert-over-main.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Launch LOGER",
+        "Click nav «Справка» or «Конвертация»",
+        "Observe nav selection remains on «Обработка» while overlay is open"
+      ],
+      "recommendation": "Either (A) make Справка/Конвертация true content panes that replace cardsHost, matching DESIGN.md, or (B) keep dialogs but demote them from primary nav to header actions so nav only switches real sections. Prefer (A) for premium IA.",
+      "acceptanceCriteria": [
+        "Primary nav either switches in-place content OR is not used for modal-only destinations",
+        "No process card stack visible underneath an active «section» destination",
+        "Active nav state matches the visible primary content"
+      ],
+      "status": "verified",
+      "implementerNote": "2026-10-08: Full in-place panes (A) deferred. Incremental: navHelp/navConvert no longer select as active while overlays open; nav stays on Обработка.",
+      "auditorNote": "VERIFY 2026-10-08: Incremental acceptance MET (Обработка stays selected under Help/Convert — convert-over-main-dark.png, convert.png). Full IA (in-place panes / no cards under section) still PENDING — tracked as residual on this ID."
+    },
+    {
+      "id": "UI-002",
+      "screen": "help",
+      "severity": "P2",
+      "category": "consistency-polish",
+      "title": "Help window ignores ThemePalette / AntdUI visual language",
+      "description": "«Помощь» previously used classic TreeView with gray selection and no brand chrome. After fix: ThemePalette backgrounds, Primary-tint selection (clear gold in light; muted olive wash in dark), search AccessibleName/placeholder «Поиск по справке». Tree still uses classic +/- expanders.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/help.png",
+        "also": [
+          "ui-audit/screenshots/after/help-dark.png",
+          "ui-audit/screenshots/before/help.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Click nav «Справка»",
+        "Inspect tree selection color + search field name in UIA",
+        "Toggle dark theme and reopen Help"
+      ],
+      "recommendation": "Restyle Help to ThemePalette: Surface/Elevated panels, Border tokens, Primary selection, Segoe UI Variable scale. Replace or theme TreeView; add search placeholder «Поиск по справке».",
+      "acceptanceCriteria": [
+        "Help respects Light/Dark tokens from DESIGN.md",
+        "Selected topic uses Primary-tinted selection, not generic gray-only",
+        "Search field has accessible name/placeholder"
+      ],
+      "status": "verified",
+      "auditorNote": "Light selection gold OK; dark selection is low-contrast olive (still non-gray). Search UIA name «Поиск по справке» confirmed. Visible cue banner weak when empty."
+    },
+    {
+      "id": "UI-003",
+      "screen": "convert",
+      "severity": "P2",
+      "category": "consistency-color",
+      "title": "Convert dialog lacks Primary CTA and feels unthemed",
+      "description": "«Смена формата» now uses themed dialog chrome and solid Primary yellow «Преобразовать». Открыть/Закрыть remain secondary. FlaUI confirms Преобразовать IsEnabled=false with empty inputs, but fill stays solid Primary yellow (weak disabled affordance).",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/convert.png",
+        "also": [
+          "ui-audit/screenshots/after/convert-dark.png",
+          "ui-audit/screenshots/before/convert.png",
+          "ui-audit/screenshots/after/convert-btn-enabled.txt"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Click «Конвертация»",
+        "Compare footer Primary to main «Обработать»"
+      ],
+      "recommendation": "Style dialog with Surface background, Primary «Преобразовать» when enabled; keep ghost/default for others; muted labels.",
+      "acceptanceCriteria": [
+        "Enabled primary convert action uses Primary token",
+        "Dialog backgrounds match theme Canvas/Surface roles",
+        "Disabled state remains clearly non-interactive without looking broken"
+      ],
+      "status": "verified",
+      "auditorNote": "AC1–2 met. AC3 residual: disabled Преобразовать still solid yellow (IsEnabled=false) — polish residual, not enough to fail Primary CTA delivery."
+    },
+    {
+      "id": "UI-004",
+      "screen": "process",
+      "severity": "P2",
+      "category": "ux-feedback",
+      "title": "Status bar contradicts console error state",
+      "description": "After «Устройства и параметры» without packets file, console shows error and statusBadge now reads «Нужен файл посылок» in semantic Error red (light and dark). Previously status stayed «Готово к обработке».",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/devices-attempt.png",
+        "also": [
+          "ui-audit/screenshots/after/devices-attempt-dark.png",
+          "ui-audit/screenshots/before/devices-attempt.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "On empty process form click «Устройства и параметры»",
+        "Read console vs status bar"
+      ],
+      "recommendation": "On validation/error, update status bar to Error/Warning role text using semantic Error color.",
+      "acceptanceCriteria": [
+        "Status bar reflects error/ready consistently with last user action",
+        "Error text uses semantic (non-yellow-fill) error styling per DESIGN.md"
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "UI-005",
+      "screen": "process",
+      "severity": "P2",
+      "category": "empty-state",
+      "title": "Activity console empty state is a large dead zone",
+      "description": "Idle console now shows muted placeholder «Журнал обработки появится здесь» and default height is shorter (~30% cap), leaving more room for cards.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main.png",
+        "also": [
+          "ui-audit/screenshots/after/main-dark.png",
+          "ui-audit/screenshots/before/main.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Launch LOGER with no files",
+        "Observe bottom pane before any action"
+      ],
+      "recommendation": "Add muted placeholder; shorter default splitter ratio.",
+      "acceptanceCriteria": [
+        "Idle console communicates purpose without looking broken",
+        "Default splitter leaves more room for cards on typical 1080p window"
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "UI-006",
+      "screen": "process",
+      "severity": "P3",
+      "category": "spacing-alignment",
+      "title": "Secondary action buttons create ragged right edge",
+      "description": "Secondary path-row buttons (Посылки / Создать… / Создать .xlsx / Параметры) now share a common right edge across cards 1–4; Обзор column remains aligned.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main.png",
+        "also": [
+          "ui-audit/screenshots/after/main-dark.png",
+          "ui-audit/screenshots/before/main.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Open Обработка",
+        "Visually align right edges of secondary buttons across cards 1–4"
+      ],
+      "recommendation": "Fixed min-width for secondary actions or equal-width button column.",
+      "acceptanceCriteria": [
+        "Secondary buttons share a common right edge across cards",
+        "Обзор column remains aligned"
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "UI-007",
+      "screen": "process",
+      "severity": "P3",
+      "category": "layout",
+      "title": "Primary CTA «Обработать» is left-anchored with large trailing void",
+      "description": "«Обработать» is now right-aligned in the action bar as an intentional cluster (Primary remains dominant yellow OnPrimary).",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main.png",
+        "also": [
+          "ui-audit/screenshots/after/main-dark.png",
+          "ui-audit/screenshots/before/main.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "View actionBar under card 4 on default window size"
+      ],
+      "recommendation": "Right-aligned action cluster or full-width Primary.",
+      "acceptanceCriteria": [
+        "Action bar reads as intentional composition, not leftover empty strip",
+        "Primary remains the dominant CTA"
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "UI-008",
+      "screen": "accessibility",
+      "severity": "P2",
+      "category": "accessibility",
+      "title": "Documented AutomationIds not visible in UIA snapshot",
+      "description": "FlaUI UIA2 now finds AutomationIds navProcess, navHelp, navConvert, buttonThemeToggle, buttonDevicesParams with localized Name preserved. MCP windows_snapshot still shows Name-only (tool format limitation).",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main.png",
+        "visuallyVerified": true,
+        "notes": "Verified via FlaUI UIA2 FindFirstDescendant ByAutomationId on live window; also Loger.UiRunner elements.json"
+      },
+      "reproduction": [
+        "Launch LOGER",
+        "FlaUI find by AutomationId navProcess / buttonThemeToggle / buttonDevicesParams"
+      ],
+      "recommendation": "Set AutomationProperties.AutomationId on NavigationItem and theme/devices buttons.",
+      "acceptanceCriteria": [
+        "FlaUI/UIA exposes navProcess, navHelp, navConvert, buttonThemeToggle, buttonDevicesParams",
+        "Existing Name/localized text preserved for users"
+      ],
+      "status": "verified",
+      "auditorNote": "Raw System.Windows.Automation (UIA3) PropertyCondition may still miss nav* (numeric Pane ids observed); FlaUI UIA2 path used by UiRunner succeeds — AC references FlaUI."
+    },
+    {
+      "id": "UI-009",
+      "screen": "process",
+      "severity": "P3",
+      "category": "visual",
+      "title": "Idle yellow strip between cards and console looks like stuck progress",
+      "description": "Idle Primary-colored horizontal band between card stack and activity console still present in after captures (especially dark). Not in this implementer batch.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/main-dark.png",
+        "also": [
+          "ui-audit/screenshots/before/main-dark.png"
+        ],
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Toggle dark theme on empty form",
+        "Observe band above console without running a job"
+      ],
+      "recommendation": "If splitter: use Border/Elevated, not Primary. If progress: hide at idle.",
+      "acceptanceCriteria": [
+        "Idle UI does not show Primary-colored progress-like bar",
+        "During processing, progress uses Primary intentionally"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "UI-010",
+      "screen": "process",
+      "severity": "P3",
+      "category": "ux-feedback",
+      "title": "Validation errors are console-only without field highlight",
+      "description": "Devices gate now updates status bar (UI-004) but still does not mark cardDevices / packets path field with Error/Warning border. Not in this implementer batch.",
+      "evidence": {
+        "screenshot": "ui-audit/screenshots/after/devices-attempt.png",
+        "visuallyVerified": true
+      },
+      "reproduction": [
+        "Click «Устройства и параметры» with empty packets path"
+      ],
+      "recommendation": "Apply Warning/Error border on cardDevices and focus packets path textbox; keep console message.",
+      "acceptanceCriteria": [
+        "Failing step is visually identifiable without reading console",
+        "No reliance on yellow fill for error (semantic colors)"
+      ],
+      "status": "open"
+    }
+  ]
+}

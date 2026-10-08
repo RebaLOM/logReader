@@ -31,8 +31,8 @@ namespace logReader.UI
 
         private readonly SaveOptions _saveOptions = new();
 
-        /// <summary>Высота нижней панели журнала (px); сохраняется при перетаскивании разделителя.</summary>
-        private int _logPanelHeight = 100;
+        // Высота нижней панели журнала (px); сохраняется при перетаскивании разделителя.
+        private int _logPanelHeight = 96;
         private bool _layingOutContentSplit;
 
         private CancellationTokenSource? _operation;
@@ -46,6 +46,8 @@ namespace logReader.UI
             EnableDoubleBuffer(navPanel);
             TagSectionSurfaces();
             WireContentSplitLayout();
+            EnsureAutomationNames();
+            ConfigureConsoleEmptyState();
             UpdateDevicesCreateAddButtonState();
             UpdateCompositesCreateAddButtonState();
             UpdateFilterLabel();
@@ -124,10 +126,45 @@ namespace logReader.UI
             buttonTrcToAsc.Width = MeasureButtonWidth(buttonTrcToAsc);
             buttonDevicesParams.Width = MeasureButtonWidth(buttonDevicesParams);
 
-            buttonCancel.Left = buttonProcess.Right + 8;
-            buttonHelp.Left = buttonCancel.Right + 8;
-            buttonTrcToAsc.Left = buttonHelp.Right + 8;
+            // Правый кластер CTA: «Обработать» у правого края, «Отмена» слева от него.
+            const int gap = 8;
+            const int rightPad = 0;
+            int x = actionBar.ClientSize.Width - rightPad;
+
+            if (buttonProcess.Visible)
+            {
+                buttonProcess.Left = Math.Max(0, x - buttonProcess.Width);
+                x = buttonProcess.Left - gap;
+            }
+
+            if (buttonCancel.Visible)
+            {
+                buttonCancel.Left = Math.Max(0, x - buttonCancel.Width);
+                x = buttonCancel.Left - gap;
+            }
+
+            if (buttonHelp.Visible)
+            {
+                buttonHelp.Left = Math.Max(0, x - buttonHelp.Width);
+                x = buttonHelp.Left - gap;
+            }
+
+            if (buttonTrcToAsc.Visible)
+                buttonTrcToAsc.Left = Math.Max(0, x - buttonTrcToAsc.Width);
+
+            // Прогресс занимает пространство слева от кластера.
+            if (progressBarProcess.Visible)
+            {
+                int progressRight = buttonCancel.Visible ? buttonCancel.Left : buttonProcess.Left;
+                progressBarProcess.Left = 0;
+                progressBarProcess.Width = Math.Max(80, progressRight - gap - 160);
+                labelProgress.Left = progressBarProcess.Right + gap;
+                labelProgress.Width = Math.Max(60, progressRight - gap - labelProgress.Left);
+            }
         }
+
+        // Общая ширина правой колонки вторичных кнопок — выровненный правый край.
+        private const int SecondaryActionMinWidth = 124;
 
         // Кнопки справа от полей пути — ширина по тексту, без обрезки («Посылки», «Редактор», …).
         private void LayoutPathRows()
@@ -143,9 +180,20 @@ namespace logReader.UI
             if (path.Parent == null)
                 return;
 
-            const int gap = 6;
+            const int gap = 8;
             const int rightMargin = 16;
             int x = path.Parent.ClientSize.Width - rightMargin;
+
+            // Правая (вторичная) видимая кнопка — фиксированный min-width; «Обзор» остаётся по тексту.
+            int rightmostVisible = -1;
+            for (int i = buttonsLeftToRight.Length - 1; i >= 0; i--)
+            {
+                if (buttonsLeftToRight[i].Visible)
+                {
+                    rightmostVisible = i;
+                    break;
+                }
+            }
 
             for (int i = buttonsLeftToRight.Length - 1; i >= 0; i--)
             {
@@ -154,6 +202,9 @@ namespace logReader.UI
                     continue;
 
                 int w = MeasureButtonWidth(btn);
+                if (i == rightmostVisible)
+                    w = Math.Max(SecondaryActionMinWidth, w);
+
                 btn.Width = w;
                 btn.Left = x - w;
                 x = btn.Left - gap;
@@ -191,10 +242,12 @@ namespace logReader.UI
             brandAccent.BackColor = p.Primary;
             // Подпись = тема, на которую переключимся по клику.
             buttonThemeToggle.Text = AppTheme.Current == ThemeMode.Dark ? "Светлая тема" : "Тёмная тема";
+            buttonThemeToggle.AccessibleName = buttonThemeToggle.Text;
             LayoutHeader();
             UpdateFilterLabel();
             ThemeNative.ApplyTitleBar(this, AppTheme.Current);
             LayoutPathRows();
+            FitActionBarButtons();
             navProcess.Invalidate();
             navHelp.Invalidate();
             navConvert.Invalidate();
@@ -226,19 +279,28 @@ namespace logReader.UI
             navConvert.Selected = ReferenceEquals(active, navConvert);
         }
 
+        // Name → UIA AutomationId; AccessibleName → видимый текст для AT.
+        private void EnsureAutomationNames()
+        {
+            navProcess.AccessibleName = navProcess.Text;
+            navHelp.AccessibleName = navHelp.Text;
+            navConvert.AccessibleName = navConvert.Text;
+            buttonThemeToggle.AccessibleName = buttonThemeToggle.Text;
+            buttonDevicesParams.AccessibleName = buttonDevicesParams.Text;
+            buttonProcess.AccessibleName = buttonProcess.Text;
+        }
+
+        private void ConfigureConsoleEmptyState()
+        {
+            textBoxLog.PlaceholderText = "Журнал обработки появится здесь";
+            textBoxLog.AccessibleName = "Журнал обработки";
+        }
+
         private void navProcess_Click(object? sender, EventArgs e) => SelectNav(navProcess);
 
-        private void navHelp_Click(object? sender, EventArgs e)
-        {
-            SelectNav(navHelp);
-            buttonHelp_Click(sender!, EventArgs.Empty);
-        }
+        private void navHelp_Click(object? sender, EventArgs e) => buttonHelp_Click(sender!, EventArgs.Empty);
 
-        private void navConvert_Click(object? sender, EventArgs e)
-        {
-            SelectNav(navConvert);
-            buttonFormatConvert_Click(sender!, EventArgs.Empty);
-        }
+        private void navConvert_Click(object? sender, EventArgs e) => buttonFormatConvert_Click(sender!, EventArgs.Empty);
 
         private bool IsBusy => _operation != null;
 
@@ -834,7 +896,8 @@ namespace logReader.UI
 
         private void buttonHelp_Click(object sender, EventArgs e)
         {
-            // Немодальная справка: один экземпляр, ссылку обнуляем при закрытии.
+            // Жёлтый nav «Справка» пока окно открыто; после закрытия — снова «Обработка».
+            SelectNav(navHelp);
             if (_helpForm is { IsDisposed: false })
             {
                 _helpForm.Activate();
@@ -845,19 +908,31 @@ namespace logReader.UI
             _helpForm.FormClosed += (_, _) =>
             {
                 _helpForm = null;
-                if (!IsDisposed && !Disposing)
-                    SelectNav(navProcess);
+                if (IsDisposed || !IsHandleCreated)
+                    return;
+                BeginInvoke(() =>
+                {
+                    if (!IsDisposed)
+                        SelectNav(navProcess);
+                });
             };
             _helpForm.Show(this);
         }
 
         private void buttonFormatConvert_Click(object sender, EventArgs e)
         {
-            string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
-            using var dialog = new FormatConversionDialog(_conversionPairs, initialPath, Log);
-            dialog.ShowDialog(this);
-            if (!IsDisposed && !Disposing)
-                SelectNav(navProcess);
+            SelectNav(navConvert);
+            try
+            {
+                string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
+                using var dialog = new FormatConversionDialog(_conversionPairs, initialPath, Log);
+                dialog.ShowDialog(this);
+            }
+            finally
+            {
+                if (!IsDisposed)
+                    SelectNav(navProcess);
+            }
         }
 
         private async void buttonDevicesParams_Click(object sender, EventArgs e)
@@ -923,6 +998,34 @@ namespace logReader.UI
                 return;
             }
             textBoxLog.AppendText(message + Environment.NewLine);
+            // Статусбар должен отражать ошибку из журнала, а не оставаться «Готово…».
+            if (LooksLikeErrorLog(message))
+                SetStatusError(SummarizeErrorForStatus(message));
+        }
+
+        private static bool LooksLikeErrorLog(string message) =>
+            message.StartsWith("Ошибка", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Критическая ошибка", StringComparison.OrdinalIgnoreCase);
+
+        private static string SummarizeErrorForStatus(string message)
+        {
+            string text = message.Trim();
+            if (text.StartsWith("Ошибка:", StringComparison.OrdinalIgnoreCase))
+                text = text["Ошибка:".Length..].Trim();
+            else if (text.StartsWith("Критическая ошибка:", StringComparison.OrdinalIgnoreCase))
+                text = text["Критическая ошибка:".Length..].Trim();
+
+            if (text.Contains("файл посылок", StringComparison.OrdinalIgnoreCase))
+                return "Нужен файл посылок";
+            if (text.Length > 64)
+                text = text[..61] + "…";
+            return string.IsNullOrEmpty(text) ? "Ошибка" : text;
+        }
+
+        private void SetStatusError(string text)
+        {
+            statusBadge.Text = text;
+            statusBadge.Kind = StatusBadgeKind.Error;
         }
 
         // Длительная операция в фоне: ввод заблокирован, есть прогресс и «Отмена».
@@ -975,6 +1078,7 @@ namespace logReader.UI
             progressBarProcess.Value = 0;
             labelProgress.Text = stage;
             buttonProcess.Text = busy ? "Обработка..." : "Обработать";
+            buttonProcess.AccessibleName = buttonProcess.Text;
             if (busy)
             {
                 statusBadge.Text = string.IsNullOrWhiteSpace(stage) ? "Обработка…" : stage;
@@ -985,6 +1089,7 @@ namespace logReader.UI
                 UpdateFilterLabel();
             }
 
+            FitActionBarButtons();
             UseWaitCursor = busy;
             buttonCancel.UseWaitCursor = false;
         }
@@ -1223,7 +1328,8 @@ namespace logReader.UI
         private void WireContentSplitLayout()
         {
             contentSplit.FixedPanel = FixedPanel.Panel2;
-            _logPanelHeight = 120;
+            // Чуть ниже ~30% высоты — больше места карточкам на типичном 1080p.
+            _logPanelHeight = 96;
             contentSplit.SplitterMoved += (_, _) =>
             {
                 if (!_layingOutContentSplit)
@@ -1248,7 +1354,7 @@ namespace logReader.UI
             if (available <= minLog + minTop)
                 return;
 
-            int maxLog = Math.Max(minLog, Math.Min(220, available / 3));
+            int maxLog = Math.Max(minLog, Math.Min(180, (int)(available * 0.30)));
             int logHeight = Math.Clamp(_logPanelHeight, minLog, maxLog);
             int topHeight = available - logHeight;
 

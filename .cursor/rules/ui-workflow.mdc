@@ -1,0 +1,65 @@
+---
+description: Coordinates independent visual auditing and iterative UI improvements for LOGER using ui-auditor and ui-implementer (WinForms + Windows MCP).
+alwaysApply: false
+---
+
+# LOGER UI Improvement Workflow
+
+When the user requests comprehensive UI/UX improvement or `@ui-workflow`, use this sequential multi-agent workflow.
+
+## Relation to other systems
+
+- **Use here:** `ui-auditor`, `ui-implementer`, FlaUI-MCP (`windows`), `tools/Loger.UiRunner`, `ui-audit/`.
+- **Do not use here:** `gan-evaluator` / `gan-generator` (Playwright/web), pywinauto skill as the primary path.
+- **After implementer C# edits:** still run `csharp-reviewer` (code quality). Visual sign-off remains `ui-auditor` only.
+- **Design truth:** `DESIGN.md` + `design-md.mdc`. Existing AntdUI + ThemePalette stack stays.
+
+## Sequential only
+
+Never run `ui-auditor` and `ui-implementer` against the same live LOGER instance in parallel.
+This overrides the general “parallelize independent Tasks” guidance for this workflow only.
+
+## Phase 1 — Baseline (AUDIT)
+
+1. Identify solution `logReader.slnx` and UI project `logReader.UI`.
+2. Ensure safe test data under `ui-audit/test-data/` (or skip data-dependent screens).
+3. Prefer a dedicated git branch for UI work.
+4. Ensure Windows MCP (`project-0-logReader-windows` / `windows_*`) is connected.
+5. Delegate **AUDIT** to `ui-auditor` (do not audit visually yourself as coordinator).
+6. Require real screenshots under `ui-audit/screenshots/before/` and scores in `findings.json`.
+7. Optional repeatable capture: `dotnet run --project tools/Loger.UiRunner -- <exe> ui-audit/screenshots/before/...`
+
+Do not implement until the initial audit produced actionable findings.
+
+## Phase 2 — Implementation
+
+1. Prioritize verified P0 / P1, then high-impact P2.
+2. Delegate a bounded batch to `ui-implementer`.
+3. Require successful `dotnet build` and relevant `logReader.UI.Tests`.
+4. Reject unrelated business-logic changes and new UI kits without user approval.
+
+## Phase 3 — Independent verification
+
+Invoke `ui-auditor` with fresh context. Provide:
+
+- Original findings
+- Changed file list
+- Before/after screenshot paths
+- Acceptance criteria
+
+Auditor must reopen LOGER and inspect the live UI.
+
+## Phase 4 — Repeat
+
+On failed verification: targeted implementer fix → tests → auditor again.
+Maximum: 3 implementation/verification cycles.
+
+## Stop rules
+
+Stop when acceptance criteria are met, max iterations reached, a blocking tool/limitation occurs, or a risky change needs user approval.
+Never report untested UI as verified.
+If Windows MCP / screenshots are unavailable, stop and say so — do not fake an audit.
+
+## Final response language
+
+Report outcomes to the user in Russian unless they ask otherwise.
