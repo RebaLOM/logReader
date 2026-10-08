@@ -115,6 +115,17 @@ internal static class UiThread
         Assert.True(bounds.Width > 0 && bounds.Height > 0, $"{form.GetType().Name} action collapsed.");
         Assert.True(form.ClientRectangle.Contains(bounds), $"{form.GetType().Name} action is outside its viewport: {bounds}.");
     }
+
+    internal static void AssertVisibleButtonTextFits(Control root)
+    {
+        foreach (var button in Descendants(root).OfType<logReader.UI.Controls.ModernButton>()
+            .Where(button => button.Visible && button is not logReader.UI.Controls.NavigationItem && !string.IsNullOrWhiteSpace(button.Text)))
+        {
+            var preferred = button.GetPreferredSize(Size.Empty);
+            Assert.True(button.Width >= preferred.Width,
+                $"{root.GetType().Name}: «{button.Text}» needs {preferred.Width}px but has {button.Width}px at {button.DeviceDpi} DPI.");
+        }
+    }
 }
 
 internal sealed class UiFixtures : IDisposable

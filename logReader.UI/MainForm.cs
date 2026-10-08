@@ -1028,8 +1028,7 @@ namespace logReader.UI
                 if (!_layingOutContentSplit)
                     _logPanelHeight = contentSplit.Panel2.Height;
             };
-            contentSplit.Resize += (_, _) => ApplyLogPanelBottomAnchor();
-            Resize += (_, _) => ApplyLogPanelBottomAnchor();
+            contentSplit.Resize += (_, _) => RequestWorkspaceLayout();
             Shown += (_, _) => ApplyLogPanelBottomAnchor();
         }
 

@@ -53,12 +53,14 @@ namespace logReader.UI
             buttonEnableAll = new ModernButton
             {
                 Text = "Включить все", Icon = IconKind.Check, Variant = ButtonVariant.Secondary,
-                Width = 154, Height = 36, Name = "buttonEnableAll", TabIndex = 0
+                AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(0, 40), Name = "buttonEnableAll", TabIndex = 0
             };
             buttonDisableAll = new ModernButton
             {
                 Text = "Выключить все", Variant = ButtonVariant.Ghost,
-                Width = 154, Height = 36, Name = "buttonDisableAll", TabIndex = 1
+                AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(0, 40), Name = "buttonDisableAll", TabIndex = 1
             };
             buttonEnableAll.Click += buttonEnableAll_Click;
             buttonDisableAll.Click += buttonDisableAll_Click;
@@ -67,8 +69,8 @@ namespace logReader.UI
             selectionTips.SetToolTip(buttonDisableAll, "Выключить все устройства и параметры, включая скрытые поиском.");
             panelButtons = new FlowLayoutPanel
             {
-                Dock = DockStyle.Bottom, Height = 58, Padding = new Padding(0, 12, 0, 0),
-                WrapContents = false, BackColor = AppTheme.Background
+                Dock = DockStyle.Bottom, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(0, 12, 0, 0), WrapContents = true, BackColor = AppTheme.Background
             };
             panelButtons.Controls.Add(buttonEnableAll);
             panelButtons.Controls.Add(buttonDisableAll);

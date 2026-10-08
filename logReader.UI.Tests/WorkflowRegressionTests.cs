@@ -33,6 +33,7 @@ public class WorkflowRegressionTests
                 Assert.Contains(UiThread.Field<Control>(form, field), contents);
             Assert.True(UiThread.Field<Button>(form, "buttonProcess").Visible);
             Assert.True(UiThread.Field<TextBox>(form, "textBoxLog").Visible);
+            UiThread.AssertVisibleButtonTextFits(form);
         }
         navigation[1].PerformClick();
         var libraryButtons = UiThread.Descendants(pages[1]).OfType<Button>().ToList();

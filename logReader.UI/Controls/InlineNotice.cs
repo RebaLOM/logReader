@@ -10,10 +10,20 @@ public class InlineNotice : UserControl
     private readonly IconView icon;
     private StatusTone tone = StatusTone.Info;
     [DefaultValue(StatusTone.Info)]
-    public StatusTone Tone { get => tone; set { tone = value; UpdateTone(); } }
+    public StatusTone Tone { get => tone; set { if (tone == value) return; tone = value; UpdateTone(); } }
     [Browsable(true), DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
     [AllowNull]
-    public override string Text { get => message?.Text ?? base.Text; set { base.Text = value; if (message != null) { message.Text = value; AccessibleName = value; PerformLayout(); } } }
+    public override string Text
+    {
+        get => message?.Text ?? base.Text;
+        set
+        {
+            string text = value ?? string.Empty;
+            if (Text == text) return;
+            base.Text = text;
+            if (message != null) { message.Text = text; AccessibleName = text; }
+        }
+    }
 
     public InlineNotice()
     {
@@ -46,9 +56,14 @@ public class InlineNotice : UserControl
         }
         Invalidate();
     }
+    internal void RefreshTheme() => UpdateTone();
     protected override void OnLayout(LayoutEventArgs e)
     {
-        if (message != null) message.MaximumSize = new Size(Math.Max(1, ClientSize.Width - Padding.Horizontal - UiScale.Px(this, 28)), 0);
+        if (message != null)
+        {
+            var maximum = new Size(Math.Max(1, ClientSize.Width - Padding.Horizontal - UiScale.Px(this, 28)), 0);
+            if (message.MaximumSize != maximum) message.MaximumSize = maximum;
+        }
         base.OnLayout(e);
     }
     protected override void OnPaint(PaintEventArgs e)

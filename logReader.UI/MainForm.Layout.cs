@@ -18,13 +18,16 @@ namespace logReader.UI
         private ModernButton _devicesShortcut = null!, _compositesShortcut = null!;
         private bool _compactWorkflow, _workspaceBusy, _runHadError, _hasOperationResult, _operationCancelled;
         private bool _workspaceLayoutReady, _reflowingWorkflow, _reflowingActionBar, _compactActionBar;
+        private ResizeCoordinator _workspaceResize = null!;
+        private int _naturalActionsWidth = -1, _actionLayoutWidth = -1, _actionLayoutNaturalWidth = -1, _actionLayoutDpi = -1;
+        private (Size Minimum, IconKind Icon)[] _actionMetrics = [];
 
         private static ModernButton WorkspaceButton(string text, IconKind icon, ButtonVariant variant = ButtonVariant.Secondary)
             => new() { Text = text, Icon = icon, Variant = variant, AutoSize = true,
                 MinimumSize = new Size(112, 36), Margin = new Padding(0, 0, 8, 0) };
 
         private static TableLayoutPanel WorkspaceStack(int padding = 0)
-            => new() { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            => new BufferedTableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1, Padding = new Padding(padding), Margin = Padding.Empty };
 
         private static void StackAdd(TableLayoutPanel stack, Control child)
@@ -35,24 +38,30 @@ namespace logReader.UI
             stack.Controls.Add(child, 0, row);
             if (child is Label label)
             {
+                int lastWidth = -1;
                 void Wrap()
                 {
                     int available = stack.ClientSize.Width - stack.Padding.Horizontal - label.Margin.Horizontal;
-                    if (available <= 0) return;
+                    if (available <= 0 || available == lastWidth) return;
+                    lastWidth = available;
                     var maximum = new Size(available, 0);
                     if (label.MaximumSize != maximum) label.MaximumSize = maximum;
                 }
                 stack.SizeChanged += (_, _) => Wrap();
+                stack.PaddingChanged += (_, _) => Wrap();
+                label.MarginChanged += (_, _) => Wrap();
+                stack.DpiChangedAfterParent += (_, _) => { lastWidth = -1; Wrap(); };
             }
         }
 
         private void BuildWorkspace()
         {
-            var shell = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty };
+            _workspaceResize = new ResizeCoordinator(this, ReflowWorkspace);
+            var shell = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty };
             shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 196));
             shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var sidebar = new TableLayoutPanel
+            var sidebar = new BufferedTableLayoutPanel
             {
                 Dock = DockStyle.Fill, BackColor = AppTheme.Surface, Padding = new Padding(16, 24, 16, 16),
                 ColumnCount = 1, RowCount = 5, Margin = Padding.Empty
@@ -84,11 +93,12 @@ namespace logReader.UI
             buttonHelp.Dock = DockStyle.Top;
             buttonHelp.Margin = new Padding(0, 0, 0, 12);
             sidebar.Controls.Add(buttonHelp, 0, 3);
+            BuildThemeSwitch(sidebar);
             sidebar.Controls.Add(new Label { Text = "TRC · ASC · CSV · CANfox", AutoSize = true,
                 Font = Typography.Caption, ForeColor = AppTheme.TextMuted }, 0, 4);
             shell.Controls.Add(sidebar, 0, 0);
 
-            var workspace = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
+            var workspace = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
                 Padding = new Padding(24, 0, 24, 0), Margin = Padding.Empty };
             workspace.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             workspace.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -107,10 +117,11 @@ namespace logReader.UI
             contentSplit = new SplitContainer
             {
                 Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = AppTheme.Background,
+                FixedPanel = FixedPanel.Panel2,
                 Panel1MinSize = 128, Panel2MinSize = 80, SplitterWidth = 8,
                 Size = new Size(900, 610), SplitterDistance = 438, Margin = Padding.Empty, TabStop = false
             };
-            _pagesHost = new Panel { Dock = DockStyle.Fill };
+            _pagesHost = new BufferedPanel { Dock = DockStyle.Fill };
             _pages = [BuildProcessingPage(), BuildLibrariesPage(), BuildToolsPage()];
             foreach (var page in _pages)
             {
@@ -132,34 +143,28 @@ namespace logReader.UI
                     if (input is ModernTextBox modern) { modern.HasError = false; modern.ErrorMessage = null; }
                     RefreshWorkspaceSummary(inputsChanged: true);
                 };
-            _workflowGrid.SizeChanged += (_, _) => ReflowWorkflow();
-            _pagesHost.SizeChanged += (_, _) => RefreshWorkspaceSummary();
+            _workflowGrid.SizeChanged += (_, _) => RequestWorkspaceLayout();
             textBoxLog.TextChanged += (_, _) => _journalEmpty.Visible = textBoxLog.TextLength == 0;
             Shown += (_, _) =>
             {
                 // Initial WinForms autoscaling has completed; all metrics below are
                 // now physical pixels, so no pre-scaled margins enter that pass.
                 _workspaceLayoutReady = true;
-                ReflowWorkflow();
-                ReflowActionBar();
+                RequestWorkspaceLayout();
+                _workspaceResize.Flush();
             };
             DpiChanged += (_, _) =>
             {
-                if (!_workspaceLayoutReady || !IsHandleCreated || IsDisposed) return;
-                BeginInvoke((Action)(() =>
-                {
-                    if (IsDisposed || Disposing) return;
-                    ReflowWorkflow();
-                    ReflowActionBar();
-                }));
+                _naturalActionsWidth = -1;
+                RequestWorkspaceLayout();
             };
             RefreshWorkspaceSummary();
         }
 
         private Panel BuildProcessingPage()
         {
-            var page = new Panel { AutoScroll = true, BackColor = AppTheme.Background };
-            _workflowGrid = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true,
+            var page = new BufferedPanel { AutoScroll = true, BackColor = AppTheme.Background };
+            _workflowGrid = new BufferedTableLayoutPanel { Dock = DockStyle.Top, AutoSize = true,
                 ColumnCount = 2, RowCount = 2, Margin = Padding.Empty };
             _workflowGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _workflowGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
@@ -199,7 +204,7 @@ namespace logReader.UI
             StackAdd(stack, title);
             StackAdd(stack, new Label { Text = helper, AutoSize = true, Font = Typography.Caption,
                 ForeColor = AppTheme.TextSecondary, Margin = new Padding(0, 8, 0, 12) });
-            var field = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty };
+            var field = new BufferedTableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty };
             field.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             field.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             input.AccessibleName = title.Text;
@@ -224,7 +229,7 @@ namespace logReader.UI
 
         private Panel BuildLibrariesPage()
         {
-            var page = new Panel { AutoScroll = true, BackColor = AppTheme.Background };
+            var page = new BufferedPanel { AutoScroll = true, BackColor = AppTheme.Background };
             var stack = WorkspaceStack();
             _devicesLibraryPath = new Label { AutoSize = true, Font = Typography.Secondary,
                 ForeColor = AppTheme.TextSecondary, Margin = new Padding(0, 0, 0, 16) };
@@ -249,7 +254,7 @@ namespace logReader.UI
 
         private Panel BuildToolsPage()
         {
-            var page = new Panel { AutoScroll = true, BackColor = AppTheme.Background };
+            var page = new BufferedPanel { AutoScroll = true, BackColor = AppTheme.Background };
             var stack = WorkspaceStack();
             var formats = new Label { Text = "TRC → ASC   /   CSV → ASC", AutoSize = true, Font = Typography.Mono,
                 ForeColor = AppTheme.TextSecondary, Margin = new Padding(0, 0, 0, 16) };
@@ -284,10 +289,10 @@ namespace logReader.UI
         private Control BuildJournal()
         {
             var card = new ModernCard { Dock = DockStyle.Fill, Padding = new Padding(16, 8, 16, 12), Margin = Padding.Empty };
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+            var layout = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = new Padding(0, 0, 0, 8) };
+            var header = new BufferedTableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = new Padding(0, 0, 0, 8) };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             header.Controls.Add(new Label { Text = "Журнал операции", AutoSize = true, Font = Typography.CardTitle, Anchor = AnchorStyles.Left }, 0, 0);
@@ -306,7 +311,7 @@ namespace logReader.UI
             tools.Controls.AddRange([copy, clear]);
             header.Controls.Add(tools, 1, 0);
             layout.Controls.Add(header, 0, 0);
-            var content = new Panel { Dock = DockStyle.Fill, BackColor = AppTheme.Surface };
+            var content = new BufferedPanel { Dock = DockStyle.Fill, BackColor = AppTheme.Surface };
             _journalEmpty = new EmptyState { Title = "Здесь появится ход обработки",
                 Description = "Выберите входные файлы и запустите обработку.", Icon = IconKind.Activity, Dock = DockStyle.Fill };
             content.Controls.Add(textBoxLog);
@@ -319,7 +324,7 @@ namespace logReader.UI
 
         private Control BuildActionBar()
         {
-            _actionBar = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1,
+            _actionBar = new BufferedTableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, RowCount = 1,
                 Padding = new Padding(0, 16, 0, 16), Margin = Padding.Empty };
             _actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             _actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -341,11 +346,28 @@ namespace logReader.UI
             _actionButtons.BackColor = AppTheme.Background;
             _actionButtons.WrapContents = true;
             _actionBar.Controls.Add(_actionButtons, 1, 0);
-            _actionBar.SizeChanged += (_, _) => ReflowActionBar();
+            _actionMetrics = new (Size, IconKind)[_actionButtons.Controls.Count];
+            _actionBar.SizeChanged += (_, _) => RequestWorkspaceLayout();
+            _actionButtons.Layout += (_, args) =>
+            {
+                if (args.AffectedProperty == nameof(Control.MinimumSize))
+                {
+                    _naturalActionsWidth = -1;
+                    RequestWorkspaceLayout();
+                }
+            };
             foreach (var action in new[] { buttonProcess, buttonOpenOutput, buttonCancel })
             {
-                action.VisibleChanged += (_, _) => ReflowActionBar();
-                action.TextChanged += (_, _) => ReflowActionBar();
+                void InvalidateMeasurement(object? sender, EventArgs args)
+                {
+                    _naturalActionsWidth = -1;
+                    RequestWorkspaceLayout();
+                }
+                action.VisibleChanged += InvalidateMeasurement;
+                action.TextChanged += InvalidateMeasurement;
+                action.FontChanged += InvalidateMeasurement;
+                action.MarginChanged += InvalidateMeasurement;
+                action.PaddingChanged += InvalidateMeasurement;
             }
             return _actionBar;
         }
@@ -364,7 +386,19 @@ namespace logReader.UI
                 2 => "Преобразование форматов и настройки результата.",
                 _ => "От входного лога до декодированных данных — в одной рабочей области."
             };
+            RequestWorkspaceLayout();
+        }
+
+        private void RequestWorkspaceLayout()
+        {
+            if (_workspaceLayoutReady) _workspaceResize.Request();
+        }
+
+        private void ReflowWorkspace()
+        {
             ReflowWorkflow();
+            ReflowActionBar();
+            ApplyLogPanelBottomAnchor();
         }
 
         private void ReflowWorkflow()
@@ -395,7 +429,8 @@ namespace logReader.UI
                 {
                     if (changeMode)
                         _workflowGrid.SetCellPosition(_workflowCards[i], compact ? new TableLayoutPanelCellPosition(0, i) : new TableLayoutPanelCellPosition(i / 2, i % 2));
-                    _workflowCards[i].Margin = new Padding(0, 0, compact || i >= 2 ? 0 : gap, gap);
+                    var margin = new Padding(0, 0, compact || i >= 2 ? 0 : gap, gap);
+                    if (_workflowCards[i].Margin != margin) _workflowCards[i].Margin = margin;
                 }
             }
             finally
@@ -409,8 +444,29 @@ namespace logReader.UI
         {
             if (!_workspaceLayoutReady || _reflowingActionBar || _actionBar == null || _actionBar.ClientSize.Width <= 0) return;
             int available = Math.Max(1, _actionBar.ClientSize.Width - _actionBar.Padding.Horizontal);
-            int naturalActionsWidth = _actionButtons.Controls.Cast<Control>().Where(action => action.Visible)
-                .Sum(action => action.GetPreferredSize(Size.Empty).Width + action.Margin.Horizontal);
+            if (_actionMetrics.Length != _actionButtons.Controls.Count)
+            {
+                _actionMetrics = new (Size, IconKind)[_actionButtons.Controls.Count];
+                _naturalActionsWidth = -1;
+            }
+            for (int i = 0; i < _actionButtons.Controls.Count; i++)
+            {
+                var action = _actionButtons.Controls[i];
+                var metric = (action.MinimumSize, action is ModernButton modern ? modern.Icon : IconKind.None);
+                if (_actionMetrics[i] != metric)
+                {
+                    _actionMetrics[i] = metric;
+                    _naturalActionsWidth = -1;
+                }
+            }
+            if (_naturalActionsWidth < 0)
+            {
+                _naturalActionsWidth = 0;
+                foreach (Control action in _actionButtons.Controls)
+                    if (action.Visible) _naturalActionsWidth += action.GetPreferredSize(Size.Empty).Width + action.Margin.Horizontal;
+            }
+            int naturalActionsWidth = _naturalActionsWidth;
+            if (_actionLayoutWidth == available && _actionLayoutNaturalWidth == naturalActionsWidth && _actionLayoutDpi == DeviceDpi) return;
             int gap = UiScale.Px(this, 16);
             bool compact = available < UiScale.Px(this, 620) || available < naturalActionsWidth + UiScale.Px(this, 240) + gap;
             int actionsWidth = compact ? available : Math.Min(available, naturalActionsWidth);
@@ -418,9 +474,14 @@ namespace logReader.UI
             bool changeMode = compact != _compactActionBar || _actionBar.RowCount != (compact ? 2 : 1);
             _reflowingActionBar = true;
             _actionBar.SuspendLayout();
+            _actionStatus.SuspendLayout();
+            _actionButtons.SuspendLayout();
             try
             {
                 _compactActionBar = compact;
+                _actionLayoutWidth = available;
+                _actionLayoutNaturalWidth = naturalActionsWidth;
+                _actionLayoutDpi = DeviceDpi;
                 if (changeMode)
                 {
                     _actionBar.ColumnStyles.Clear();
@@ -436,10 +497,12 @@ namespace logReader.UI
                 else if (!compact)
                 {
                     // The action text/visibility can change while the layout stays wide.
-                    _actionBar.ColumnStyles[1].SizeType = SizeType.Absolute;
-                    _actionBar.ColumnStyles[1].Width = actionsWidth + gap;
+                    var column = _actionBar.ColumnStyles[1];
+                    if (column.SizeType != SizeType.Absolute) column.SizeType = SizeType.Absolute;
+                    if (column.Width != actionsWidth + gap) column.Width = actionsWidth + gap;
                 }
-                _actionButtons.Margin = compact ? new Padding(0, UiScale.Px(this, 12), 0, 0) : new Padding(gap, 0, 0, 0);
+                var actionsMargin = compact ? new Padding(0, UiScale.Px(this, 12), 0, 0) : new Padding(gap, 0, 0, 0);
+                if (_actionButtons.Margin != actionsMargin) _actionButtons.Margin = actionsMargin;
                 var actionsMaximum = new Size(Math.Max(1, actionsWidth), 0);
                 if (_actionButtons.MaximumSize != actionsMaximum) _actionButtons.MaximumSize = actionsMaximum;
                 var statusMaximum = new Size(statusWidth, 0);
@@ -447,11 +510,14 @@ namespace logReader.UI
                 int labelWidth = Math.Max(1, statusWidth - _readinessLabel.Margin.Horizontal);
                 var labelMaximum = new Size(labelWidth, 0);
                 if (_readinessLabel.MaximumSize != labelMaximum) _readinessLabel.MaximumSize = labelMaximum;
-                if (labelProgress.MaximumSize != labelMaximum) labelProgress.MaximumSize = labelMaximum;
+                var progressMaximum = new Size(Math.Max(1, statusWidth - labelProgress.Margin.Horizontal), 0);
+                if (labelProgress.MaximumSize != progressMaximum) labelProgress.MaximumSize = progressMaximum;
                 if (_workspaceStatus.MaximumSize != statusMaximum) _workspaceStatus.MaximumSize = statusMaximum;
             }
             finally
             {
+                _actionButtons.ResumeLayout(true);
+                _actionStatus.ResumeLayout(true);
                 _actionBar.ResumeLayout(true);
                 _reflowingActionBar = false;
             }
@@ -472,31 +538,29 @@ namespace logReader.UI
             bool hasDevices = IsDevicesFileSelectedAndExists();
             bool hasComposites = IsCompositesFileSelectedAndExists();
             _devicesShortcut.Text = hasDevices ? "Редактор" : "Создать файл";
-            _devicesShortcut.Icon = hasDevices ? IconKind.Edit : IconKind.Plus;
+            var devicesIcon = hasDevices ? IconKind.Edit : IconKind.Plus;
+            if (_devicesShortcut.Icon != devicesIcon) _devicesShortcut.Icon = devicesIcon;
             _compositesShortcut.Text = hasComposites ? "Редактор" : "Создать файл";
-            _compositesShortcut.Icon = hasComposites ? IconKind.Edit : IconKind.Plus;
+            var compositesIcon = hasComposites ? IconKind.Edit : IconKind.Plus;
+            if (_compositesShortcut.Icon != compositesIcon) _compositesShortcut.Icon = compositesIcon;
             string format = _saveOptions.OutputFormat switch { OutputFormat.Xlsx => "Excel · XLSX", OutputFormat.CsvDstConnect => "CSV · ДСТ Коннект", _ => "CSV" };
             string batch = _saveOptions.BatchMode switch { BatchOutputMode.MergeToSingleFile => "единый файл", BatchOutputMode.SplitTrcByDate => "разбивка по датам", _ => "отдельный файл на каждый лог" };
             _outputSummary.Text = $"{format} · {batch}";
             if (!_workspaceBusy && !_hasOperationResult)
             {
-                bool ready = (File.Exists(textBoxCanLog.Text.Trim()) || Directory.Exists(textBoxCanLog.Text.Trim()))
-                    && IsDevicesFileSelectedAndExists() && !string.IsNullOrWhiteSpace(textBoxOutput.Text);
+                string source = textBoxCanLog.Text.Trim();
+                bool hasSource = File.Exists(source) || Directory.Exists(source);
+                bool ready = hasSource && hasDevices && !string.IsNullOrWhiteSpace(textBoxOutput.Text);
                 _workspaceStatus.Text = ready ? "Готово к обработке" : "Выберите входные файлы";
                 _workspaceStatus.Tone = ready ? StatusTone.Info : StatusTone.Neutral;
                 _readinessLabel.Text = string.IsNullOrWhiteSpace(textBoxCanLog.Text) ? "Шаг 1: выберите файл или папку с логами."
-                    : !File.Exists(textBoxCanLog.Text.Trim()) && !Directory.Exists(textBoxCanLog.Text.Trim()) ? "Источник не найден. Проверьте путь к логу."
-                    : !IsDevicesFileSelectedAndExists() ? "Шаг 2: выберите файл посылок для декодирования."
+                    : !hasSource ? "Источник не найден. Проверьте путь к логу."
+                    : !hasDevices ? "Шаг 2: выберите файл посылок для декодирования."
                     : string.IsNullOrWhiteSpace(textBoxOutput.Text) ? "Шаг 3: укажите путь к результату."
                     : "Входные файлы выбраны. Можно запускать обработку.";
             }
             buttonProcess.Enabled = !_workspaceBusy;
-            int width = Math.Max(UiScale.Px(this, 180), _pagesHost.Width - UiScale.Px(this, 56));
-            foreach (var label in new[] { _devicesLibraryPath, _compositesLibraryPath, _pageDescription })
-                label.MaximumSize = new Size(width, 0);
-            _readinessLabel.MaximumSize = new Size(Math.Max(UiScale.Px(this, 140), width - UiScale.Px(this, 380)), 0);
-            labelProgress.MaximumSize = _readinessLabel.MaximumSize;
-            ReflowActionBar();
+            RequestWorkspaceLayout();
         }
 
         private void ShowWorkspaceNotice(string text, StatusTone tone)

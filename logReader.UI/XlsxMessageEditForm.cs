@@ -112,9 +112,10 @@ namespace logReader.UI
             {
                 Dock = DockStyle.Fill,
                 AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding = new Padding(0, 0, 0, 12),
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
+                WrapContents = true
             };
             _btnAdd.Text = "Добавить сигнал";
             _btnAdd.AutoSize = true;

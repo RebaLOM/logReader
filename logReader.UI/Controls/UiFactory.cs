@@ -86,7 +86,7 @@ public static class UiFactory
 
     public static FlowLayoutPanel Footer(params Control[] actions)
     {
-        var layout = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Bottom,
+        var layout = new ActionFooter { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Bottom,
             FlowDirection = FlowDirection.RightToLeft, WrapContents = true, Padding = new Padding(16), Margin = new Padding(0),
             BackColor = AppTheme.Surface };
         foreach (var action in actions)
@@ -103,10 +103,46 @@ public static class UiFactory
         AutoSize = true, Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 12)
     };
 
+    private sealed class ActionFooter : FlowLayoutPanel
+    {
+        private bool constraining;
+
+        protected override void OnLayout(LayoutEventArgs e)
+        {
+            if (!constraining && Parent is { ClientSize.Width: > 0 } parent)
+            {
+                int available = Math.Max(1, parent.ClientSize.Width - parent.Padding.Horizontal - Margin.Horizontal);
+                if (parent is TableLayoutPanel table)
+                {
+                    var cell = table.GetCellPosition(this);
+                    int[] widths = table.GetColumnWidths();
+                    if (cell.Column >= 0 && cell.Column < widths.Length)
+                    {
+                        int span = table.GetColumnSpan(this);
+                        int cellWidth = widths.Skip(cell.Column).Take(span).Sum() - Margin.Horizontal;
+                        if (cellWidth > 0) available = Math.Min(available, cellWidth);
+                    }
+                }
+                var maximum = new Size(available, 0);
+                if (MaximumSize != maximum)
+                {
+                    constraining = true;
+                    try { MaximumSize = maximum; }
+                    finally { constraining = false; }
+                }
+            }
+            base.OnLayout(e);
+        }
+    }
+
     private sealed class InputFrame : Panel
     {
         private readonly Control input;
         private bool hover;
+        private bool layingOut;
+        private int nativePreferredHeight;
+        private int preferredDpi;
+        private Font? preferredFont;
         public InputFrame(Control nativeInput)
         {
             input = nativeInput;
@@ -155,20 +191,36 @@ public static class UiFactory
         protected override void OnLayout(LayoutEventArgs e)
         {
             base.OnLayout(e);
-            if (input == null) return;
+            if (input == null || layingOut) return;
             int width = Math.Max(1, ClientSize.Width - Padding.Horizontal);
-            int nativeHeight = input.GetPreferredSize(new Size(width, 0)).Height;
+            int nativeHeight = NativeHeight(width);
             if (nativeHeight <= 0) nativeHeight = input.Height;
             // Native edit/combobox/spinner height follows its font. The frame's
             // baseline size/padding are scaled by WinForms, never scaled twice.
             int availableHeight = Math.Max(1, ClientSize.Height - Padding.Vertical);
             nativeHeight = Math.Min(nativeHeight, availableHeight);
-            input.SetBounds(Padding.Left, (ClientSize.Height - nativeHeight) / 2, width, nativeHeight);
+            var bounds = new Rectangle(Padding.Left, (ClientSize.Height - nativeHeight) / 2, width, nativeHeight);
+            if (input.Bounds == bounds) return;
+            layingOut = true;
+            try { input.Bounds = bounds; }
+            finally { layingOut = false; }
+        }
+
+        private int NativeHeight(int width)
+        {
+            if (input == null) return 0;
+            if (nativePreferredHeight <= 0 || preferredDpi != input.DeviceDpi || !ReferenceEquals(preferredFont, input.Font))
+            {
+                nativePreferredHeight = input.GetPreferredSize(new Size(Math.Max(1, width), 0)).Height;
+                preferredDpi = input.DeviceDpi;
+                preferredFont = input.Font;
+            }
+            return nativePreferredHeight;
         }
 
         public override Size GetPreferredSize(Size proposedSize)
         {
-            int height = input?.GetPreferredSize(new Size(Math.Max(1, proposedSize.Width - Padding.Horizontal), 0)).Height ?? 0;
+            int height = NativeHeight(proposedSize.Width - Padding.Horizontal);
             int width = proposedSize.Width > 0 && proposedSize.Width < 16384 ? proposedSize.Width : (input?.PreferredSize.Width ?? 0) + Padding.Horizontal;
             return new Size(Math.Max(MinimumSize.Width, width), Math.Max(MinimumSize.Height, height + Padding.Vertical));
         }
@@ -178,11 +230,14 @@ public static class UiFactory
             bool error = input is IInputValidation { HasError: true };
             bool enabled = Enabled && input.Enabled;
             Color border = !enabled ? AppTheme.Border : error ? AppTheme.Error : ContainsFocus ? AppTheme.Primary : hover ? AppTheme.BorderHover : AppTheme.Border;
-            Color fill = !enabled ? AppTheme.DisabledSurface : error ? AppTheme.ErrorSoft : AppTheme.Surface;
+            bool readOnly = input is TextBoxBase { ReadOnly: true } or NumericUpDown { ReadOnly: true };
+            Color fill = AppTheme.InputSurface(input, readOnly);
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using var path = PaintGeometry.Rounded(new RectangleF(.5f, .5f, Math.Max(1, Width - 1), Math.Max(1, Height - 1)), UiScale.Px(this, 6));
+            float stroke = Math.Max(1f, DeviceDpi / 96f);
+            float inset = stroke / 2f + .5f;
+            using var path = PaintGeometry.Rounded(new RectangleF(inset, inset, Math.Max(1, Width - 2 * inset), Math.Max(1, Height - 2 * inset)), UiScale.Px(this, 6));
             using var brush = new SolidBrush(fill);
-            using var pen = new Pen(border, Math.Max(1f, DeviceDpi / 96f));
+            using var pen = new Pen(border, stroke);
             e.Graphics.FillPath(brush, path);
             e.Graphics.DrawPath(pen, path);
         }

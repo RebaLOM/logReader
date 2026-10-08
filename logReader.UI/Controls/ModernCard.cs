@@ -21,9 +21,11 @@ public class ModernCard : Panel
     {
         base.OnPaint(e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = PaintGeometry.Rounded(new RectangleF(.5f, .5f, Math.Max(1, Width - 1), Math.Max(1, Height - 1)), UiScale.Px(this, 12));
+        float stroke = Math.Max(1f, DeviceDpi / 96f);
+        float inset = stroke / 2f + .5f;
+        using var path = PaintGeometry.Rounded(new RectangleF(inset, inset, Math.Max(1, Width - 2 * inset), Math.Max(1, Height - 2 * inset)), UiScale.Px(this, 12));
         using var brush = new SolidBrush(BackColor);
-        using var pen = new Pen(AppTheme.Border, Math.Max(1f, DeviceDpi / 96f));
+        using var pen = new Pen(AppTheme.Border, stroke);
         e.Graphics.FillPath(brush, path);
         e.Graphics.DrawPath(pen, path);
     }

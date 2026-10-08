@@ -11,6 +11,7 @@ public class NavigationItem : ModernButton
         get => selected;
         set
         {
+            if (selected == value) return;
             selected = value;
             if (IsHandleCreated) AccessibilityNotifyClients(AccessibleEvents.StateChange, -1);
             Invalidate();
@@ -28,33 +29,26 @@ public class NavigationItem : ModernButton
 
     protected override AccessibleObject CreateAccessibilityInstance() => new NavigationAccessibleObject(this);
 
-    private sealed class NavigationAccessibleObject(NavigationItem owner) : ButtonBaseAccessibleObject(owner)
+    private sealed class NavigationAccessibleObject(NavigationItem owner) : ModernButtonAccessibleObject(owner)
     {
         public override AccessibleStates State => base.State | (owner.Selected ? AccessibleStates.Selected : AccessibleStates.None);
     }
 
-    protected override void OnPaint(PaintEventArgs e)
+    protected override (Color Fill, Color Ink, Color Border) GetAppearance()
     {
-        if (Selected && Enabled)
-        {
-            base.OnPaint(e);
-            using var background = new SolidBrush(AppTheme.PrimarySoft);
-            using var rounded = PaintGeometry.Rounded(new RectangleF(1, 1, Math.Max(1, Width - 3), Math.Max(1, Height - 3)), UiScale.Px(this, 8));
-            e.Graphics.FillPath(background, rounded);
-            using var stripe = new SolidBrush(AppTheme.Primary);
-            e.Graphics.FillRectangle(stripe, UiScale.Px(this, 2), UiScale.Px(this, 12), UiScale.Px(this, 3), Math.Max(1, Height - UiScale.Px(this, 24)));
-            int size = UiScale.Px(this, 18);
-            int x = Padding.Left;
-            if (Icon != IconKind.None)
-            {
-                IconPainter.Draw(e.Graphics, Icon, new Rectangle(x, (Height - size) / 2, size, size), AppTheme.Primary);
-                x += size + UiScale.Px(this, 8);
-            }
-            TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(x, 0, Math.Max(1, Width - x - Padding.Right), Height), AppTheme.Primary,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            if (Focused && ShowFocusCues)
-                ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(ClientRectangle, -UiScale.Px(this, 5), -UiScale.Px(this, 5)), AppTheme.Primary, AppTheme.PrimarySoft);
-        }
-        else base.OnPaint(e);
+        if (!Selected || !Enabled) return base.GetAppearance();
+        return (AppTheme.PrimarySoft, AppTheme.Primary,
+            IsHovered || IsPressed ? AppTheme.BorderHover : AppTheme.PrimarySoft);
+    }
+
+    protected override void PaintAdornment(Graphics graphics, RectangleF bounds, Color ink)
+    {
+        if (!Selected) return;
+        float inset = UiScale.Px(this, 8);
+        float height = bounds.Height - inset * 2;
+        if (height <= 0) return;
+        using var stripe = new SolidBrush(Enabled ? AppTheme.Primary : AppTheme.TextMuted);
+        graphics.FillRectangle(stripe, bounds.Left + UiScale.Px(this, 2), bounds.Top + inset,
+            UiScale.Px(this, 3), height);
     }
 }

@@ -66,6 +66,7 @@ public class FormLayoutTests
         UiThread.Pump();
         UiThread.AssertFooterReachable(form, form.AcceptButton);
         UiThread.AssertFooterReachable(form, form.CancelButton);
+        UiThread.AssertVisibleButtonTextFits(form);
         foreach (var input in UiThread.Descendants(form).Where(c => c.Visible && c is TextBox or ComboBox or NumericUpDown))
             Assert.True(input.Width > 0 && input.Height > 0, $"{scenario}: {input.GetType().Name} collapsed after resizing.");
     });

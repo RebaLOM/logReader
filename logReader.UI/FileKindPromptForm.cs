@@ -160,7 +160,7 @@ namespace logReader.UI
                 };
                 layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
                 layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
                 layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -178,6 +178,9 @@ namespace logReader.UI
                     Text = title,
                     Variant = ButtonVariant.Secondary,
                     Dock = DockStyle.Fill,
+                    AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                    MinimumSize = new Size(0, 40),
                     Margin = Padding.Empty,
                     AccessibleName = $"Выбрать {title} {extension}"
                 };

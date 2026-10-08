@@ -15,6 +15,27 @@ namespace logReader.UI
             richTextBoxHelp.Font = Typography.Body;
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             CacheSearchText();
+            AppTheme.Changed += HelpThemeChanged;
+            Disposed += (_, _) => AppTheme.Changed -= HelpThemeChanged;
+        }
+
+        private void HelpThemeChanged(object? sender, EventArgs e)
+        {
+            if (IsDisposed || Disposing) return;
+            if (InvokeRequired)
+            {
+                if (IsHandleCreated) BeginInvoke((Action)(() => HelpThemeChanged(sender, e)));
+                return;
+            }
+            richTextBoxHelp.BackColor = AppTheme.Surface;
+            if (treeViewTopics.SelectedNode?.Tag is not string topicId || HelpContent.FindById(topicId) is not { } topic)
+                return;
+            int start = richTextBoxHelp.SelectionStart;
+            int length = richTextBoxHelp.SelectionLength;
+            Point scroll = RichTextViewport.GetScroll(richTextBoxHelp);
+            HelpRenderer.Render(richTextBoxHelp, topic, textBoxSearch.Text.Trim());
+            richTextBoxHelp.Select(Math.Min(start, richTextBoxHelp.TextLength), Math.Min(length, Math.Max(0, richTextBoxHelp.TextLength - start)));
+            RichTextViewport.SetScroll(richTextBoxHelp, scroll);
         }
 
         private void HelpForm_Load(object? sender, EventArgs e)

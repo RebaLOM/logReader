@@ -115,9 +115,10 @@ namespace logReader.UI
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Margin = new Padding(0, 0, 0, 12),
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
+                WrapContents = true
             };
             _rbKindNum.Text = "Числовой · NUM";
             _rbKindNum.AutoSize = true;

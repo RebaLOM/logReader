@@ -66,7 +66,9 @@ namespace logReader.UI
                 Icon = IconKind.Folder,
                 Variant = ButtonVariant.Secondary,
                 Dock = DockStyle.Fill,
-                Width = 116
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(0, 40)
             };
             _browseInputButton.Click += (_, _) => BrowseInputFile();
 
@@ -109,7 +111,9 @@ namespace logReader.UI
                 Icon = IconKind.Folder,
                 Variant = ButtonVariant.Secondary,
                 Dock = DockStyle.Fill,
-                Width = 116
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(0, 40)
             };
             _browseOutputButton.Click += (_, _) => BrowseOutputFile();
 
@@ -256,19 +260,21 @@ namespace logReader.UI
             var row = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Height = 40,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 RowCount = 1,
                 Margin = Padding.Empty
             };
             row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var inputHost = UiFactory.Input(input);
             inputHost.Dock = DockStyle.Fill;
             inputHost.Margin = new Padding(0, 0, 8, 0);
             browse.Margin = Padding.Empty;
-            browse.MinimumSize = new Size(116, 40);
+            browse.AutoSize = true;
+            browse.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             row.Controls.Add(inputHost, 0, 0);
             row.Controls.Add(browse, 1, 0);
             return row;
