@@ -1,0 +1,392 @@
+﻿{
+    "newlineNormalization":  "Archive text newline and BOM matched current Windows checkout; Git blob identity required for every file.",
+    "independentArchive":  "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\source",
+    "sourceCommit":  "bfbea8167f63e5bfa4c4780c308caa2fe5b24697",
+    "files":  [
+                  {
+                      "currentBlob":  "2b65c8bbeedb2e469d34e30b9719bb5232e97a61",
+                      "pass":  true,
+                      "file":  "logReader/BitMath.cs",
+                      "bfbea81Blob":  "2b65c8bbeedb2e469d34e30b9719bb5232e97a61",
+                      "archiveBlob":  "2b65c8bbeedb2e469d34e30b9719bb5232e97a61"
+                  },
+                  {
+                      "currentBlob":  "4c61ac431dd8fb771af04f4db95000a682e0eb99",
+                      "pass":  true,
+                      "file":  "logReader/CanId.cs",
+                      "bfbea81Blob":  "4c61ac431dd8fb771af04f4db95000a682e0eb99",
+                      "archiveBlob":  "4c61ac431dd8fb771af04f4db95000a682e0eb99"
+                  },
+                  {
+                      "currentBlob":  "2e2643ca39a5cf3dbc49e0814f0042a3905f285a",
+                      "pass":  true,
+                      "file":  "logReader/CompositeDevice.cs",
+                      "bfbea81Blob":  "2e2643ca39a5cf3dbc49e0814f0042a3905f285a",
+                      "archiveBlob":  "2e2643ca39a5cf3dbc49e0814f0042a3905f285a"
+                  },
+                  {
+                      "currentBlob":  "6463d4ac35a6aa616684b1a6dccd5c2e97059210",
+                      "pass":  true,
+                      "file":  "logReader/CompositeExcelFile.cs",
+                      "bfbea81Blob":  "6463d4ac35a6aa616684b1a6dccd5c2e97059210",
+                      "archiveBlob":  "6463d4ac35a6aa616684b1a6dccd5c2e97059210"
+                  },
+                  {
+                      "currentBlob":  "6fa0f62b77a857223e8c910db25dcffd928cdd72",
+                      "pass":  true,
+                      "file":  "logReader/CompositeModels.cs",
+                      "bfbea81Blob":  "6fa0f62b77a857223e8c910db25dcffd928cdd72",
+                      "archiveBlob":  "6fa0f62b77a857223e8c910db25dcffd928cdd72"
+                  },
+                  {
+                      "currentBlob":  "de8ca483bb95db2cf1e127e29c5cf2f74d80fb15",
+                      "pass":  true,
+                      "file":  "logReader/CsvNumberFormat.cs",
+                      "bfbea81Blob":  "de8ca483bb95db2cf1e127e29c5cf2f74d80fb15",
+                      "archiveBlob":  "de8ca483bb95db2cf1e127e29c5cf2f74d80fb15"
+                  },
+                  {
+                      "currentBlob":  "d9f9f84f57dd60db8b9eb7b21e88563f3e7d423a",
+                      "pass":  true,
+                      "file":  "logReader/DbcData.cs",
+                      "bfbea81Blob":  "d9f9f84f57dd60db8b9eb7b21e88563f3e7d423a",
+                      "archiveBlob":  "d9f9f84f57dd60db8b9eb7b21e88563f3e7d423a"
+                  },
+                  {
+                      "currentBlob":  "843ff8a487649e6e708a7ff25717811cc2ee052a",
+                      "pass":  true,
+                      "file":  "logReader/DbcDevicesLoader.cs",
+                      "bfbea81Blob":  "843ff8a487649e6e708a7ff25717811cc2ee052a",
+                      "archiveBlob":  "843ff8a487649e6e708a7ff25717811cc2ee052a"
+                  },
+                  {
+                      "currentBlob":  "ab09652f10d964f175afdc261fa581625918f088",
+                      "pass":  true,
+                      "file":  "logReader/DbcFile.cs",
+                      "bfbea81Blob":  "ab09652f10d964f175afdc261fa581625918f088",
+                      "archiveBlob":  "ab09652f10d964f175afdc261fa581625918f088"
+                  },
+                  {
+                      "currentBlob":  "cde8139947b52887c8e1d4c8176e2188269f49d2",
+                      "pass":  true,
+                      "file":  "logReader/DbcLineParser.cs",
+                      "bfbea81Blob":  "cde8139947b52887c8e1d4c8176e2188269f49d2",
+                      "archiveBlob":  "cde8139947b52887c8e1d4c8176e2188269f49d2"
+                  },
+                  {
+                      "currentBlob":  "89b1876fda3f1a8bf487a1a9e039855e00d0a464",
+                      "pass":  true,
+                      "file":  "logReader/DbcPhysicalValue.cs",
+                      "bfbea81Blob":  "89b1876fda3f1a8bf487a1a9e039855e00d0a464",
+                      "archiveBlob":  "89b1876fda3f1a8bf487a1a9e039855e00d0a464"
+                  },
+                  {
+                      "currentBlob":  "ea8b4aba952b0d04bd34fbc5742f451598d62197",
+                      "pass":  true,
+                      "file":  "logReader/DbfFile.cs",
+                      "bfbea81Blob":  "ea8b4aba952b0d04bd34fbc5742f451598d62197",
+                      "archiveBlob":  "ea8b4aba952b0d04bd34fbc5742f451598d62197"
+                  },
+                  {
+                      "currentBlob":  "ac3341f187d4fe8a5b7d1ede144dc64a64d1b0fc",
+                      "pass":  true,
+                      "file":  "logReader/DbfLineParser.cs",
+                      "bfbea81Blob":  "ac3341f187d4fe8a5b7d1ede144dc64a64d1b0fc",
+                      "archiveBlob":  "ac3341f187d4fe8a5b7d1ede144dc64a64d1b0fc"
+                  },
+                  {
+                      "currentBlob":  "f3f05777fe2ef8b93b4b0a95873591c4cb0e60ab",
+                      "pass":  true,
+                      "file":  "logReader/Device.cs",
+                      "bfbea81Blob":  "f3f05777fe2ef8b93b4b0a95873591c4cb0e60ab",
+                      "archiveBlob":  "f3f05777fe2ef8b93b4b0a95873591c4cb0e60ab"
+                  },
+                  {
+                      "currentBlob":  "7ef59bfec2e5396903e6a5cafead956e880af76f",
+                      "pass":  true,
+                      "file":  "logReader/DeviceExcelFile.cs",
+                      "bfbea81Blob":  "7ef59bfec2e5396903e6a5cafead956e880af76f",
+                      "archiveBlob":  "7ef59bfec2e5396903e6a5cafead956e880af76f"
+                  },
+                  {
+                      "currentBlob":  "bf4ef7d44cbd7a950fe115072ff5d41682c25106",
+                      "pass":  true,
+                      "file":  "logReader/DeviceFiles.cs",
+                      "bfbea81Blob":  "bf4ef7d44cbd7a950fe115072ff5d41682c25106",
+                      "archiveBlob":  "bf4ef7d44cbd7a950fe115072ff5d41682c25106"
+                  },
+                  {
+                      "currentBlob":  "3bda369323943fac19a1090ce2eff9e13a5f76ed",
+                      "pass":  true,
+                      "file":  "logReader/DstConnectBlockTracker.cs",
+                      "bfbea81Blob":  "3bda369323943fac19a1090ce2eff9e13a5f76ed",
+                      "archiveBlob":  "3bda369323943fac19a1090ce2eff9e13a5f76ed"
+                  },
+                  {
+                      "currentBlob":  "3cd9402244841bbb50a5eaf3f4dcd1b02a715005",
+                      "pass":  true,
+                      "file":  "logReader/DstConnectOptions.cs",
+                      "bfbea81Blob":  "3cd9402244841bbb50a5eaf3f4dcd1b02a715005",
+                      "archiveBlob":  "3cd9402244841bbb50a5eaf3f4dcd1b02a715005"
+                  },
+                  {
+                      "currentBlob":  "7cf663d629bb8996555080ef126240b04825d983",
+                      "pass":  true,
+                      "file":  "logReader/ExcelLayoutBuilder.cs",
+                      "bfbea81Blob":  "7cf663d629bb8996555080ef126240b04825d983",
+                      "archiveBlob":  "7cf663d629bb8996555080ef126240b04825d983"
+                  },
+                  {
+                      "currentBlob":  "ac481b7785f3c6609428ea2d793cbd2e59858fb3",
+                      "pass":  true,
+                      "file":  "logReader/logReader.csproj",
+                      "bfbea81Blob":  "ac481b7785f3c6609428ea2d793cbd2e59858fb3",
+                      "archiveBlob":  "ac481b7785f3c6609428ea2d793cbd2e59858fb3"
+                  },
+                  {
+                      "currentBlob":  "ef23f22600995184d6b98fe7d8c335e82d4e0785",
+                      "pass":  true,
+                      "file":  "logReader/NumberParseHelper.cs",
+                      "bfbea81Blob":  "ef23f22600995184d6b98fe7d8c335e82d4e0785",
+                      "archiveBlob":  "ef23f22600995184d6b98fe7d8c335e82d4e0785"
+                  },
+                  {
+                      "currentBlob":  "86477936b2a76578f21003393daa1ea13ce3d8a5",
+                      "pass":  true,
+                      "file":  "logReader/OutputFilter.cs",
+                      "bfbea81Blob":  "86477936b2a76578f21003393daa1ea13ce3d8a5",
+                      "archiveBlob":  "86477936b2a76578f21003393daa1ea13ce3d8a5"
+                  },
+                  {
+                      "currentBlob":  "8cf9bb9821abab1d6d8354fafd9e20aa6982bfce",
+                      "pass":  true,
+                      "file":  "logReader/SafeFileWriter.cs",
+                      "bfbea81Blob":  "8cf9bb9821abab1d6d8354fafd9e20aa6982bfce",
+                      "archiveBlob":  "8cf9bb9821abab1d6d8354fafd9e20aa6982bfce"
+                  },
+                  {
+                      "currentBlob":  "9f6c5072411304de2faa2f523a2749c4b47741d1",
+                      "pass":  true,
+                      "file":  "logReader/TimeOfDayParse.cs",
+                      "bfbea81Blob":  "9f6c5072411304de2faa2f523a2749c4b47741d1",
+                      "archiveBlob":  "9f6c5072411304de2faa2f523a2749c4b47741d1"
+                  },
+                  {
+                      "currentBlob":  "f748b1ddd3485f41d8b1aa5608fbe6b39b69e83c",
+                      "pass":  true,
+                      "file":  "logReader/TrcBlockDetector.cs",
+                      "bfbea81Blob":  "f748b1ddd3485f41d8b1aa5608fbe6b39b69e83c",
+                      "archiveBlob":  "f748b1ddd3485f41d8b1aa5608fbe6b39b69e83c"
+                  },
+                  {
+                      "currentBlob":  "067c8290f6c687143e7da2df8465752cd9bc90cd",
+                      "pass":  true,
+                      "file":  "logReader/XlsxCellReader.cs",
+                      "bfbea81Blob":  "067c8290f6c687143e7da2df8465752cd9bc90cd",
+                      "archiveBlob":  "067c8290f6c687143e7da2df8465752cd9bc90cd"
+                  },
+                  {
+                      "currentBlob":  "6f8578388ddfff24dd8cc5b2eff86f5274d26ac8",
+                      "pass":  true,
+                      "file":  "logReader/XlsxSheetRewriter.cs",
+                      "bfbea81Blob":  "6f8578388ddfff24dd8cc5b2eff86f5274d26ac8",
+                      "archiveBlob":  "6f8578388ddfff24dd8cc5b2eff86f5274d26ac8"
+                  },
+                  {
+                      "currentBlob":  "c05c5393ab60927dd375b8feb2badacb46a0de09",
+                      "pass":  true,
+                      "file":  "logReader/Processing/AscLogParser.cs",
+                      "bfbea81Blob":  "c05c5393ab60927dd375b8feb2badacb46a0de09",
+                      "archiveBlob":  "c05c5393ab60927dd375b8feb2badacb46a0de09"
+                  },
+                  {
+                      "currentBlob":  "75f868f04c635ffbcd692f35ba7710e26a87d8ba",
+                      "pass":  true,
+                      "file":  "logReader/Processing/AscLogProcessor.cs",
+                      "bfbea81Blob":  "75f868f04c635ffbcd692f35ba7710e26a87d8ba",
+                      "archiveBlob":  "75f868f04c635ffbcd692f35ba7710e26a87d8ba"
+                  },
+                  {
+                      "currentBlob":  "72654b5e1b64c53a22139021fe1f02f806678c5b",
+                      "pass":  true,
+                      "file":  "logReader/Processing/BatchOutputMode.cs",
+                      "bfbea81Blob":  "72654b5e1b64c53a22139021fe1f02f806678c5b",
+                      "archiveBlob":  "72654b5e1b64c53a22139021fe1f02f806678c5b"
+                  },
+                  {
+                      "currentBlob":  "eb1aa0d2828fb35189eb2dcb07ef331e57d32c74",
+                      "pass":  true,
+                      "file":  "logReader/Processing/CanfoxLogParser.cs",
+                      "bfbea81Blob":  "eb1aa0d2828fb35189eb2dcb07ef331e57d32c74",
+                      "archiveBlob":  "eb1aa0d2828fb35189eb2dcb07ef331e57d32c74"
+                  },
+                  {
+                      "currentBlob":  "c6beb14a1bf57b5d88de4e4cd2b561a8b4fa3882",
+                      "pass":  true,
+                      "file":  "logReader/Processing/CanLogProcessor.cs",
+                      "bfbea81Blob":  "c6beb14a1bf57b5d88de4e4cd2b561a8b4fa3882",
+                      "archiveBlob":  "c6beb14a1bf57b5d88de4e4cd2b561a8b4fa3882"
+                  },
+                  {
+                      "currentBlob":  "173846cb29c43a9f38fe54b127629b1753cd4809",
+                      "pass":  true,
+                      "file":  "logReader/Processing/CanToken.cs",
+                      "bfbea81Blob":  "173846cb29c43a9f38fe54b127629b1753cd4809",
+                      "archiveBlob":  "173846cb29c43a9f38fe54b127629b1753cd4809"
+                  },
+                  {
+                      "currentBlob":  "1ac69ca320cdbecb9fd70d61498df0748822e7f6",
+                      "pass":  true,
+                      "file":  "logReader/Processing/CompositeOutput.cs",
+                      "bfbea81Blob":  "1ac69ca320cdbecb9fd70d61498df0748822e7f6",
+                      "archiveBlob":  "1ac69ca320cdbecb9fd70d61498df0748822e7f6"
+                  },
+                  {
+                      "currentBlob":  "c3f21b3fc2249a5a2f911a61e533d7c03bd8e392",
+                      "pass":  true,
+                      "file":  "logReader/Processing/CsvOutput.cs",
+                      "bfbea81Blob":  "c3f21b3fc2249a5a2f911a61e533d7c03bd8e392",
+                      "archiveBlob":  "c3f21b3fc2249a5a2f911a61e533d7c03bd8e392"
+                  },
+                  {
+                      "currentBlob":  "b86c27e40b65ae72cfcd54e9b906b43d44657480",
+                      "pass":  true,
+                      "file":  "logReader/Processing/DstConnectCsvWriter.cs",
+                      "bfbea81Blob":  "b86c27e40b65ae72cfcd54e9b906b43d44657480",
+                      "archiveBlob":  "b86c27e40b65ae72cfcd54e9b906b43d44657480"
+                  },
+                  {
+                      "currentBlob":  "3fdfb93c9dbbd51025a2405932bd0c39d2cf1adc",
+                      "pass":  true,
+                      "file":  "logReader/Processing/DstConnectTrcProcessor.cs",
+                      "bfbea81Blob":  "3fdfb93c9dbbd51025a2405932bd0c39d2cf1adc",
+                      "archiveBlob":  "3fdfb93c9dbbd51025a2405932bd0c39d2cf1adc"
+                  },
+                  {
+                      "currentBlob":  "4e118a006326b804ad16b99f4f0d82f475a12d74",
+                      "pass":  true,
+                      "file":  "logReader/Processing/LogFileEncoding.cs",
+                      "bfbea81Blob":  "4e118a006326b804ad16b99f4f0d82f475a12d74",
+                      "archiveBlob":  "4e118a006326b804ad16b99f4f0d82f475a12d74"
+                  },
+                  {
+                      "currentBlob":  "bb0e94e6e9df5a532bedda0ffa10781f5835b061",
+                      "pass":  true,
+                      "file":  "logReader/Processing/LogFileReader.cs",
+                      "bfbea81Blob":  "bb0e94e6e9df5a532bedda0ffa10781f5835b061",
+                      "archiveBlob":  "bb0e94e6e9df5a532bedda0ffa10781f5835b061"
+                  },
+                  {
+                      "currentBlob":  "cd8ab9446a11d3efadc0049161a206c4e40c545e",
+                      "pass":  true,
+                      "file":  "logReader/Processing/LogFormatDetector.cs",
+                      "bfbea81Blob":  "cd8ab9446a11d3efadc0049161a206c4e40c545e",
+                      "archiveBlob":  "cd8ab9446a11d3efadc0049161a206c4e40c545e"
+                  },
+                  {
+                      "currentBlob":  "ea02bb087c2a9a3e56f0c140704db998f719abfc",
+                      "pass":  true,
+                      "file":  "logReader/Processing/LogProcessingService.cs",
+                      "bfbea81Blob":  "ea02bb087c2a9a3e56f0c140704db998f719abfc",
+                      "archiveBlob":  "ea02bb087c2a9a3e56f0c140704db998f719abfc"
+                  },
+                  {
+                      "currentBlob":  "247b865ae50da56e5cda603196b62158b171b371",
+                      "pass":  true,
+                      "file":  "logReader/Processing/MatrixCsvLogParser.cs",
+                      "bfbea81Blob":  "247b865ae50da56e5cda603196b62158b171b371",
+                      "archiveBlob":  "247b865ae50da56e5cda603196b62158b171b371"
+                  },
+                  {
+                      "currentBlob":  "1e0f8817fad14fcadfb4fb3e124c724cbcf56019",
+                      "pass":  true,
+                      "file":  "logReader/Processing/MatrixCsvLogProcessor.cs",
+                      "bfbea81Blob":  "1e0f8817fad14fcadfb4fb3e124c724cbcf56019",
+                      "archiveBlob":  "1e0f8817fad14fcadfb4fb3e124c724cbcf56019"
+                  },
+                  {
+                      "currentBlob":  "2526a0460876669549452093f5c6490d6b3ece60",
+                      "pass":  true,
+                      "file":  "logReader/Processing/MatrixCsvToAscConverter.cs",
+                      "bfbea81Blob":  "2526a0460876669549452093f5c6490d6b3ece60",
+                      "archiveBlob":  "2526a0460876669549452093f5c6490d6b3ece60"
+                  },
+                  {
+                      "currentBlob":  "88021092e18c1dd6cc33c9049a1e992212784b47",
+                      "pass":  true,
+                      "file":  "logReader/Processing/OutputFormat.cs",
+                      "bfbea81Blob":  "88021092e18c1dd6cc33c9049a1e992212784b47",
+                      "archiveBlob":  "88021092e18c1dd6cc33c9049a1e992212784b47"
+                  },
+                  {
+                      "currentBlob":  "5abd59e8e32624f3f0e58a7524aa4f6916e8c804",
+                      "pass":  true,
+                      "file":  "logReader/Processing/PCanLogProcessor.cs",
+                      "bfbea81Blob":  "5abd59e8e32624f3f0e58a7524aa4f6916e8c804",
+                      "archiveBlob":  "5abd59e8e32624f3f0e58a7524aa4f6916e8c804"
+                  },
+                  {
+                      "currentBlob":  "091bc69bf9552ad96f8b0eb6a1529107bee2b7bd",
+                      "pass":  true,
+                      "file":  "logReader/Processing/ProcessingContext.cs",
+                      "bfbea81Blob":  "091bc69bf9552ad96f8b0eb6a1529107bee2b7bd",
+                      "archiveBlob":  "091bc69bf9552ad96f8b0eb6a1529107bee2b7bd"
+                  },
+                  {
+                      "currentBlob":  "f46f2c5ed44ea3460984b8b617f0f53ab0d204f4",
+                      "pass":  true,
+                      "file":  "logReader/Processing/StepCsvLogParser.cs",
+                      "bfbea81Blob":  "f46f2c5ed44ea3460984b8b617f0f53ab0d204f4",
+                      "archiveBlob":  "f46f2c5ed44ea3460984b8b617f0f53ab0d204f4"
+                  },
+                  {
+                      "currentBlob":  "ad5f2c228544e8fb91494a13bdce08fcb7c02372",
+                      "pass":  true,
+                      "file":  "logReader/Processing/StepOutputWriter.cs",
+                      "bfbea81Blob":  "ad5f2c228544e8fb91494a13bdce08fcb7c02372",
+                      "archiveBlob":  "ad5f2c228544e8fb91494a13bdce08fcb7c02372"
+                  },
+                  {
+                      "currentBlob":  "994651fec7e8063387467eaa86f18064f1b259bc",
+                      "pass":  true,
+                      "file":  "logReader/Processing/TimeSeriesOutputWriter.cs",
+                      "bfbea81Blob":  "994651fec7e8063387467eaa86f18064f1b259bc",
+                      "archiveBlob":  "994651fec7e8063387467eaa86f18064f1b259bc"
+                  },
+                  {
+                      "currentBlob":  "8bda2bb7a9017844011c84f825194042d8267e70",
+                      "pass":  true,
+                      "file":  "logReader/Processing/TrcBatchAggregator.cs",
+                      "bfbea81Blob":  "8bda2bb7a9017844011c84f825194042d8267e70",
+                      "archiveBlob":  "8bda2bb7a9017844011c84f825194042d8267e70"
+                  },
+                  {
+                      "currentBlob":  "4dc54cd19cded953cb6e5bcff9481b5d63d517be",
+                      "pass":  true,
+                      "file":  "logReader/Processing/TrcLogParser.cs",
+                      "bfbea81Blob":  "4dc54cd19cded953cb6e5bcff9481b5d63d517be",
+                      "archiveBlob":  "4dc54cd19cded953cb6e5bcff9481b5d63d517be"
+                  },
+                  {
+                      "currentBlob":  "ec4d433555ef7ba724cd391c9f78ab67c7f61e2f",
+                      "pass":  true,
+                      "file":  "logReader/Processing/TrcToAscConverter.cs",
+                      "bfbea81Blob":  "ec4d433555ef7ba724cd391c9f78ab67c7f61e2f",
+                      "archiveBlob":  "ec4d433555ef7ba724cd391c9f78ab67c7f61e2f"
+                  },
+                  {
+                      "currentBlob":  "09a28c0f23807b7309f9c5ddd9068fc434dfa038",
+                      "pass":  true,
+                      "file":  "logReader/Processing/UnknownDevicesScanner.cs",
+                      "bfbea81Blob":  "09a28c0f23807b7309f9c5ddd9068fc434dfa038",
+                      "archiveBlob":  "09a28c0f23807b7309f9c5ddd9068fc434dfa038"
+                  },
+                  {
+                      "currentBlob":  "d84991b177778bcc58d4516faeab8f366382d57e",
+                      "pass":  true,
+                      "file":  "logReader/Processing/VectorCanFdAscWriter.cs",
+                      "bfbea81Blob":  "d84991b177778bcc58d4516faeab8f366382d57e",
+                      "archiveBlob":  "d84991b177778bcc58d4516faeab8f366382d57e"
+                  }
+              ]
+}

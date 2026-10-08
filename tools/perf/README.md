@@ -1,6 +1,6 @@
 # Воспроизводимый baseline ядра
 
-`Loger.Perf` запускает скомпилированные алгоритмы из `logReader.dll`; производственные исходники, форматы, видимость классов и настройки сборки ядра не меняются. Внутренние точки входа вызываются через заранее найденные `MethodInfo`. Один вызов reflection на целую операцию — постоянная малая накладная стоимость и одинаковая в обеих версиях.
+`Loger.Perf` запускает скомпилированные алгоритмы из `logReader.dll`; сам harness не изменяет производственные исходники, форматы, видимость классов или настройки сборки ядра. Внутренние точки входа вызываются через заранее найденные `MethodInfo`. Один вызов reflection на целую операцию — постоянная малая накладная стоимость и одинаковая в обеих версиях.
 
 ```powershell
 # С корня репозитория. Сеть не нужна при наличии пользовательского кэша NuGet.
@@ -30,4 +30,24 @@ dotnet test logReader.Tests/logReader.Tests.csproj -c Release --no-restore
 
 Генерируемые входы и выходы находятся в игнорируемом `artifacts/perf/<label>/`. Отчёты JSON и Markdown — `docs/loger-2/performance/`. Не запускайте рядом сборки одного проекта и тяжёлый UI-аудит: они искажают время или конфликтуют за `obj`.
 
+После уточнения исходной функциональной версии пользователем ядро обновлено до `bfbea81`. Пара `baseline.json` / `after.json` относится к прежнему ядру `6310fd5` и сохранена как история редизайна. Для актуальной версии используются `baseline-bfbea81.json` (независимая сборка ядра из Git `bfbea81`) и `after-bfbea81.json` (текущая ветка), результат — `comparison-bfbea81.md`. Сравнивать выходы исправленного ядра с `6310fd5` как обязательное побайтное равенство некорректно: DST Time/Step и дробная ось CSV изменены намеренно. Проверка актуальной пары:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/perf/compare.ps1 `
+  -Before docs/loger-2/performance/baseline-bfbea81.json `
+  -After docs/loger-2/performance/after-bfbea81.json `
+  -Report docs/loger-2/performance/comparison-bfbea81.md
+```
+
 Этот harness не доказывает скорость UI, число кадров анимации, плавность прокрутки, холодный запуск и отсутствие многочасовых утечек; такие показатели здесь **NOT TESTED**. 100 000 кадров — воспроизводимый большой синтетический случай, а не гарантия для любого размера/вида реального лога.
+
+Итоговая пара `bfbea81` использует одинаковый opt-in `--fresh-outputs`:
+
+```powershell
+dotnet run --project tools/perf/Loger.Perf.csproj -c Release --no-build -- `
+  --root . --label after-bfbea81 --runs 5 --fresh-outputs
+```
+
+До каждого прогрева/sample удаляется только прежний synthetic output, вне таймера. Абсолютный путь обязан лежать внутри `artifacts/perf/<label>`; входные файлы защищены. Для batch разрешены только известные CSV/XLSX outputs. Default без флага сохраняет историческую методику. JSON записывает `FreshOutputs`; `compare.ps1` требует одинаковый режим и отклоняет смешанные измерения. Независимый archive baseline запущен с тем же кодом harness и флагом.
+
+Причина перехода: три прогона повторной замены CSV прервались на `File.Replace`, в том числе вне sandbox. Причина не установлена; core не менялся. Новая методика не измеряет atomic-overwrite time и не объявляет проблему исправленной. Детали, ограничения и все числа — `docs/loger-2/performance/comparison-bfbea81.md` и `docs/loger-2/evidence/bfbea81/benchmark-failed-runs.md`.

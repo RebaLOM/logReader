@@ -19,6 +19,14 @@ interpreting that environmental failure as an application regression.
 All fixture logs, outputs, and theme preferences stay under `--output`. The fixtures are
 generated locally; no user logs or configurations are used. Test runs can be repeated.
 
+The final integration of non-UI fixes from `bfbea81` was checked against the actual
+`artifacts/release/win-x64/LOGER.dll` produced from source commit `f53ec82`. Fresh reports
+are under `artifacts/integration-bfbea81/{dark,light,uia,message-contracts}`; portable copies
+are in `docs/loger-2/evidence`. Full WinForms checks are 52 per theme plus three extras;
+the added checks cover persistent/reset error status and all three initial output formats
+after showing/accepting options. Reports now identify both UI and loaded core assemblies
+by SHA-256. The final gallery contains 89 actual native window captures.
+
 The harness invokes the real button event routes and checks actual outputs:
 
 - Original MainForm action buttons remain connected to their original handlers.

@@ -1,0 +1,69 @@
+﻿{
+    "uiAssemblySha256":  "6C2D70B5AE98C8C6CD00221BBE109D41256E90726F9C7A355A47E936FCCF40FF",
+    "environmentThemeOverride":  false,
+    "samples":  [
+                    {
+                        "privateBytes":  11517952,
+                        "workingSetBytes":  49520640,
+                        "sample":  1,
+                        "cpuMsAtIdle":  187.5,
+                        "startupToInputIdleMs":  647.1547
+                    },
+                    {
+                        "privateBytes":  11325440,
+                        "workingSetBytes":  47198208,
+                        "sample":  2,
+                        "cpuMsAtIdle":  234.375,
+                        "startupToInputIdleMs":  228.1466
+                    },
+                    {
+                        "privateBytes":  11386880,
+                        "workingSetBytes":  48381952,
+                        "sample":  3,
+                        "cpuMsAtIdle":  250,
+                        "startupToInputIdleMs":  231.6335
+                    },
+                    {
+                        "privateBytes":  11345920,
+                        "workingSetBytes":  47919104,
+                        "sample":  4,
+                        "cpuMsAtIdle":  218.75,
+                        "startupToInputIdleMs":  223.0505
+                    },
+                    {
+                        "privateBytes":  11255808,
+                        "workingSetBytes":  46858240,
+                        "sample":  5,
+                        "cpuMsAtIdle":  218.75,
+                        "startupToInputIdleMs":  224.4872
+                    },
+                    {
+                        "privateBytes":  11243520,
+                        "workingSetBytes":  46268416,
+                        "sample":  6,
+                        "cpuMsAtIdle":  218.75,
+                        "startupToInputIdleMs":  225.46470000000002
+                    },
+                    {
+                        "privateBytes":  11321344,
+                        "workingSetBytes":  46108672,
+                        "sample":  7,
+                        "cpuMsAtIdle":  234.375,
+                        "startupToInputIdleMs":  218.264
+                    }
+                ],
+    "iterations":  7,
+    "savedPreferenceTheme":  null,
+    "method":  "Fresh actual WinExe processes; wall clock from Process.Start to WaitForInputIdle with nonzero main HWND; includes runtime bootstrap. Warm OS/disk cache, same machine/session.",
+    "app":  "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\baseline-app\\LOGER.exe",
+    "medianWorkingSetBytes":  47198208,
+    "coreAssemblySha256":  "4061AA5A23CC398A0464B22D17ECF635F6FE2D9CC4739928A615E3746EF49B78",
+    "theme":  "existing",
+    "preferenceFileExists":  false,
+    "limitations":  [
+                        "Input-idle is a Windows readiness proxy, not a guarantee of every pixel being painted.",
+                        "CPU snapshot at idle is process CPU time, not CPU utilization or sustained workload."
+                    ],
+    "medianStartupMs":  225.46470000000002,
+    "sha256":  "1081720321348A5EAA8AEA85DC0F969C425063A43BF2B3D1C4DFB0DBD69416ED"
+}

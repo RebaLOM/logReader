@@ -1,6 +1,8 @@
 {
-  "assemblyPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\r2r\\app\\LOGER.dll",
-  "assemblySha256": "D77258A3D71F591C1E0D77827A061EB21A292990509D0E275A86575092819A6A",
+  "assemblyPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\release\\win-x64\\LOGER.dll",
+  "assemblySha256": "2C85D7101B59E537A46C2155B805FBB72D30541D52358296AC706FDE3FD55C5D",
+  "coreAssemblyPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\release\\win-x64\\logReader.dll",
+  "coreAssemblySha256": "4061AA5A23CC398A0464B22D17ECF635F6FE2D9CC4739928A615E3746EF49B78",
   "theme": "Dark",
   "checks": [
     {
@@ -19,8 +21,8 @@
   "screenshots": [
     {
       "name": "source-chooser",
-      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\source-chooser.png",
-      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\source-chooser-window.png",
+      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\source-chooser.png",
+      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\source-chooser-window.png",
       "width": 358,
       "height": 126,
       "dpi": 96,
@@ -109,8 +111,8 @@
     },
     {
       "name": "devices-editor-dbf",
-      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\devices-editor-dbf.png",
-      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\devices-editor-dbf-window.png",
+      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\devices-editor-dbf.png",
+      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\devices-editor-dbf-window.png",
       "width": 1036,
       "height": 689,
       "dpi": 96,
@@ -518,7 +520,7 @@
         {
           "name": "",
           "type": "Label",
-          "text": "\u0424\u0430\u0439\u043B: C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\fixtures\\devices.dbf",
+          "text": "\u0424\u0430\u0439\u043B: C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\fixtures\\devices.dbf",
           "visible": true,
           "enabled": true,
           "x": 24,
@@ -583,8 +585,8 @@
     },
     {
       "name": "save-options-all-formats",
-      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\save-options-all-formats.png",
-      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\save-options-all-formats-window.png",
+      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\save-options-all-formats.png",
+      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\save-options-all-formats-window.png",
       "width": 916,
       "height": 759,
       "dpi": 96,
@@ -1185,8 +1187,8 @@
     },
     {
       "name": "save-options-dst-all-formats",
-      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\save-options-dst-all-formats.png",
-      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\redesign\\final-dark\\save-options-dst-all-formats-window.png",
+      "path": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\save-options-dst-all-formats.png",
+      "windowPath": "C:\\Users\\Re\\.codex\\worktrees\\5073\\logReader\\artifacts\\integration-bfbea81\\dark\\save-options-dst-all-formats-window.png",
       "width": 916,
       "height": 759,
       "dpi": 96,

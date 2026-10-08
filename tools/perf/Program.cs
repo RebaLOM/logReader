@@ -17,6 +17,7 @@ var repo = Path.GetFullPath(Argument("--root") ?? Path.Combine(AppContext.BaseDi
 var label = Argument("--label") ?? "baseline";
 var output = Path.GetFullPath(Argument("--output") ?? Path.Combine(repo, "docs/loger-2/performance", label + ".json"));
 var work = Path.Combine(repo, "artifacts/perf", label);
+bool freshOutputs = args.Contains("--fresh-outputs", StringComparer.Ordinal);
 int runs = int.Parse(Argument("--runs") ?? "5", CultureInfo.InvariantCulture);
 if (runs < 3) throw new ArgumentException("Use at least three measured repetitions.");
 Directory.CreateDirectory(work);
@@ -33,6 +34,10 @@ var small = Fixtures.Generate(work, "small", 2_000, new DateTime(2026, 10, 8, 23
 File.SetLastWriteTime(small.Matrix!, new DateTime(2026, 10, 9, 10, 0, 0));
 var large = Fixtures.Generate(work, "large", 100_000, new DateTime(2026, 10, 9, 10, 0, 0), additionalFormats: false);
 var batchInputs = new[] { small.Trc, Fixtures.Generate(work, "batch-next", 2_000, new DateTime(2026, 10, 9, 0, 0, 15), false).Trc };
+var protectedInputs = new HashSet<string>(Directory.GetFiles(work, "*", SearchOption.TopDirectoryOnly)
+    .Where(p => p == devicesPath || p.EndsWith(".trc", StringComparison.OrdinalIgnoreCase)
+        || p == small.Asc || p == small.Matrix || p == small.Legacy || p == small.Canfox)
+    .Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
 var scenarios = new List<Scenario>();
 foreach (var fixture in new[] { small, large })
 {
@@ -45,7 +50,7 @@ foreach (var fixture in new[] { small, large })
             bridge.Write(aggregate.Data, verify, settings);
             return Fingerprint.File(verify);
         });
-    }));
+    }, () => PrepareOutput(Path.Combine(work, "verify-aggregate.csv"))));
     var collected = bridge.Aggregate(new[] { fixture.Trc }, devices, settings);
     foreach (var format in new[] { OutputFormat.Csv, OutputFormat.Xlsx })
     {
@@ -55,7 +60,7 @@ foreach (var fixture in new[] { small, large })
         {
             var result = bridge.Write(collected.Data, path, exportSettings);
             return new Outcome(result.RowsWritten, () => Fingerprint.Output(path));
-        }));
+        }, () => PrepareOutput(path)));
     }
 }
 AddPipeline("large-trc-csv-pipeline", large.Trc, large.Frames, settings);
@@ -75,7 +80,7 @@ foreach (var mode in new[] { BatchOutputMode.PerInputFile, BatchOutputMode.Merge
         if (counts.Failed != 0 || counts.Created != counts.Expected || counts.Created == 0)
             throw new InvalidOperationException($"Unexpected batch outcome: {counts}");
         return new Outcome(counts.Created, () => Fingerprint.Folder(folder));
-    }));
+    }, () => PrepareFolder(folder)));
 }
 foreach (var item in new[] { ("small-trc-to-asc", small.Trc, "TrcToAscConverter"), ("small-matrix-to-asc", small.Matrix!, "MatrixCsvToAscConverter") })
 {
@@ -84,19 +89,21 @@ foreach (var item in new[] { ("small-trc-to-asc", small.Trc, "TrcToAscConverter"
     {
         var result = bridge.Convert(item.Item3, item.Item2, path);
         return new Outcome(result.RowsWritten, () => Fingerprint.File(path));
-    }));
+    }, () => PrepareOutput(path)));
 }
 
 var reports = new List<ScenarioReport>();
 foreach (var scenario in scenarios)
 {
     Console.WriteLine($"{scenario.Name}: warm-up + {runs} measured runs");
+    scenario.Prepare?.Invoke();
     _ = scenario.Run().Verify();
     var samples = new List<Sample>();
     string? expectedHash = null;
     long? expectedRows = null;
     for (int i = 0; i < runs; i++)
     {
+        scenario.Prepare?.Invoke(); // Synthetic output preparation is outside measured work.
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
@@ -132,7 +139,7 @@ var inputs = Directory.GetFiles(work, "*", SearchOption.TopDirectoryOnly)
     .OrderBy(p => p, StringComparer.Ordinal).Select(p => new InputReport(Path.GetFileName(p), new FileInfo(p).Length, Fingerprint.File(p))).ToList();
 var benchmark = new BenchmarkReport(label, DateTime.UtcNow, RuntimeInformation.FrameworkDescription,
     RuntimeInformation.OSDescription, Environment.ProcessorCount, System.Runtime.GCSettings.IsServerGC,
-    runs, 1, Fingerprint.CoreSource(repo), Fingerprint.File(typeof(Device).Assembly.Location), inputs, reports);
+    runs, 1, freshOutputs, Fingerprint.CoreSource(repo), Fingerprint.File(typeof(Device).Assembly.Location), inputs, reports);
 File.WriteAllText(output, JsonSerializer.Serialize(benchmark, new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
 Console.WriteLine($"Report: {output}");
 
@@ -143,7 +150,30 @@ void AddPipeline(string name, string input, int frames, OutputSettings currentSe
     {
         var result = bridge.Process(input, path, devices, currentSettings);
         return new Outcome(result.RowsWritten, () => Fingerprint.File(path));
-    }));
+    }, () => PrepareOutput(path)));
+}
+void PrepareOutput(string path)
+{
+    if (!freshOutputs) return;
+    string resolved = Path.GetFullPath(path);
+    string fixtureRoot = Path.GetFullPath(work).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+    if (!resolved.StartsWith(fixtureRoot, StringComparison.OrdinalIgnoreCase) || protectedInputs.Contains(resolved))
+        throw new InvalidOperationException("Fresh-output preparation must stay inside synthetic results and preserve inputs.");
+    if (File.Exists(resolved)) File.Delete(resolved);
+}
+void PrepareFolder(string folder)
+{
+    if (!freshOutputs) return;
+    string resolved = Path.GetFullPath(folder);
+    string fixtureRoot = Path.GetFullPath(work).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+    if (!resolved.StartsWith(fixtureRoot, StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Batch preparation must stay inside the synthetic fixture root.");
+    foreach (string path in Directory.GetFiles(resolved, "*", SearchOption.TopDirectoryOnly))
+    {
+        if (!path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) && !path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Unexpected non-result file in the synthetic batch output folder.");
+        PrepareOutput(path);
+    }
 }
 string? Argument(string key)
 {
@@ -156,7 +186,7 @@ static double Median(IEnumerable<double> values)
     return sorted.Length % 2 == 1 ? sorted[sorted.Length / 2] : (sorted[sorted.Length / 2 - 1] + sorted[sorted.Length / 2]) / 2;
 }
 
-record Scenario(string Name, int InputFrames, Func<Outcome> Run);
+record Scenario(string Name, int InputFrames, Func<Outcome> Run, Action? Prepare = null);
 record Outcome(long Rows, Func<string> Verify);
 record Sample(double ElapsedMs, double CpuMs, long AllocatedBytes, long ManagedBeforeBytes, long ManagedAfterBytes,
     long WorkingSetAfterBytes, long ProcessLifetimePeakWorkingSetBytes, long Rows, string Hash);
@@ -164,7 +194,7 @@ record ScenarioReport(string Scenario, int InputFrames, double MedianElapsedMs, 
     double MedianAllocatedBytes, double MedianWorkingSetAfterBytes, long Rows, string Hash, List<Sample> Samples);
 record InputReport(string Name, long Bytes, string Sha256);
 record BenchmarkReport(string Label, DateTime RecordedUtc, string Runtime, string OperatingSystem, int LogicalProcessors,
-    bool ServerGc, int MeasuredRuns, int WarmupRuns, string CoreSourceSha256, string CoreAssemblySha256,
+    bool ServerGc, int MeasuredRuns, int WarmupRuns, bool FreshOutputs, string CoreSourceSha256, string CoreAssemblySha256,
     List<InputReport> Inputs, List<ScenarioReport> Scenarios);
 
 sealed class CoreBridge

@@ -61,6 +61,12 @@
 
 ## Постредизайновая проверка
 
+После интеграции **`bfbea81`**: полный harness — по **52/52 PASS** в Dark и Light, extras — по **3/3 PASS**. Дополнительно проверены сохранение/сброс ошибки, отсутствие её восстановления при смене темы и первоначальный выбор всех трёх output formats при реальном Show/OK. Standalone UIA — **9/9 PASS**, OK/X/Escape contracts — **2/2 PASS**. Новые отчёты: `artifacts/integration-bfbea81/{dark,light,uia,message-contracts}`; переносимые JSON — `evidence/ui-{dark,light}-*.json` и `evidence/bfbea81/`.
+
+Проверена опубликованная сборка production commit **`f53ec82`**, `artifacts/release/win-x64/LOGER.dll`: UI SHA-256 `2C85D7101B59E537A46C2155B805FBB72D30541D52358296AC706FDE3FD55C5D`. Реально загруженное исправленное ядро: `4061AA5A23CC398A0464B22D17ECF635F6FE2D9CC4739928A615E3746EF49B78`. Оба hash записаны в новые отчёты. Сборка прошла с 0 warnings/errors; non-UI DLLs остались побайтно теми же, что в своей обычной IL-компиляции. Полная актуальная сводка: [integration-bfbea81.md](integration-bfbea81.md).
+
+### История проверки до интеграции bfbea81
+
 Полный harness выполнил по **49/49 PASS** в Dark и Light; дополнительный набор — по **3/3 PASS**. Артефакты: `artifacts/redesign/final-dark/report.json`, `final-light/report.json` и `extra-report.json` в тех же каталогах. Исходная UI-сборка проверена тем же harness: 43 основных и 3 дополнительных сценария PASS; новые проверки навигации/темы/тематических подтверждений к исходному UI неприменимы. Совпадение CSV исходного и нового UI проверено байт в байт.
 
 Финальные UI/UIA/контрактные проверки выполнены на `artifacts/r2r/app/LOGER.dll`, SHA256 `D77258A3D71F591C1E0D77827A061EB21A292990509D0E275A86575092819A6A`: опубликованный Release с ReadyToRun только для UI. Обычная Release-сборка также проходит с 0 предупреждений/ошибок. Ядро и сторонние DLL исключены из ReadyToRun и остаются обычным IL; ядро опубликованного и обычного приложений побайтно одинаково. Способ публикации и остаточное отличие времени запуска указаны в итоговом отчёте.
