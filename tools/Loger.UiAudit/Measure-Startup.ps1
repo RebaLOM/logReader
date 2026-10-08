@@ -47,6 +47,7 @@ $timings = @($samples | ForEach-Object { $_.startupToInputIdleMs } | Sort-Object
 $memory = @($samples | ForEach-Object { $_.workingSetBytes } | Sort-Object)
 $report = @{ app = $taskApp; sha256 = (Get-FileHash -LiteralPath $taskApp -Algorithm SHA256).Hash;
     uiAssemblySha256 = (Get-FileHash -LiteralPath ([IO.Path]::ChangeExtension($taskApp, '.dll')) -Algorithm SHA256).Hash;
+    coreAssemblySha256 = (Get-FileHash -LiteralPath (Join-Path ([IO.Path]::GetDirectoryName($taskApp)) 'logReader.dll') -Algorithm SHA256).Hash;
     theme = $Theme; iterations = $Iterations; samples = $samples.ToArray();
     environmentThemeOverride = ($Theme -ne 'existing');
     preferenceFileExists = [IO.File]::Exists($taskPreferences); savedPreferenceTheme = $taskSavedTheme;

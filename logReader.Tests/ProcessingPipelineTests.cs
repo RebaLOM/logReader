@@ -91,6 +91,42 @@ public class ProcessingPipelineTests
     }
 
     [Fact]
+    public void Trc_csv_time_uses_ru_decimal_comma_so_excel_does_not_treat_it_as_date()
+    {
+        using var dir = new TempDir();
+        string trc = dir.Write("frac.trc",
+            "     1)        10.5  Rx     0CFF0008  8  11 00 00 00 00 00 00 00\n");
+        string output = dir.File("frac.csv");
+
+        var result = new PCanLogProcessor().Process(trc, Devices(dir), output, Settings(OutputFormat.Csv), new ProcessingContext());
+
+        Assert.True(result.Success);
+        string time = File.ReadAllLines(output)[1].Split(';')[0];
+        Assert.Equal("10,5", time);
+        Assert.DoesNotContain('.', time);
+    }
+
+    [Fact]
+    public void Xlsx_step_column_is_wider_than_default_autofit_minimum()
+    {
+        using var dir = new TempDir();
+        var devices = Devices(dir);
+        devices[0].SetPayload(new[] { 0x11, 0, 0, 0, 0, 0, 0, 0 });
+        devices[0].Decode();
+        var columns = new[] { new OutputColumnGroup(devices[0], new[] { 0 }) };
+        string output = dir.File("wide_step.xlsx");
+
+        using (var writer = new StepOutputWriter(output, OutputFormat.Xlsx, columns, includeDeviceIdRow: false))
+        {
+            writer.WriteRow(1, "10:15:30");
+            writer.Complete();
+        }
+
+        using var wb = new XLWorkbook(output);
+        Assert.True(wb.Worksheet(1).Column(1).Width >= ExcelLayoutBuilder.MinStepColumnWidth);
+    }
+
+    [Fact]
     public void Time_of_day_formatting_does_not_lose_milliseconds()
     {
         for (int ms = 0; ms < 86_400_000; ms += 997)
@@ -99,6 +135,14 @@ public class ProcessingPipelineTests
             string text = TimeAxisFormat.FormatTimeOfDay(expected.TotalDays);
             Assert.Equal(expected.ToString(@"hh\:mm\:ss\.fff"), text);
         }
+    }
+
+    [Fact]
+    public void Csv_milliseconds_axis_uses_ru_decimal_comma()
+    {
+        Assert.Equal("10,5", TimeAxisFormat.FormatCsv(10.5, TimeAxisKind.Milliseconds));
+        Assert.Equal("1234", TimeAxisFormat.FormatCsv(1234, TimeAxisKind.Milliseconds));
+        Assert.DoesNotContain('.', TimeAxisFormat.FormatCsv(Math.PI, TimeAxisKind.Milliseconds));
     }
 
     [Fact]

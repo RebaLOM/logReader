@@ -56,7 +56,8 @@ namespace logReader
                 else
                 {
                     _blockOpen = true;
-                    if (!_detection.UsesReferenceRecurrence && !_detection.UsedGapFallback && _detection.BlockPeriodMs > 0)
+                    // Слот нужен и для запасной сетки (UsedGapFallback), не только для «чистых» слотов.
+                    if (!_detection.UsesReferenceRecurrence && _detection.BlockPeriodMs > 0)
                     {
                         _currentBlockSlot = TrcBlockDetector.ComputeSlot(
                             timeMs,
@@ -130,10 +131,25 @@ namespace logReader
 
         private double GetBlockCommitTimeMs(double? fallbackTimeMs = null)
         {
-            if (!double.IsNaN(_previousTimeMs))
-                return _previousTimeMs;
+            double raw = !double.IsNaN(_previousTimeMs)
+                ? _previousTimeMs
+                : fallbackTimeMs ?? _lastBlockStartTimeMs;
 
-            return fallbackTimeMs ?? _lastBlockStartTimeMs;
+            // Запасная сетка: Step = конец слота периода (20, 40, …), а не время последнего кадра.
+            if (_detection.UsedGapFallback && _detection.BlockPeriodMs > 0)
+                return SnapToPeriodEnd(raw, _detection.BlockOriginTimeMs, _detection.BlockPeriodMs);
+
+            return raw;
+        }
+
+        private static double SnapToPeriodEnd(double timeMs, double originTimeMs, double periodMs)
+        {
+            double offset = timeMs - originTimeMs;
+            if (offset < 0)
+                return originTimeMs + periodMs;
+
+            int slot = (int)Math.Floor(offset / periodMs);
+            return originTimeMs + (slot + 1) * periodMs;
         }
 
         private double GetJitterToleranceMs()

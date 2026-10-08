@@ -37,6 +37,7 @@ namespace logReader.UI
             // 
             // textBoxSearch
             // 
+            textBoxSearch.AccessibleName = "Поиск по справке";
             textBoxSearch.Dock = DockStyle.Fill;
             textBoxSearch.Location = new Point(8, 8);
             textBoxSearch.Name = "textBoxSearch";

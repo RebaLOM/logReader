@@ -68,6 +68,7 @@ internal static class Program
                 CheckOkMessageContracts(owner); owner.Close(); Pump();
                 File.WriteAllText(Path.Combine(_output, "message-contract-report.json"), JsonSerializer.Serialize(new
                 { assemblyPath, assemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assemblyPath))),
+                    coreAssemblyPath = _core.Location, coreAssemblySha256 = AssemblyHash(_core),
                     theme, checks = Checks, method = "Actual native and themed modal OK dialogs, WM_CLOSE and posted Escape key messages" }, Json));
                 return _failures == 0 ? 0 : 1;
             }
@@ -78,6 +79,7 @@ internal static class Program
                 CaptureExtras(owner, extraTrc, extraDbc); owner.Close(); Pump();
                 File.WriteAllText(Path.Combine(_output, "extra-report.json"), JsonSerializer.Serialize(new
                 { assemblyPath, assemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assemblyPath))),
+                    coreAssemblyPath = _core.Location, coreAssemblySha256 = AssemblyHash(_core),
                     theme, checks = Checks, screenshots = Screens, captureMethod = "Shown native WinForms HWND PrintWindow plus DrawToBitmap" }, Json));
                 Console.WriteLine($"Extra UI audit complete: {_failures} failures, {Screens.Count} captures.");
                 return _failures == 0 ? 0 : 1;
@@ -128,6 +130,7 @@ internal static class Program
                 Field<Button>(main, "buttonProcess").PerformClick(); Pump();
                 Require(Field<TextBox>(main, "textBoxLog").Text.Contains("не указан"), "Missing-input journal error was not shown.");
             });
+            CheckWorkspaceErrorFeedback(main, trc, dbc);
             Check("UI processes fixture and restores idle controls", () =>
             {
                 SetInput(main, trc, dbc, Path.Combine(_output, "fixture-result.csv"));
@@ -197,6 +200,7 @@ internal static class Program
             File.WriteAllText(Path.Combine(_output, "report.json"), JsonSerializer.Serialize(new
             {
                 assemblyPath, assemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assemblyPath))),
+                coreAssemblyPath = _core.Location, coreAssemblySha256 = AssemblyHash(_core),
                 theme, captureMethod = "Actual WinForms instantiated and shown on STA thread; Control.DrawToBitmap plus native HWND capture using PrintWindow. Neither is a visual mockup; no unrelated desktop content captured.",
                 runtime = Environment.Version.ToString(), dpi = 96, checks = Checks, screenshots = Screens, measurements = Measurements,
                 limitations = new[] { "No physical keyboard/mouse or Windows UIA interaction.", "Native file/folder dialogs and baseline system MessageBox interaction NOT TESTED. Redesigned custom message dialogs use actual modal button interactions.", "Process startup/long-session leaks/UI scroll FPS/CPU load NOT TESTED.", "DrawToBitmap can omit native visual states such as expanded combobox popups." }
@@ -306,6 +310,71 @@ internal static class Program
             });
     }
 
+    private static void CheckWorkspaceErrorFeedback(Form main, string trc, string dbc)
+    {
+        if (main.GetType().GetField("_workspaceState", Members) == null) return;
+        var state = Field<Label>(main, "_workspaceState");
+        var themeButton = Field<Button>(main, "_buttonTheme");
+        void Emit(string text) { main.GetType().GetMethod("Log", Members)!.Invoke(main, [text]); Pump(); }
+        Color Danger()
+        {
+            var palette = _ui.GetType("logReader.UI.ThemeManager")!.GetProperty("Current", BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
+            return (Color)GetProperty(palette, "Danger")!;
+        }
+        Check("workspace error status survives refresh and theme; processing failures stay errors", () =>
+        {
+            string error = state.Text;
+            Require(error.Contains("не указан") && state.ForeColor == Danger(), "Validation did not set an error status.");
+            main.GetType().GetMethod("RefreshWorkspaceSummary", Members)!.Invoke(main, null);
+            Require(state.Text == error && state.ForeColor == Danger(), "Refresh replaced error with readiness.");
+            themeButton.PerformClick(); Pump();
+            try { Require(state.Text == error && state.ForeColor == Danger(), "Theme change lost error status/color."); }
+            finally { themeButton.PerformClick(); Pump(); }
+            Capture(main, "main-error-status");
+            Emit("Критическая ошибка: " + new string('X', 100));
+            Require(state.Text.Length <= 67 && state.Text.EndsWith("…"), "Long error summary was not bounded.");
+            Emit("Ошибка: файл посылок не указан.");
+            Require(state.Text.EndsWith("Нужен файл посылок"), "Description-file summary compatibility lost.");
+            Emit("Обработка завершилась с ошибкой: выходной файл не создан.");
+            Require(state.Text.EndsWith("Ошибка обработки") && state.ForeColor == Danger(), "Final processing failure looks ready.");
+            Emit("Готово: создано файлов: 1 из 2, с ошибками: 1.");
+            Require(state.Text.EndsWith("Ошибка пакетной обработки") && state.ForeColor == Danger(), "Partial batch looks successful.");
+            Emit("Готово: создано файлов: 2 из 2, с ошибками: 0.");
+            Require(state.ForeColor != Danger(), "Zero failures were classified as an error.");
+        });
+        Check("workspace error clears on input edit, retry and success without theme resurrection", () =>
+        {
+            Emit("Ошибка: предыдущий запуск.");
+            SetInput(main, trc, dbc, Path.Combine(_output, "absent-feedback-parent", "result.csv"));
+            Require(state.ForeColor != Danger(), "Input edit did not clear the previous error.");
+            themeButton.PerformClick(); Pump();
+            try { Require(state.ForeColor != Danger(), "Theme resurrected a cleared journal error."); }
+            finally { themeButton.PerformClick(); Pump(); }
+            string malformed = Path.Combine(_output, "fixtures", "invalid-description.xlsx");
+            File.WriteAllText(malformed, "This fixture is deliberately not an XLSX archive.");
+            Field<TextBox>(main, "textBoxDevices").Text = malformed; Pump();
+            Require(state.ForeColor == Danger() && state.Text.Contains("загрузки"), "This input edit's fresh validation error was cleared.");
+            Field<TextBox>(main, "textBoxDevices").Text = dbc; Pump();
+            Require(state.ForeColor != Danger(), "Valid description edit did not clear its old error.");
+            var process = Field<Button>(main, "buttonProcess"); process.PerformClick(); Pump();
+            Require(state.ForeColor == Danger(), "Invalid output directory did not set an error status.");
+            bool resetBeforeValidation = false;
+            var journal = Field<TextBox>(main, "textBoxLog");
+            EventHandler observeReset = (_, _) => { if (journal.TextLength == 0) resetBeforeValidation = state.ForeColor != Danger(); };
+            journal.TextChanged += observeReset;
+            try { process.PerformClick(); Pump(); }
+            finally { journal.TextChanged -= observeReset; }
+            Require(resetBeforeValidation && state.ForeColor == Danger(), "Retry did not reset prior error before reporting its new validation error.");
+            Field<TextBox>(main, "textBoxOutput").Text = Path.Combine(_output, "feedback-retry.csv");
+            process.PerformClick();
+            Until(() => Get(main, "_operation") == null && journal.Text.Contains("успешно"), "feedback retry", 15000);
+            Require(state.ForeColor != Danger() && Field<Button>(main, "buttonOpenOutput").Visible, "Successful retry did not restore successful status.");
+            Emit("Ошибка: диагностическое сообщение после результата.");
+            Emit("Файл успешно создан (проверка протокола сообщения).");
+            Require(state.ForeColor != Danger() && Field<Button>(main, "buttonOpenOutput").Visible, "Success message did not clear error or lost the existing result.");
+        });
+    }
+
     private static void CheckFilters(string dbc)
     {
         Check("parameter filter cancel keeps original maps and OK commits", () =>
@@ -366,6 +435,18 @@ internal static class Program
 
     private static void CheckSaveOptions(string folder)
     {
+        Check("initial output format survives showing the options dialog", () =>
+        {
+            foreach (string mode in new[] { "Xlsx", "Csv", "CsvDstConnect" })
+            {
+                using var form = Form("SaveOptionsForm", EnumValue("OutputFormat", mode), EnumValue("BatchOutputMode", "PerInputFile"),
+                    Activator.CreateInstance(_core.GetType("logReader.DstConnectOptions")!)!, folder, EnumValue("LogFormatKind", "All"), false);
+                Show(form);
+                Require(Field<ComboBox>(form, "_comboOutputFormat").SelectedIndex == Array.IndexOf(new[] { "Xlsx", "Csv", "CsvDstConnect" }, mode), "Showing changed the selected " + mode + " format.");
+                ((Button)form.AcceptButton!).PerformClick(); Pump();
+                Require(GetProperty(form, "SelectedOutputFormat")!.ToString() == mode, "Initial format was not committed unchanged.");
+            }
+        });
         for (int i = 0; i < 3; i++)
         {
             int selection = i;
@@ -637,6 +718,7 @@ internal static class Program
     private static T Field<T>(object target, string name) => (T)Get(target, name)!;
     private static object? GetProperty(object target, string name) => target.GetType().GetProperty(name, Members)!.GetValue(target);
     private static object? GetStatic(Type type, string name) => type.GetField(name, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)!.GetValue(null);
+    private static string AssemblyHash(Assembly assembly) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assembly.Location)));
     private static string Option(string[] args, string name, string fallback) { int i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback; }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static void Check(string name, Action action)

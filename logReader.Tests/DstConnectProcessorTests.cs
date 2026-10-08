@@ -62,7 +62,8 @@ public class DstConnectProcessorTests
         Assert.True(result.Success);
         var lines = File.ReadAllLines(output);
         Assert.Equal("Time;Step;S0;S1;S2", lines[0]);
-        Assert.StartsWith("10:00:01;", lines[1]);
+        // Time — часы:минуты:секунды.миллисекунды (Start time + StepMs).
+        Assert.Matches(@"^10:00:01\.\d{3};", lines[1]);
         Assert.EndsWith(";0;0;0", lines[1]);
         Assert.EndsWith(";9;9;9", lines[^1]);
     }

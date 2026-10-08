@@ -26,6 +26,8 @@ public partial class MainForm
     private Label _operationNotice = null!;
     private bool _workspaceReady;
     private RowStyle _executionFooterRow = null!;
+    private string? _workspaceErrorSummary;
+    private string _workspaceErrorInputs = "";
 
     private Font WorkspaceFont(float size, FontStyle style = FontStyle.Regular, string family = "Segoe UI")
     {
@@ -146,7 +148,24 @@ public partial class MainForm
         _workspaceColumns.Controls.Add(BuildExportInspector(), 1, 0);
         BuildWorkspaceJournal();
         foreach (var path in new[] { textBoxCanLog, textBoxDevices, textBoxComposites, textBoxOutput })
-            path.TextChanged += (_, _) => { buttonOpenOutput.Visible = false; RefreshWorkspaceSummary(); };
+            path.TextChanged += (_, _) =>
+            {
+                // Existing path handlers may have just logged an error for the new value.
+                // Clear an earlier error, but retain validation raised by this same edit.
+                if (_workspaceErrorSummary != null && _workspaceErrorInputs != WorkspaceInputs())
+                    ClearWorkspaceError();
+                buttonOpenOutput.Visible = false;
+                RefreshWorkspaceSummary();
+            };
+        textBoxLog.TextChanged += (_, _) =>
+        {
+            // The processing handler clears the journal before validating every new run.
+            if (textBoxLog.TextLength == 0)
+            {
+                ClearWorkspaceError();
+                RefreshWorkspaceSummary();
+            }
+        };
         labelFilterStatus.TextChanged += (_, _) => RefreshWorkspaceSummary();
         buttonOpenOutput.VisibleChanged += (_, _) => { ResizeExecutionFooter(); RefreshWorkspaceSummary(); };
         textBoxCanLog.AllowDrop = true;
@@ -396,7 +415,7 @@ public partial class MainForm
     {
         RefreshWorkspaceSummary();
         SelectWorkspacePage(_decoderPage.Visible);
-        ShowWorkspaceNotice(_operationNotice.Text);
+        ShowWorkspaceNotice(_operationNotice.Text, classify: false);
     }
 
     private void RefreshWorkspaceSummary()
@@ -425,7 +444,12 @@ public partial class MainForm
         SetReadiness(_readinessDecoder, hasDecoder, "Описание посылок", palette.Success, palette.Muted);
         SetReadiness(_readinessOutput, hasOutput, "Путь результата", palette.Success, palette.Muted);
         _buttonTheme.Text = ThemeManager.Mode == ThemeMode.Dark ? "☀   Светлая тема" : "◐   Тёмная тема";
-        if (!IsBusy)
+        if (_workspaceErrorSummary != null)
+        {
+            _workspaceState.Text = "●  " + _workspaceErrorSummary;
+            _workspaceState.ForeColor = palette.Danger;
+        }
+        else if (!IsBusy)
         {
             _workspaceState.Text = buttonOpenOutput.Visible ? "●  Результат готов" : hasSource && hasDecoder && hasOutput ? "●  Готов к обработке" : "○  Настройка сеанса";
             _workspaceState.ForeColor = buttonOpenOutput.Visible ? palette.Success : palette.Muted;
@@ -440,15 +464,75 @@ public partial class MainForm
         label.Text = (ready ? "●  " : "○  ") + text; label.ForeColor = ready ? success : muted;
     }
 
-    private void ShowWorkspaceNotice(string message)
+    private void ShowWorkspaceNotice(string message, bool classify = true)
     {
         if (!_workspaceReady) return;
         _operationNotice.Text = message;
-        _operationNotice.ForeColor = message.Contains("ошиб", StringComparison.OrdinalIgnoreCase) ? ThemeManager.Current.Danger : ThemeManager.Current.Muted;
+        bool isError = IsWorkspaceError(message);
+        _operationNotice.ForeColor = isError ? ThemeManager.Current.Danger : ThemeManager.Current.Muted;
+        if (!classify) return;
+        if (isError)
+        {
+            _workspaceErrorSummary = SummarizeWorkspaceError(message);
+            _workspaceErrorInputs = WorkspaceInputs();
+            RefreshWorkspaceSummary();
+        }
+        else if (message.Contains("успешно", StringComparison.OrdinalIgnoreCase)
+            || message.StartsWith("Готово:", StringComparison.OrdinalIgnoreCase)
+                && !HasWorkspaceBatchFailures(message))
+        {
+            ClearWorkspaceError();
+            RefreshWorkspaceSummary();
+        }
+    }
+
+    private string WorkspaceInputs() => string.Join('\0',
+        textBoxCanLog.Text, textBoxDevices.Text, textBoxComposites.Text, textBoxOutput.Text);
+
+    private void ClearWorkspaceError()
+    {
+        _workspaceErrorSummary = null;
+        _workspaceErrorInputs = "";
+    }
+
+    private static bool IsWorkspaceError(string message) =>
+        message.StartsWith("Ошибка", StringComparison.OrdinalIgnoreCase)
+        || message.StartsWith("Критическая ошибка", StringComparison.OrdinalIgnoreCase)
+        || message.StartsWith("Обработка завершилась с ошибкой", StringComparison.OrdinalIgnoreCase)
+        || HasWorkspaceBatchFailures(message);
+
+    private static bool HasWorkspaceBatchFailures(string message)
+    {
+        const string marker = ", с ошибками:";
+        if (!message.StartsWith("Готово:", StringComparison.OrdinalIgnoreCase)) return false;
+        int start = message.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (start < 0) return false;
+        var count = message.AsSpan(start + marker.Length).TrimStart();
+        int length = 0;
+        while (length < count.Length && char.IsAsciiDigit(count[length])) length++;
+        return length > 0 && int.TryParse(count[..length], out int failed) && failed > 0;
+    }
+
+    private static string SummarizeWorkspaceError(string message)
+    {
+        string text = message.Trim();
+        if (text.StartsWith("Обработка завершилась с ошибкой", StringComparison.OrdinalIgnoreCase))
+            return "Ошибка обработки";
+        if (HasWorkspaceBatchFailures(text)) return "Ошибка пакетной обработки";
+        if (text.StartsWith("Ошибка:", StringComparison.OrdinalIgnoreCase))
+            text = text["Ошибка:".Length..].Trim();
+        else if (text.StartsWith("Критическая ошибка:", StringComparison.OrdinalIgnoreCase))
+            text = text["Критическая ошибка:".Length..].Trim();
+        if (text.Contains("файл посылок", StringComparison.OrdinalIgnoreCase))
+            return "Нужен файл посылок";
+        if (text.Length > 64)
+            text = text[..61] + "…";
+        return string.IsNullOrEmpty(text) ? "Ошибка" : text;
     }
 
     private void UpdateWorkspaceBusy(bool busy, string stage)
     {
+        if (busy) ClearWorkspaceError();
         foreach (Control control in new Control[]
         {
             textBoxCanLog, textBoxDevices, textBoxComposites, textBoxOutput,
