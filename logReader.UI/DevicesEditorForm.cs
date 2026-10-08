@@ -27,12 +27,16 @@ namespace logReader.UI
         private readonly Label _lblFilterStatus = new();
 
         private List<DeviceDefinition> _xlsxDevices = new();
-        private List<DbcMessage> _dbcMessages = new();
+        private DbcDatabase _dbcDatabase = new();
+        private List<DbcMessage> _dbcMessages => _dbcDatabase.Messages;
 
         private bool _dirty;
         private bool _suppressClosePrompt;
 
         public bool Modified { get; private set; }
+
+        // Файл не прочитан: редактор не открывается, иначе первое сохранение перезаписало бы файл пустым списком.
+        public bool LoadFailed { get; private set; }
 
         public DevicesEditorForm(string path)
         {
@@ -51,7 +55,6 @@ namespace logReader.UI
                 _ => "Редактор посылок (XLSX)"
             };
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             MinimumSize = new Size(820, 520);
             ClientSize = new Size(820, 520);
 
@@ -60,6 +63,7 @@ namespace logReader.UI
             BuildLayout();
             LoadFromFile();
             FormClosing += OnFormClosing;
+            UiScaling.Apply(this);
         }
 
         private void BuildLayout()
@@ -214,19 +218,24 @@ namespace logReader.UI
             {
                 if (UsesDbcModel)
                 {
-                    _dbcMessages = _kind == FileKind.Dbf
-                        ? DbfFile.Read(_path)
-                        : DbcFile.Read(_path);
+                    _dbcDatabase = _kind == FileKind.Dbf
+                        ? DbfFile.ReadDatabase(_path)
+                        : DbcFile.ReadDatabase(_path);
                 }
                 else
                 {
                     _xlsxDevices = DeviceExcelFile.ReadAllDevices(_path);
                 }
                 RefreshGrid();
+
+                if (UsesDbcModel && _dbcDatabase.PreservedLineCount > 0)
+                    _lblInfo.Text = $"Файл: {_path}   (прочие строки файла — {_dbcDatabase.PreservedLineCount} — сохраняются без изменений)";
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LoadFailed = true;
+                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message + "\nРедактор не будет открыт, файл не изменён.",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -364,6 +373,7 @@ namespace logReader.UI
             if (UsesDbcModel)
             {
                 if (idx >= _dbcMessages.Count) return;
+                if (!ConfirmClassicDlc(_dbcMessages[idx].Dlc)) return;
                 using var dlg = new DbcMessageEditForm(_dbcMessages[idx]);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
@@ -387,6 +397,7 @@ namespace logReader.UI
             {
                 if (idx >= _xlsxDevices.Count) return;
                 var dev = _xlsxDevices[idx];
+                if (!ConfirmClassicDlc(dev.Dlc)) return;
                 using var dlg = new XlsxMessageEditForm(dev, deviceIdReadOnly: true);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
@@ -437,6 +448,17 @@ namespace logReader.UI
 
             MarkDirty();
             RefreshGrid();
+        }
+
+        // Редактор посылки рассчитан на DLC 1..8: открыть CAN FD-посылку значило бы молча обрезать её до 8 байт.
+        private bool ConfirmClassicDlc(int dlc)
+        {
+            if (dlc <= 8) return true;
+            MessageBox.Show(this,
+                $"Посылка с DLC = {dlc} (CAN FD) не редактируется в этой версии: форма поддерживает 1–8 байт.\n" +
+                "Посылка сохраняется в файле без изменений и используется при обработке.",
+                "CAN FD", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return false;
         }
 
         private void MarkDirty()
@@ -490,9 +512,9 @@ namespace logReader.UI
                 if (UsesDbcModel)
                 {
                     if (_kind == FileKind.Dbf)
-                        DbfFile.Write(_path, _dbcMessages);
+                        DbfFile.WriteDatabase(_path, _dbcDatabase);
                     else
-                        DbcFile.Write(_path, _dbcMessages);
+                        DbcFile.WriteDatabase(_path, _dbcDatabase);
                 }
                 else
                     DeviceExcelFile.WriteAllDevices(_path, _xlsxDevices);
@@ -504,7 +526,7 @@ namespace logReader.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nИзменения отменены.",
+                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nФайл на диске не изменён, правки остаются в редакторе.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }

@@ -38,6 +38,7 @@ namespace logReader.UI
                 _txtScale.Text = "1";
                 _txtOffset.Text = "0";
             }
+            UiScaling.Apply(this);
         }
 
         private void BuildLayout()
@@ -254,8 +255,10 @@ namespace logReader.UI
             {
                 if (row.IsNewRow) continue;
 
-                string src = (row.Cells["SourceID"].Value?.ToString() ?? "").Trim().ToUpperInvariant();
-                if (string.IsNullOrWhiteSpace(src)) continue;
+                string rawSrc = (row.Cells["SourceID"].Value?.ToString() ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(rawSrc)) continue;
+                if (!CanId.TryNormalize(rawSrc, out string src))
+                { Warn($"Кусок '{rawSrc}': SourceID должен быть CAN ID в hex (до 1FFFFFFF)."); return; }
 
                 if (!TryParseInt(row.Cells["Byte"].Value, out int b) || b < 0 || b > 7)
                 { Warn($"Кусок '{src}': Byte должен быть 0..7."); return; }

@@ -59,7 +59,6 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(540, 580);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
@@ -76,6 +75,7 @@ namespace logReader.UI
 
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
+            UiScaling.Apply(this);
         }
 
         private static DeviceFieldRow CreateDefaultNumRow() => new(

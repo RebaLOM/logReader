@@ -40,6 +40,9 @@ namespace logReader.UI
             buttonDevicesParams = new Button();
             buttonDevicesCreateOrAdd = new Button();
             buttonSaveOptions = new Button();
+            buttonCancel = new Button();
+            progressBarProcess = new ProgressBar();
+            labelProgress = new Label();
             ((System.ComponentModel.ISupportInitialize)contentSplit).BeginInit();
             contentSplit.Panel1.SuspendLayout();
             contentSplit.Panel2.SuspendLayout();
@@ -57,6 +60,9 @@ namespace logReader.UI
             // contentSplit.Panel1 — рабочая область (сверху)
             // 
             contentSplit.Panel1.AutoScroll = true;
+            contentSplit.Panel1.Controls.Add(labelProgress);
+            contentSplit.Panel1.Controls.Add(progressBarProcess);
+            contentSplit.Panel1.Controls.Add(buttonCancel);
             contentSplit.Panel1.Controls.Add(buttonSaveOptions);
             contentSplit.Panel1.Controls.Add(labelFilterStatus);
             contentSplit.Panel1.Controls.Add(buttonDevicesCreateOrAdd);
@@ -97,7 +103,7 @@ namespace logReader.UI
             labelCANlog.Location = new Point(12, 9);
             labelCANlog.Name = "labelCANlog";
             labelCANlog.Size = new Size(128, 15);
-            labelCANlog.TabIndex = 15;
+            labelCANlog.TabIndex = 100;
             labelCANlog.Text = "Файл или папка логов (.csv | .trc | .asc | .txt CANfox)";
             // 
             // labelDevices
@@ -106,7 +112,7 @@ namespace logReader.UI
             labelDevices.Location = new Point(12, 92);
             labelDevices.Name = "labelDevices";
             labelDevices.Size = new Size(120, 15);
-            labelDevices.TabIndex = 14;
+            labelDevices.TabIndex = 101;
             labelDevices.Text = "Файл посылок (.xlsx | .dbc | .dbf)";
             // 
             // labelComposites
@@ -115,7 +121,7 @@ namespace logReader.UI
             labelComposites.Location = new Point(12, 175);
             labelComposites.Name = "labelComposites";
             labelComposites.Size = new Size(120, 15);
-            labelComposites.TabIndex = 18;
+            labelComposites.TabIndex = 102;
             labelComposites.Text = "Файл составных параметров (.xlsx, опционально)";
             // 
             // labelResult
@@ -124,7 +130,7 @@ namespace logReader.UI
             labelResult.Location = new Point(12, 258);
             labelResult.Name = "labelResult";
             labelResult.Size = new Size(74, 15);
-            labelResult.TabIndex = 13;
+            labelResult.TabIndex = 103;
             labelResult.Text = "Сохранить в";
             // 
             // labelFilterStatus
@@ -136,7 +142,7 @@ namespace logReader.UI
             labelFilterStatus.Location = new Point(285, 143);
             labelFilterStatus.Name = "labelFilterStatus";
             labelFilterStatus.Size = new Size(407, 15);
-            labelFilterStatus.TabIndex = 22;
+            labelFilterStatus.TabIndex = 104;
             labelFilterStatus.Text = "Фильтры: не заданы";
             // 
             // buttonOpenOutput
@@ -144,7 +150,7 @@ namespace logReader.UI
             buttonOpenOutput.Location = new Point(93, 305);
             buttonOpenOutput.Name = "buttonOpenOutput";
             buttonOpenOutput.Size = new Size(75, 23);
-            buttonOpenOutput.TabIndex = 5;
+            buttonOpenOutput.TabIndex = 12;
             buttonOpenOutput.Text = "Открыть";
             buttonOpenOutput.UseVisualStyleBackColor = true;
             buttonOpenOutput.Visible = false;
@@ -156,7 +162,7 @@ namespace logReader.UI
             textBoxCanLog.Location = new Point(12, 27);
             textBoxCanLog.Name = "textBoxCanLog";
             textBoxCanLog.Size = new Size(776, 23);
-            textBoxCanLog.TabIndex = 12;
+            textBoxCanLog.TabIndex = 0;
             // 
             // textBoxDevices
             // 
@@ -164,7 +170,7 @@ namespace logReader.UI
             textBoxDevices.Location = new Point(12, 110);
             textBoxDevices.Name = "textBoxDevices";
             textBoxDevices.Size = new Size(776, 23);
-            textBoxDevices.TabIndex = 11;
+            textBoxDevices.TabIndex = 3;
             textBoxDevices.TextChanged += textBoxDevices_TextChanged;
             // 
             // textBoxComposites
@@ -173,7 +179,7 @@ namespace logReader.UI
             textBoxComposites.Location = new Point(12, 193);
             textBoxComposites.Name = "textBoxComposites";
             textBoxComposites.Size = new Size(776, 23);
-            textBoxComposites.TabIndex = 19;
+            textBoxComposites.TabIndex = 7;
             textBoxComposites.TextChanged += textBoxComposites_TextChanged;
             // 
             // textBoxOutput
@@ -190,7 +196,7 @@ namespace logReader.UI
             buttonCANlog.Location = new Point(12, 56);
             buttonCANlog.Name = "buttonCANlog";
             buttonCANlog.Size = new Size(75, 23);
-            buttonCANlog.TabIndex = 9;
+            buttonCANlog.TabIndex = 1;
             buttonCANlog.Text = "Обзор";
             buttonCANlog.UseVisualStyleBackColor = true;
             buttonCANlog.Click += buttonCANlog_Click;
@@ -200,7 +206,7 @@ namespace logReader.UI
             buttonViewLog.Location = new Point(93, 56);
             buttonViewLog.Name = "buttonViewLog";
             buttonViewLog.Size = new Size(100, 23);
-            buttonViewLog.TabIndex = 8;
+            buttonViewLog.TabIndex = 2;
             buttonViewLog.Text = "Посылки";
             buttonViewLog.UseVisualStyleBackColor = true;
             buttonViewLog.Click += buttonViewLog_Click;
@@ -210,7 +216,7 @@ namespace logReader.UI
             buttonDevices.Location = new Point(12, 139);
             buttonDevices.Name = "buttonDevices";
             buttonDevices.Size = new Size(75, 23);
-            buttonDevices.TabIndex = 7;
+            buttonDevices.TabIndex = 4;
             buttonDevices.Text = "Обзор";
             buttonDevices.UseVisualStyleBackColor = true;
             buttonDevices.Click += buttonDevices_Click;
@@ -220,7 +226,7 @@ namespace logReader.UI
             buttonComposites.Location = new Point(12, 222);
             buttonComposites.Name = "buttonComposites";
             buttonComposites.Size = new Size(75, 23);
-            buttonComposites.TabIndex = 20;
+            buttonComposites.TabIndex = 8;
             buttonComposites.Text = "Обзор";
             buttonComposites.UseVisualStyleBackColor = true;
             buttonComposites.Click += buttonComposites_Click;
@@ -231,7 +237,7 @@ namespace logReader.UI
             buttonCompositesCreateOrAdd.Location = new Point(698, 222);
             buttonCompositesCreateOrAdd.Name = "buttonCompositesCreateOrAdd";
             buttonCompositesCreateOrAdd.Size = new Size(90, 23);
-            buttonCompositesCreateOrAdd.TabIndex = 21;
+            buttonCompositesCreateOrAdd.TabIndex = 9;
             buttonCompositesCreateOrAdd.Text = "Создать .xlsx";
             buttonCompositesCreateOrAdd.UseVisualStyleBackColor = true;
             buttonCompositesCreateOrAdd.Click += buttonCompositesCreateOrAdd_Click;
@@ -241,7 +247,7 @@ namespace logReader.UI
             buttonOutput.Location = new Point(12, 305);
             buttonOutput.Name = "buttonOutput";
             buttonOutput.Size = new Size(75, 23);
-            buttonOutput.TabIndex = 6;
+            buttonOutput.TabIndex = 11;
             buttonOutput.Text = "Обзор";
             buttonOutput.UseVisualStyleBackColor = true;
             buttonOutput.Click += buttonOutput_Click;
@@ -255,14 +261,14 @@ namespace logReader.UI
             textBoxLog.ReadOnly = true;
             textBoxLog.ScrollBars = ScrollBars.Vertical;
             textBoxLog.Size = new Size(800, 100);
-            textBoxLog.TabIndex = 4;
+            textBoxLog.TabIndex = 18;
             // 
             // buttonProcess
             // 
             buttonProcess.Location = new Point(12, 391);
             buttonProcess.Name = "buttonProcess";
             buttonProcess.Size = new Size(94, 23);
-            buttonProcess.TabIndex = 3;
+            buttonProcess.TabIndex = 14;
             buttonProcess.Text = "Обработать";
             buttonProcess.UseVisualStyleBackColor = true;
             buttonProcess.Click += buttonProcess_Click;
@@ -272,7 +278,7 @@ namespace logReader.UI
             buttonHelp.Location = new Point(112, 391);
             buttonHelp.Name = "buttonHelp";
             buttonHelp.Size = new Size(75, 23);
-            buttonHelp.TabIndex = 2;
+            buttonHelp.TabIndex = 16;
             buttonHelp.Text = "Помощь";
             buttonHelp.UseVisualStyleBackColor = true;
             buttonHelp.Click += buttonHelp_Click;
@@ -292,7 +298,7 @@ namespace logReader.UI
             buttonDevicesParams.Location = new Point(93, 139);
             buttonDevicesParams.Name = "buttonDevicesParams";
             buttonDevicesParams.Size = new Size(186, 23);
-            buttonDevicesParams.TabIndex = 1;
+            buttonDevicesParams.TabIndex = 5;
             buttonDevicesParams.Text = "Устройства и параметры";
             buttonDevicesParams.UseVisualStyleBackColor = true;
             buttonDevicesParams.Click += buttonDevicesParams_Click;
@@ -303,7 +309,7 @@ namespace logReader.UI
             buttonDevicesCreateOrAdd.Location = new Point(698, 139);
             buttonDevicesCreateOrAdd.Name = "buttonDevicesCreateOrAdd";
             buttonDevicesCreateOrAdd.Size = new Size(90, 23);
-            buttonDevicesCreateOrAdd.TabIndex = 16;
+            buttonDevicesCreateOrAdd.TabIndex = 6;
             buttonDevicesCreateOrAdd.Text = "Создать .xlsx";
             buttonDevicesCreateOrAdd.UseVisualStyleBackColor = true;
             buttonDevicesCreateOrAdd.Click += buttonDevicesCreateOrAdd_Click;
@@ -313,10 +319,42 @@ namespace logReader.UI
             buttonSaveOptions.Location = new Point(12, 334);
             buttonSaveOptions.Name = "buttonSaveOptions";
             buttonSaveOptions.Size = new Size(186, 23);
-            buttonSaveOptions.TabIndex = 0;
+            buttonSaveOptions.TabIndex = 13;
             buttonSaveOptions.Text = "Параметры сохранения";
             buttonSaveOptions.UseVisualStyleBackColor = true;
             buttonSaveOptions.Click += buttonSaveOptions_Click;
+            // 
+            // progressBarProcess
+            // 
+            progressBarProcess.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            progressBarProcess.Location = new Point(12, 364);
+            progressBarProcess.Maximum = 1000;
+            progressBarProcess.Name = "progressBarProcess";
+            progressBarProcess.Size = new Size(776, 18);
+            progressBarProcess.TabStop = false;
+            progressBarProcess.Visible = false;
+            // 
+            // buttonCancel
+            // 
+            buttonCancel.Enabled = false;
+            buttonCancel.Location = new Point(326, 391);
+            buttonCancel.Name = "buttonCancel";
+            buttonCancel.TabIndex = 15;
+            buttonCancel.Size = new Size(90, 23);
+            buttonCancel.Text = "Отмена";
+            buttonCancel.UseVisualStyleBackColor = true;
+            buttonCancel.Visible = false;
+            buttonCancel.Click += buttonCancel_Click;
+            // 
+            // labelProgress
+            // 
+            labelProgress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            labelProgress.AutoEllipsis = true;
+            labelProgress.ForeColor = Color.DimGray;
+            labelProgress.Location = new Point(422, 395);
+            labelProgress.Name = "labelProgress";
+            labelProgress.Size = new Size(366, 15);
+            labelProgress.Visible = false;
             // 
             // MainForm
             // 
@@ -363,5 +401,8 @@ namespace logReader.UI
         private Button buttonDevicesParams;
         private Button buttonDevicesCreateOrAdd;
         private Button buttonSaveOptions;
+        private Button buttonCancel;
+        private ProgressBar progressBarProcess;
+        private Label labelProgress;
     }
 }
