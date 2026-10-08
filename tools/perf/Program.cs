@@ -17,6 +17,11 @@ var repo = Path.GetFullPath(Argument("--root") ?? Path.Combine(AppContext.BaseDi
 var label = Argument("--label") ?? "baseline";
 var output = Path.GetFullPath(Argument("--output") ?? Path.Combine(repo, "docs/loger-2/performance", label + ".json"));
 var work = Path.Combine(repo, "artifacts/perf", label);
+if (Argument("--data-root") is { } dataRoot)
+{
+    Environment.ExitCode = RealDataAudit.Run(dataRoot, work, output, Argument("--input-filter"));
+    return;
+}
 bool freshOutputs = args.Contains("--fresh-outputs", StringComparer.Ordinal);
 int runs = int.Parse(Argument("--runs") ?? "5", CultureInfo.InvariantCulture);
 if (runs < 3) throw new ArgumentException("Use at least three measured repetitions.");

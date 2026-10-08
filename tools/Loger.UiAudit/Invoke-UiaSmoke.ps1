@@ -1,7 +1,10 @@
 ﻿param(
     [string]$AppPath = 'artifacts/redesign/app/LOGER.exe',
     [string]$OutputPath = 'artifacts/redesign/uia',
-    [ValidateSet('Light', 'Dark')][string]$Theme = 'Dark'
+    [ValidateSet('Light', 'Dark')][string]$Theme = 'Dark',
+    [string]$RealSource,
+    [string]$RealDescription,
+    [string]$ExpectedCsvSha256
 )
 
 # Black-box smoke against the separate, actual LOGER process. No reflection into app code.
@@ -86,8 +89,17 @@ try {
     $source = [IO.Path]::Combine($taskOutput, 'small.trc')
     $description = [IO.Path]::Combine($taskOutput, 'devices.dbc')
     $result = [IO.Path]::Combine($taskOutput, 'result.csv')
-    [IO.File]::WriteAllText($source, "     1)        10.0  Rx     0CFF0008  8  11 00 00 00 00 00 00 00`n")
-    [IO.File]::WriteAllText($description, "BO_ 2365521928 A: 8 X`n SG_ A1 : 0|8@1+ (1,0) [0|255] `"`" X`n")
+    if ($RealSource) {
+        if (-not $RealDescription -or -not $ExpectedCsvSha256) { throw 'Real fixture mode requires description and expected CSV hash.' }
+        $source = [IO.Path]::GetFullPath($RealSource)
+        $description = [IO.Path]::GetFullPath($RealDescription)
+        $sourceHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+        $descriptionHash = (Get-FileHash -LiteralPath $description -Algorithm SHA256).Hash
+        if ([IO.Path]::GetDirectoryName($result).Equals([IO.Path]::GetDirectoryName($source), [StringComparison]::OrdinalIgnoreCase)) { throw 'Fixture directory must remain read-only.' }
+    } else {
+        [IO.File]::WriteAllText($source, "     1)        10.0  Rx     0CFF0008  8  11 00 00 00 00 00 00 00`n")
+        [IO.File]::WriteAllText($description, "BO_ 2365521928 A: 8 X`n SG_ A1 : 0|8@1+ (1,0) [0|255] `"`" X`n")
+    }
     Set-ControlValue (Find-Control 'textBoxCanLog' 'Путь к логу или папке') $source
     Invoke-Control (Find-Control 'navDecoder' '02   Декодирование')
     Wait-Condition { -not (Find-Control 'textBoxDevices' 'Путь к описанию CAN-посылок').Current.IsOffscreen } 'decoder editor visibility'
@@ -96,10 +108,21 @@ try {
     $processButton = Find-Control 'buttonProcess' 'Обработать'
     Invoke-Control $processButton
     $journal = Find-Control 'textBoxLog' 'Журнал операций'
-    Wait-Condition { [IO.File]::Exists($result) -and (Get-ControlValue $journal).Contains('успешно') -and $processButton.Current.IsEnabled } 'real UIA processing output'
-    if (-not ([IO.File]::ReadAllText($result)).Contains('10;17')) { throw 'Unexpected decoded output value.' }
+    Wait-Condition { [IO.File]::Exists($result) -and (Get-ControlValue $journal).Contains('успешно') -and $processButton.Current.IsEnabled } 'real UIA processing output' 60000
+    if ($RealSource) {
+        if ((Get-FileHash -LiteralPath $result -Algorithm SHA256).Hash -ne $ExpectedCsvSha256) { throw 'Real UI output differs from direct core output.' }
+        Record 'Real fixture CSV matches direct published-core SHA256'
+        $firstWrite = [IO.File]::GetLastWriteTimeUtc($result)
+        Invoke-Control $processButton
+        Wait-Condition { [IO.File]::GetLastWriteTimeUtc($result) -gt $firstWrite -and $processButton.Current.IsEnabled -and (Get-ControlValue $journal).Contains('успешно') } 'repeat real processing' 60000
+        if ((Get-ControlValue $journal).Contains('Не удается удалить')) { throw 'Repeated output replacement failed.' }
+        if ((Get-FileHash -LiteralPath $result -Algorithm SHA256).Hash -ne $ExpectedCsvSha256) { throw 'Repeated real output hash mismatch.' }
+        if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $sourceHash -or (Get-FileHash -LiteralPath $description -Algorithm SHA256).Hash -ne $descriptionHash) { throw 'Real fixtures changed.' }
+        Record 'Repeated real processing preserves result and source hashes'
+    } elseif (-not ([IO.File]::ReadAllText($result)).Contains('10;17')) { throw 'Unexpected decoded output value.' }
     Record 'UIA ValuePattern inputs and InvokePattern processing produce correct decoded CSV'
 
+    if (-not $RealSource) {
     $large = [IO.Path]::Combine($taskOutput, 'large.trc')
     [IO.File]::WriteAllText($large, ("     1)        10.0  Rx     0CFF0008  8  11 00 00 00 00 00 00 00`n" * 2000000))
     $cancelledOutput = [IO.Path]::Combine($taskOutput, 'cancelled.csv')
@@ -159,6 +182,7 @@ try {
     $taskWindow = [System.Windows.Automation.AutomationElement]::FromHandle($taskProcess.MainWindowHandle)
     Wait-Condition { (Find-Control 'buttonTheme').Current.Name.Contains('Тёмная') } 'persisted Light theme after fresh restart'
     Record 'Saved Light theme is restored by fresh application restart without environment override'
+    }
 }
 catch {
     $taskFailure = $_.Exception.ToString()
@@ -176,7 +200,8 @@ finally {
     @{ app = $taskAppPath; appSha256 = (Get-FileHash -LiteralPath $taskAppPath -Algorithm SHA256).Hash;
        uiAssemblySha256 = (Get-FileHash -LiteralPath ([IO.Path]::ChangeExtension($taskAppPath, '.dll')) -Algorithm SHA256).Hash;
        coreAssemblySha256 = (Get-FileHash -LiteralPath (Join-Path ([IO.Path]::GetDirectoryName($taskAppPath)) 'logReader.dll') -Algorithm SHA256).Hash;
-       theme = $Theme; method = 'Windows UI Automation against standalone application process'; checks = @($taskChecks.ToArray());
+       theme = $Theme; realSource = $RealSource; realDescription = $RealDescription; expectedCsvSha256 = $ExpectedCsvSha256;
+       method = 'Windows UI Automation against standalone application process'; checks = @($taskChecks.ToArray());
        limitations = @('Native file dialogs, physical keyboard/mouse and sustained scrolling not exercised') } |
        ConvertTo-Json -Depth 6 | Set-Content -LiteralPath ([IO.Path]::Combine($taskOutput, 'uia-report.json')) -Encoding UTF8
 }

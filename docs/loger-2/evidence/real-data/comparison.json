@@ -1,0 +1,14 @@
+﻿{
+    "UnmatchedInputs":  5,
+    "CurrentCoreSha256":  "4061AA5A23CC398A0464B22D17ECF635F6FE2D9CC4739928A615E3746EF49B78",
+    "BaselineCoreSha256":  "4A1A31733C4D15725FDB0FFA63128A0799C2E630181DB17485E49BD3B14B3351",
+    "SuccessfulCases":  71,
+    "Method":  "Compare input/configuration hashes, classifications, statuses, row counts, output hashes and batch counts; exclude elapsed time. Equality includes failures and does not imply all files are supported.",
+    "ScenariosEqual":  true,
+    "SourceFiles":  135,
+    "InputsUnchanged":  true,
+    "InventoryEqual":  true,
+    "FailedCasesInBoth":  9,
+    "DescriptionsEqual":  true,
+    "InputsEqual":  true
+}

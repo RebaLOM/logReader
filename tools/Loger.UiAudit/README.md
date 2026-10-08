@@ -1,5 +1,13 @@
 # LOGER native UI audit
 
+`Invoke-UiaSmoke.ps1` also accepts `-RealSource`, `-RealDescription` and
+`-ExpectedCsvSha256`. This mode uses supplied read-only TRC/DBC/DBF fixtures,
+compares actual UI output to a direct-core CSV hash, repeats the export, waits
+for a new output timestamp and verifies both source hashes. It skips the
+synthetic cancellation/batch and restart cases. Use a fresh `-OutputPath`
+outside the fixture directory. Real checks in both themes are recorded in
+`docs/loger-2/evidence/real-data/uia-dark.json` and `uia-light.json`.
+
 Dependency-free .NET 10 WinForms STA harness that loads a supplied `LOGER.dll` without
 building or referencing the application project. The same executable checks the preserved
 baseline and the redesigned application.

@@ -1,5 +1,17 @@
 # Воспроизводимый baseline ядра
 
+Для предоставленных реальных файлов используется отдельный режим:
+
+```powershell
+$env:LOGER_TEST_DATA_ROOT = 'C:\Users\Re\OneDrive\Desktop\DST_LOGER'
+dotnet test logReader.Tests/logReader.Tests.csproj -c Release --no-restore
+dotnet tools/perf/bin/Release/net10.0/Loger.Perf.dll --root . --label real-new-run `
+  --data-root $env:LOGER_TEST_DATA_ROOT --output artifacts/real-new-run.json
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/perf/compare-real-data.ps1
+```
+
+Новый label на каждый запуск; исходная папка только читается, все outputs — в `artifacts/perf/<label>`. `--input-filter` ограничивает обработку точным относительным именем одного входа, сохраняя инвентаризацию. Выбор описания по выборке CAN-ID не заменяет аппаратный oracle. Реальный режим делает один вызов на случай, без прогрева/медиан, и возвращает 1 при ошибках. Сравнение включает неуспешные статусы и не объявляет их PASS. Итоговые данные, девять одинаковых ошибок исходного ядра и пять несовпадающих описаний: [real-data.md](../../docs/loger-2/real-data.md). Дальнейшая методика ниже относится к синтетическому benchmark.
+
 `Loger.Perf` запускает скомпилированные алгоритмы из `logReader.dll`; сам harness не изменяет производственные исходники, форматы, видимость классов или настройки сборки ядра. Внутренние точки входа вызываются через заранее найденные `MethodInfo`. Один вызов reflection на целую операцию — постоянная малая накладная стоимость и одинаковая в обеих версиях.
 
 ```powershell

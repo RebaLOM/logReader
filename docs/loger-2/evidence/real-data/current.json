@@ -1,0 +1,3102 @@
+{
+  "DataRoot": "C:\\Users\\Re\\OneDrive\\Desktop\\DST_LOGER",
+  "CoreAssemblySha256": "4061AA5A23CC398A0464B22D17ECF635F6FE2D9CC4739928A615E3746EF49B78",
+  "Passed": 71,
+  "Failed": 9,
+  "Unmatched": 5,
+  "InputsUnchanged": true,
+  "Inputs": [
+    {
+      "File": "CanDevs\\6KW DCDC CAN communication protocol V2.0.csv",
+      "Bytes": 5000,
+      "Sha256": "23210C0DE5C144EE69CE9C5B583D63A01D3F7FD08AC4AE3ED737EE8D6D283F76"
+    },
+    {
+      "File": "CanDevs\\CAN-PWM FD Ptcol.csv",
+      "Bytes": 1416,
+      "Sha256": "08FDAAF835E386FEC28315DB91F1CEE0E10B149B578C9D8A2B02F7AEF86ABD4E"
+    },
+    {
+      "File": "CanDevs\\CAN-PWM FD Ptcol.xlsx",
+      "Bytes": 9933,
+      "Sha256": "41BAB4236C7A685B82A55FF4F6E4241B7781B536B40C517ADBFE38C05069FDF2"
+    },
+    {
+      "File": "CanDevs\\DCT_ural.0.2.1.csv",
+      "Bytes": 4494,
+      "Sha256": "A33BD9D75319031DF23D95406130767C1D16527D74DCDEBFED7425D0AE6EF2CF"
+    },
+    {
+      "File": "CanDevs\\DCT_ural.0.2.1.xlsx",
+      "Bytes": 8734,
+      "Sha256": "9025F5EF271DC8CFD3F585CD745BFD38A85EC6DEEA51D0577CACF752D1055566"
+    },
+    {
+      "File": "CanDevs\\整车发电机、驱动电机 CAN通讯协议汇总.csv",
+      "Bytes": 13997,
+      "Sha256": "05D0B4A434759AE28CB8C779169554845805BD6588559A62003CA9C84E8350A2"
+    },
+    {
+      "File": "CanDevs\\整车发电机、驱动电机 CAN通讯协议汇总.xlsx",
+      "Bytes": 50683,
+      "Sha256": "68A6DF3B69B0C89B28629644ECD0601DB7F87FD389FB9F9605F2F53C9EFCC5A1"
+    },
+    {
+      "File": "DST\\result\\result_2025-10-16.csv",
+      "Bytes": 105806,
+      "Sha256": "97B5B5841BDFD68E6C72F432A179875D3CF14838B4587EE5BBBD15F5D93BAC6D"
+    },
+    {
+      "File": "DST\\result\\result_trc_merged.csv",
+      "Bytes": 166218,
+      "Sha256": "2D9AE8E0EC858E4CEA56476B90FD3873AFD033552D6A666CF550A9BFCB7FC126"
+    },
+    {
+      "File": "DST\\result\\result_trc_merged.xlsx",
+      "Bytes": 991355,
+      "Sha256": "CF2A5CA563752D122BAE4B864E583F77F4F6CD34E0406DC8C1A20AC97A0039B1"
+    },
+    {
+      "File": "DST\\trace_2025-10-16T06_45_04_085033.trc",
+      "Bytes": 9774083,
+      "Sha256": "DEC2B3B0F3B304532502843865C0BEC770021A2D98199C8764CB2161F82F8D70"
+    },
+    {
+      "File": "DST\\trace_2025-10-16T06_45_04_085033_result.csv",
+      "Bytes": 46279,
+      "Sha256": "51736DA81B47BAEB6CBB754A952D2388CBD643FA71FF970EDFE20BFE695F7662"
+    },
+    {
+      "File": "DST\\trace_2025-10-16T06_45_04_085033_result.xlsx",
+      "Bytes": 22959,
+      "Sha256": "7BA7F7F846C89996AAA6A54743D112177E50AE78C32BE285BB21B6F407F38FCA"
+    },
+    {
+      "File": "DST\\контрвращение_085008.trc",
+      "Bytes": 1045217,
+      "Sha256": "F57D96C23CFEEAE398133FF7242C7D1264BE9FB8970C853A97814340E02DA6F1"
+    },
+    {
+      "File": "DST\\мтс15е-1_085623.trc",
+      "Bytes": 5294747,
+      "Sha256": "7521746DB7A2A67CDF861C3E0485293D65B001FEA487694648BA3D3FD2AC0919"
+    },
+    {
+      "File": "DST\\мтс15е-горка-вверх_085611.trc",
+      "Bytes": 1403177,
+      "Sha256": "A2BB2121ABDE1620986ECF09DB1FF9E24F2B48A5797255906284BD1F171077D6"
+    },
+    {
+      "File": "DST\\мтс15е-горка-спуск-торможение_085600.trc",
+      "Bytes": 1059257,
+      "Sha256": "33C51352623609ECEC8A312E8B611DA0625DFB16A824BE21F1DC15A231996262"
+    },
+    {
+      "File": "DST\\мтс15е-езда_085258.trc",
+      "Bytes": 5680043,
+      "Sha256": "EEA99886430F7535F22AD3446985E5B80B1C7EE62114295ECE70626BF67FEE13"
+    },
+    {
+      "File": "DST\\мтс15е-подъемвгорку_085433.trc",
+      "Bytes": 6757997,
+      "Sha256": "33691D26FB1B00AD25F6EA5B522A21CC1E7189B9F3ED2862D04032B310A77435"
+    },
+    {
+      "File": "DST\\мтс15е-спуск-рекуперация_085413.trc",
+      "Bytes": 1611767,
+      "Sha256": "0234DC4B71AB11D9A9C22005701C868B5170FA0E4B877D42A79DDE19E75A5D79"
+    },
+    {
+      "File": "DST\\торможение_085545.trc",
+      "Bytes": 1313417,
+      "Sha256": "C171162BFCBA35FB6929716286AF84A0D2F150E5FC1E37E3293CE0818A76EFB8"
+    },
+    {
+      "File": "DatabaseMsgsL450E.DBF",
+      "Bytes": 4241,
+      "Sha256": "DC734A698EC7130156CC68A4FFB648CE96AF78B74B451E3BC2E6D48C7D1D303B"
+    },
+    {
+      "File": "DatabaseMsgsL450E.dbc",
+      "Bytes": 3351,
+      "Sha256": "06311DBC945351C66C8665A9E684D35E6159ED3BC07E22F31352D2D926A6976B"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-03T09_01_07_TrsmStartRapid.csv",
+      "Bytes": 93070,
+      "Sha256": "86785A8A6BFA177BF7E19CA9382BF095E52266D7DFD8769959A34163C185431F"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-07T07_31_50AtchTst1.csv",
+      "Bytes": 15935,
+      "Sha256": "579F385865B04FB2570AA654DF5E40AB75CCD75E26608D685C3010F4F4680097"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-07T07_36_47_AtchSctn4Test1.csv",
+      "Bytes": 46098,
+      "Sha256": "CD8CABCF54317D8FA06B496F095D6D78AA90E6BA4C868C5A5F222A418C9950CD"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-07T08_PIDtest1.csv",
+      "Bytes": 15383,
+      "Sha256": "12BC254448DB55C7B6DF77F389E2AC1C47CF3F67C1B16D6E89B4EAA962D7B2F9"
+    },
+    {
+      "File": "L450E_CanLogger.dbc",
+      "Bytes": 19881,
+      "Sha256": "9499D2FF04F8A1705AAF71D030B90A9904A62846A21EF01DA8ACC9C22C70981D"
+    },
+    {
+      "File": "L450E_ElTrsmMot_RecupBrk_T1.trc",
+      "Bytes": 1463424,
+      "Sha256": "55A1E5FACD48E1768ACD47C6D6C0D1984678375F70297E6524521E32F5FCF763"
+    },
+    {
+      "File": "L450E_ElTrsmMot_RecupBrk_T1_result.csv",
+      "Bytes": 889747,
+      "Sha256": "E67850A7026F6EC455F2D321C44B6DF13E929FE64CFE50CC9A10EECB03912ECD"
+    },
+    {
+      "File": "L450E_ElTrsmMot_RecupBrk_T1_result.xlsx",
+      "Bytes": 531339,
+      "Sha256": "53EFEF3F5B497AE785031708F6F015A2EE25CCE0B87AC70E396118A65EC8F62A"
+    },
+    {
+      "File": "LOGER\\BUSMASTERbase.DBF",
+      "Bytes": 2083,
+      "Sha256": "183EC7EB23A1B26CE8E18B76882BBC550ECBEC08C0EA333A5D8D63D52C580B02"
+    },
+    {
+      "File": "LOGER\\BUSMASTERbase.dbc",
+      "Bytes": 1671,
+      "Sha256": "B171E7086EA92E9D0F0C2B14181B79B928620A7FF46169108F9AC5758192214F"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1.asc",
+      "Bytes": 1242472,
+      "Sha256": "C73F431C2143CE74C7702B72AEEE0CD5B8B1531472CA201EA27C3578106B7CCB"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1.trc",
+      "Bytes": 1551221,
+      "Sha256": "4C92BB9D3221D27E368B7A159DE002B71D9691C69D30C0E4CDD5E85515053F0E"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1_result.csv",
+      "Bytes": 621346,
+      "Sha256": "3BF094D6010EB7D48CE1A69ACB39BB8F7CDB1823A6B09E1E92FE380E08D56850"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1_result.xlsx",
+      "Bytes": 66675,
+      "Sha256": "47F35F8C33C4D0DA89FA4EC82AC86270215E5543A7A4232B304103CD0C4861F9"
+    },
+    {
+      "File": "LOGER\\MovWLoad_t6.asc",
+      "Bytes": 45375947,
+      "Sha256": "BD86D690CE268EAA4559FBE65315E60200F7A1050884EA69E804E5DA16425FC1"
+    },
+    {
+      "File": "LOGER\\canlog.csv",
+      "Bytes": 4616619,
+      "Sha256": "95398541C7E330F76C727D172717EADEE4386C6A3907A3194E3D116797F286BD"
+    },
+    {
+      "File": "LOGER\\canlog_result.xlsx",
+      "Bytes": 427830,
+      "Sha256": "6A8D11D3149D3808A27F3BF6F55BF4F22ACF46CB6AF4341B5F5B6C880560ECFD"
+    },
+    {
+      "File": "LOGER\\comp.xlsx",
+      "Bytes": 7024,
+      "Sha256": "B98E3E26C7F15744CE1D0160832850C2B1C7BB828A395928778FF5BF01458E6C"
+    },
+    {
+      "File": "LOGER\\ejifrbv.xlsx",
+      "Bytes": 6809,
+      "Sha256": "B932567BE7392100190D53EB85A453ED5CA0116E55F8448416E7E41B248F3D40"
+    },
+    {
+      "File": "LOGER\\locarusBASE1.dbc",
+      "Bytes": 5987,
+      "Sha256": "5318946943DD33F5B7634EA80C986B85CD77769B523C5D809FC43363A811F454"
+    },
+    {
+      "File": "LOGER\\locarusBASE_L450E.dbc",
+      "Bytes": 12081,
+      "Sha256": "8348158D560002EC49FB8CFAB8C00DBEB969B62AEFE59E5085C238E11634FDBD"
+    },
+    {
+      "File": "LOGER\\педаль газа и ручка газа 0CF00300.txt",
+      "Bytes": 332340,
+      "Sha256": "DAC6DA68410492CA828F57058D0E251532801232AD355B2407E1EEA71D6260BA"
+    },
+    {
+      "File": "LocarusOutp\\10005169#2026-07-06 – 2026-07-08.csv",
+      "Bytes": 13250860,
+      "Sha256": "9523D6783D31A9AB9D491786442D377D13FD66AC74A7F1F415A300E1AA1A9C33"
+    },
+    {
+      "File": "Locarus_v3_2026_04_28.xlsx",
+      "Bytes": 112117,
+      "Sha256": "6BDA1D1DC68C6A1EA620902A47360A4CF7D241987B5CB4C16F599925D7F08D20"
+    },
+    {
+      "File": "TrcLogs\\L450E_CANPWM_log.trc",
+      "Bytes": 20541145,
+      "Sha256": "1D98B1C596B125D9CF085462ED60E3BDEBC669C40D91DA7E72367664AEE67A43"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd.trc",
+      "Bytes": 30503777,
+      "Sha256": "7DD1AF4E54D64CD9A201C5DCA8E3C792648517045FBB32418CB5C30F76CA2EBD"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2.trc",
+      "Bytes": 60300486,
+      "Sha256": "9DDC6E03175B5E2AE814264CB6DAAFC49B9B406238ECE034A4BADA7919B66DF0"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2_result.csv",
+      "Bytes": 61591268,
+      "Sha256": "07EC50226D3CB5AC425DB76C8EC9B951B5F1B194706F53C1A1EE695C48037063"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2_result.xlsx",
+      "Bytes": 22650683,
+      "Sha256": "59EC695FE82415937D543DDD8B96B1E977E89F9A044629A6680F92A204B8463D"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_result.csv",
+      "Bytes": 1442,
+      "Sha256": "0E73991F1FB7B3FF512B5A58B4D1FFFD811E825E6E2EAF5CE21509DFA94F3FCA"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1.trc",
+      "Bytes": 60300486,
+      "Sha256": "B9CF4B367A693D5D1CB0D58042A87D65CF04F785F9F2A2A16D95CE1E6FC7290C"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1_result.csv",
+      "Bytes": 59693305,
+      "Sha256": "C4B079F8DD79EB3FE9176E22D62F6726A0B31D6456B8AA9E3DADF32C0854FD14"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1_result.xlsx",
+      "Bytes": 22752760,
+      "Sha256": "8F7D33FC5DA8B6F8A7F48C55E79CCFF2746754D56836F70BCDD3687F509EA9D2"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_2.trc",
+      "Bytes": 60300486,
+      "Sha256": "B42F8D0AF4D9FD215C798A06A77DA05FC8EE3C937F43B55E356EBBF5B40D55C0"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_Diag.trc",
+      "Bytes": 338099,
+      "Sha256": "E28DEEBBF7F566A0CAC7817FF886EB5E2DED743185B267FACDD8FC4B04AB8CEE"
+    },
+    {
+      "File": "TrcLogs\\L450E_ElTrsmMot_RecupBrk_T1.trc",
+      "Bytes": 1463424,
+      "Sha256": "55A1E5FACD48E1768ACD47C6D6C0D1984678375F70297E6524521E32F5FCF763"
+    },
+    {
+      "File": "TrcLogs\\L450E_ElTrsmMot_RecupBrk_T2.trc",
+      "Bytes": 23658454,
+      "Sha256": "15BB91FB3B62F792B70A3C0F640A642CCE1E6975AC8ABA1A031E5B775F86702B"
+    },
+    {
+      "File": "TrcLogs\\L450E_HVbusShtDn1.trc",
+      "Bytes": 7063693,
+      "Sha256": "3E613587FDE7FF254B6E9F66A732190F3F11E397D99F49EC1DE15729ACEF7C8E"
+    },
+    {
+      "File": "TrcLogs\\L450E_HVbusShtDn2(1).trc",
+      "Bytes": 15225097,
+      "Sha256": "508C63B883DFA1A93F83C979AD54DC1488167B2D1F24555ABC4EA1B78AA983E0"
+    },
+    {
+      "File": "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+      "Bytes": 35010,
+      "Sha256": "0F4B3AC0608201D53D786E10D1CAB28706A93B67B91CC40FC209C9D95CB3D130"
+    },
+    {
+      "File": "TrcLogs\\elecIvtrAtch_L450_CANlog_ModChng_t1.trc",
+      "Bytes": 209899,
+      "Sha256": "D3C5F5ABD3B6DC0477D972D5DF779ACAE9DAA29A4896125C418282959D7DD52F"
+    },
+    {
+      "File": "TrcLogs\\elecIvtrAtch_L450_CANlog_t1.trc",
+      "Bytes": 241783,
+      "Sha256": "9785EDDE223B5F4695A02EFEB195580918860ADD41BBF191B1BBB330DBEDDFF7"
+    },
+    {
+      "File": "TrcLogs\\elecTrsmIvtr_L450_CANlog_t1.trc",
+      "Bytes": 94316,
+      "Sha256": "D97A425686E445D2EA80FAE23929DE2A72EDB33AB4AA3E48C1BD8F2678458338"
+    },
+    {
+      "File": "TrcLogs\\l450e_Can4Getaway500kBps_after2.trc",
+      "Bytes": 1282732,
+      "Sha256": "CEF34214C2D992AF7A7AEA7F1EC7BB8129026F6AA0ED4E86D387A1286D3BE16D"
+    },
+    {
+      "File": "TrcLogs\\l450e_Can5Atch.trc",
+      "Bytes": 601207,
+      "Sha256": "9CE580887976BF4C630402D4594E6F92D143FB964803D92B9385F0727A33C1F1"
+    },
+    {
+      "File": "TrcLogs\\l450e_Can5Getaway250kBps_after2.trc",
+      "Bytes": 6007638,
+      "Sha256": "A40CE4E6C939A5028C9EC66A29A10380341E0BFE6AB9AFC3BA66728DBADA09CA"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGateway250kBps.trc",
+      "Bytes": 70099,
+      "Sha256": "1533C9C9E96B8ABD4D53837C35295A79218DB55A3A9E7BD1B9A9D0BF03FE731E"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGateway250kBps_NewFirmware.trc",
+      "Bytes": 291065,
+      "Sha256": "ECFBF95D49F53E9FF322D81E40CA491B931EB285E62D31823C1F540A5DD102FB"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGateway500kBps_NewFirmware.trc",
+      "Bytes": 3026541,
+      "Sha256": "E5AC6E9EC0432FD9001CDE12F5CE84FA1B761374DA6B28595B5E16F6CECD04FB"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway250kBps_After_3.trc",
+      "Bytes": 1465642,
+      "Sha256": "A3E2C2145A9BD4BC999B0BB9328306E56C107351A65FC9704D9571D027574981"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway250kBps_After_CAN_gateway_R1_(3).trc",
+      "Bytes": 94621,
+      "Sha256": "8A88439F18CBDF155BD8ABF166755CB8CF5466A8AFF6460E5403D9345598F431"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway250kBps_After_CAN_gateway_R1_(4).trc",
+      "Bytes": 2307028,
+      "Sha256": "747C4C8F6FEEA4BD924DF338071F32233C68DBF8CFC1875280AACA27801694A8"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_3.trc",
+      "Bytes": 6890699,
+      "Sha256": "9B128393DD33D27ECE64497CB8E7ED1C582003C8BABA732409170CD88E95E408"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_R1_(3).trc",
+      "Bytes": 4811086,
+      "Sha256": "D5A88C8B8F46A337D821A096BAB90EB7765E195B797C4614C68395366BE76E18"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_R1_(4).trc",
+      "Bytes": 1573244,
+      "Sha256": "BE64EAAC482639AEE0ED022BF89D4052D741ACF1B5CD24BB5FA90120CB787178"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_excld.trc",
+      "Bytes": 15587433,
+      "Sha256": "21A5913D19EA6FA0A48C44496CB9EFD09490C6F52719E86EF1403A6CF7620F3D"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusShtDn (1).trc",
+      "Bytes": 7371893,
+      "Sha256": "54CEA5354950567BF857014A7CB1C79CBF02EF96B93D5312EEC6EFC6373D4E9C"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusShtDn.trc",
+      "Bytes": 7371893,
+      "Sha256": "54CEA5354950567BF857014A7CB1C79CBF02EF96B93D5312EEC6EFC6373D4E9C"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusShtDn2.trc",
+      "Bytes": 4510658,
+      "Sha256": "9EC5F908C182A5E6F390B34BE3F23E4EA90EA44C2934947109BBFC14E89A36A0"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusTurnOn (1).trc",
+      "Bytes": 15428083,
+      "Sha256": "8EC3881264AA891714400D41FB5E9A215AA59EC3443EF5B067F094F4107EF8C4"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusTurnOn.trc",
+      "Bytes": 15428083,
+      "Sha256": "8EC3881264AA891714400D41FB5E9A215AA59EC3443EF5B067F094F4107EF8C4"
+    },
+    {
+      "File": "TrcLogs\\pdu A1-10 reset copy.trc",
+      "Bytes": 8469197,
+      "Sha256": "7F56F3CA1AB89BDBCF80B0EFB6C216685D65A62724FBF76DFEC71CA0F5A309D1"
+    },
+    {
+      "File": "TrcLogs\\pdu A1-10 reset.trc",
+      "Bytes": 8469197,
+      "Sha256": "7F56F3CA1AB89BDBCF80B0EFB6C216685D65A62724FBF76DFEC71CA0F5A309D1"
+    },
+    {
+      "File": "TrcLogs\\pdu1.trc",
+      "Bytes": 1485617,
+      "Sha256": "DF3C5E5986A2411EC3FFCDA5AA6C876842EFB2249CF300F43D3FEECEB879E9FF"
+    },
+    {
+      "File": "TrcLogs\\sanyTCU_Can1.trc",
+      "Bytes": 216106,
+      "Sha256": "0563C63601DEF7D8D92D54ED108813A55787271BB1BACC43BF8B13BFF8A19F0A"
+    },
+    {
+      "File": "dbf examples\\L450E_CanLogger.dbc",
+      "Bytes": 19881,
+      "Sha256": "9499D2FF04F8A1705AAF71D030B90A9904A62846A21EF01DA8ACC9C22C70981D"
+    },
+    {
+      "File": "dbf examples\\L450E_CanLogger.dbf",
+      "Bytes": 22242,
+      "Sha256": "B2FB87BB0C13484DC24C376A8D1753A2B68E4C4624A7F7E935B4A2A23A11B8E2"
+    },
+    {
+      "File": "dbf examples\\L450E_devices.dbc",
+      "Bytes": 4524,
+      "Sha256": "81CCC357165097E1A75C43F68579850777D32B3256A839401EF62E0CD8F6E8A2"
+    },
+    {
+      "File": "dbf examples\\L450E_devices.dbf",
+      "Bytes": 5485,
+      "Sha256": "58F39C47523C17F779743BE0C10D4E8C77DF78C2A063027B7877BFE38D9F02AF"
+    },
+    {
+      "File": "l450e.xlsx",
+      "Bytes": 28992,
+      "Sha256": "A5C04E3C932FF8B81A5E0D7D303C8ADB97A34FEA4294F205BA22E5B7A1427F9B"
+    },
+    {
+      "File": "new ЧЯ\\260616\\135525.csv",
+      "Bytes": 0,
+      "Sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "File": "new ЧЯ\\260616\\145705.csv",
+      "Bytes": 0,
+      "Sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "File": "new ЧЯ\\260616\\145840.asc",
+      "Bytes": 27911181,
+      "Sha256": "A831461F44E208EC8083255ECFCFDCFAAE4656B5A5E4D4F47533F27A15F5E16F"
+    },
+    {
+      "File": "new ЧЯ\\260616\\145840.csv",
+      "Bytes": 3484982,
+      "Sha256": "E37502892A3590CB01C8C98F8A9CF2CB1AF082DCA3FEC3D67194B57B11ACBA9D"
+    },
+    {
+      "File": "new ЧЯ\\260616\\150318.csv",
+      "Bytes": 5776895,
+      "Sha256": "8A68DE6B18BFBD089FAB9C7BEA6BD944EF015D7292DF30FC244319714EF1CEC2"
+    },
+    {
+      "File": "new ЧЯ\\260616\\150318_result.csv",
+      "Bytes": 20012130,
+      "Sha256": "71B9351D82DA6C45DD0AED653D35B4E061B2E20E851529DB70C93C1886B90102"
+    },
+    {
+      "File": "new ЧЯ\\260616\\150318_result.xlsx",
+      "Bytes": 24323233,
+      "Sha256": "5641237EF95B286AF606F1F1C08DFB4A6D4B4DB6A84F12D8A314E5B0A64D22C0"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319.asc",
+      "Bytes": 73839669,
+      "Sha256": "B6193479443A428C51EA641AD4D64784A68C963C98B4D8F1BBE2B4B21B310A9A"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319.csv",
+      "Bytes": 8896045,
+      "Sha256": "83AE6455F41B43BD13E30B61D8BB1F3ECAC5A8B377F55AC92C802FF8DC756A63"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319_result.csv",
+      "Bytes": 21112945,
+      "Sha256": "AAD9EB9B30D651E256D06F620EC6DE0684771BF9A987B45E7F5E59C517CF473B"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319_result.xlsx",
+      "Bytes": 2272028,
+      "Sha256": "C44A4C0052167D99C699DD83B23F345416403137E3B4C87D753CF46ADCF39EA3"
+    },
+    {
+      "File": "new ЧЯ\\260616\\152321.csv",
+      "Bytes": 4697251,
+      "Sha256": "71878D6E5FF9AC066DCA244022C4D6296CA92B4D8BCC0EC1090D9413D5BCBABB"
+    },
+    {
+      "File": "new ЧЯ\\260616\\152846.csv",
+      "Bytes": 6440685,
+      "Sha256": "E6465491CB0CFA0FBB4135F441F7B13C21B04F371508CBB7DA7F8D13EA9A5FBD"
+    },
+    {
+      "File": "new ЧЯ\\260616\\152846_result.csv",
+      "Bytes": 11679718,
+      "Sha256": "D1C3B02A8AAE9A34113517799C154D5DE12B3339333254D5E478B04BF7A8F03F"
+    },
+    {
+      "File": "new ЧЯ\\260616\\153848.csv",
+      "Bytes": 7271046,
+      "Sha256": "9FEB6BAE8EEB7D9EA0D96DC8DF3BD937710CB13592E46B864ADEE6B1662665AA"
+    },
+    {
+      "File": "new ЧЯ\\260616\\154849.csv",
+      "Bytes": 6179391,
+      "Sha256": "63E4701DDCEB45258BE975BBADCE7C261D84A329E46294008EB74054D7CCE5FD"
+    },
+    {
+      "File": "new ЧЯ\\260616\\155850.csv",
+      "Bytes": 8874559,
+      "Sha256": "493FFD9E3F593E3F5AD3948A4D011BFAEDE20F84FB73E60199AC5174AC8CFD17"
+    },
+    {
+      "File": "new ЧЯ\\260616\\160851.csv",
+      "Bytes": 1917217,
+      "Sha256": "14737ECD2D43205CCE027769349F5D3360D4DB89BB93E386C755E73F20BCE4F1"
+    },
+    {
+      "File": "new ЧЯ\\260616\\161124.csv",
+      "Bytes": 711572,
+      "Sha256": "FB14D3DF007F2478FB64A9BFBB575067756D831004AD1838773EF805FF03E490"
+    },
+    {
+      "File": "new ЧЯ\\260616\\161333.csv",
+      "Bytes": 7391977,
+      "Sha256": "8932B7E570DF1A9BC358521D58A2E7A6FA38A40070548074615E4710F24D6CD1"
+    },
+    {
+      "File": "new ЧЯ\\260616\\162335.csv",
+      "Bytes": 8904170,
+      "Sha256": "36E0CADFC09A8A70325CC4464B42EF909F8C61644BCA8A2DF4402D6AD3DE4FD3"
+    },
+    {
+      "File": "new ЧЯ\\260616\\163336.csv",
+      "Bytes": 8917682,
+      "Sha256": "20FBB1981B221BBFF76AF9A92A2C15A29E4DC2FEAE408F5ED85593474432828F"
+    },
+    {
+      "File": "new ЧЯ\\260616\\164337.csv",
+      "Bytes": 2512828,
+      "Sha256": "34FA1193A8D8964B61425C2F66008927054FDF5091E75BFD1784AE1D74261397"
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices — копия.dbc",
+      "Bytes": 4524,
+      "Sha256": "81CCC357165097E1A75C43F68579850777D32B3256A839401EF62E0CD8F6E8A2"
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices.dbc",
+      "Bytes": 4524,
+      "Sha256": "81CCC357165097E1A75C43F68579850777D32B3256A839401EF62E0CD8F6E8A2"
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices.dbf",
+      "Bytes": 5485,
+      "Sha256": "58F39C47523C17F779743BE0C10D4E8C77DF78C2A063027B7877BFE38D9F02AF"
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices.xlsx",
+      "Bytes": 14666,
+      "Sha256": "FAFBFE8AE417DA463B349CBD274B3CC54ADE27F5B359B01E6CFEF75698586699"
+    },
+    {
+      "File": "new ЧЯ\\MovWLoad_t6.asc",
+      "Bytes": 45375947,
+      "Sha256": "BD86D690CE268EAA4559FBE65315E60200F7A1050884EA69E804E5DA16425FC1"
+    },
+    {
+      "File": "new ЧЯ\\New_Database1.DBF",
+      "Bytes": 381,
+      "Sha256": "AA9961D806551F800CC706AE21415ADF912AE9A5CF8AB8F7166709024C100091"
+    },
+    {
+      "File": "new ЧЯ\\New_Database2.DBF",
+      "Bytes": 975,
+      "Sha256": "24EBC0415DD459406189C0F337E41C42E0C930A67389FBF09D03A93D6C1D633E"
+    },
+    {
+      "File": "Некит\\L450E_CanLogger.dbc",
+      "Bytes": 19881,
+      "Sha256": "9499D2FF04F8A1705AAF71D030B90A9904A62846A21EF01DA8ACC9C22C70981D"
+    },
+    {
+      "File": "Некит\\L450E_CanLogger.dbf",
+      "Bytes": 22242,
+      "Sha256": "B2FB87BB0C13484DC24C376A8D1753A2B68E4C4624A7F7E935B4A2A23A11B8E2"
+    },
+    {
+      "File": "Некит\\canlog.csv",
+      "Bytes": 4119405,
+      "Sha256": "67C15627EADAA7A4848433C2A7BCA9875289ADF48C39DEE1117A382CBF880BDF"
+    },
+    {
+      "File": "Некит\\devices.xlsx",
+      "Bytes": 9153,
+      "Sha256": "62031993595B73D62418EC9074CF795248AE6EE2A5CB4FD884522A1176453A4A"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\111954.csv",
+      "Bytes": 1406215,
+      "Sha256": "17E75E8FF27D4D9F869A697D73945B1C36D9C21880F79A1568E7FA2D700B40B6"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\113637.csv",
+      "Bytes": 6320344,
+      "Sha256": "C3F0220C22AF0502EFD5AE000CD6671228968116C7E923B2A828C38191E77994"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\114639.csv",
+      "Bytes": 3240368,
+      "Sha256": "9CAFE6A342EFC303B61D3BB3AFE944F781513061C815AA063A04F395C0D171AF"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\115639.csv",
+      "Bytes": 6055767,
+      "Sha256": "0055CC1979CB8F0F7D9A02D3FEEF41650E5E5C7A2B791F89123D3B8E2DE564C9"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\120640.csv",
+      "Bytes": 6492252,
+      "Sha256": "168A9E7D1CF87F3F0D3F89FBABBBA840D6444F4BC761ABA752D5D9B19BF4F423"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\121642.csv",
+      "Bytes": 6183279,
+      "Sha256": "A3F5D8DA6F2CFD198032CEF1A11CE85CAABE9575930B0DDBBABB8C97292037C2"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\122643.csv",
+      "Bytes": 6397724,
+      "Sha256": "6AB513385B331CB008029CA7D68278108A7CDE6530ECFF26FF1CA9AB5048DA3D"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\123644.csv",
+      "Bytes": 5089957,
+      "Sha256": "B690ABE723FEF5D8E4BA069CE93B8BFF41CF64CB2B59D0C8F34942B52A3269AA"
+    }
+  ],
+  "Descriptions": [
+    {
+      "File": "CanDevs\\CAN-PWM FD Ptcol.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство УПРАВЛЕНИЕ: пустой Header — пропускаем.",
+        "Устройство 18FD4E03H\n100 МС: пустой Header — пропускаем.",
+        "Устройство БАЙТЫ: пустой Header — пропускаем.",
+        "Устройство БАЙТЫ: пустой Header — пропускаем.",
+        "Устройство ОБРАТНАЯ СВЯЗЬ: пустой Header — пропускаем.",
+        "Устройство 18FD034EH\n5000 МС: пустой Header — пропускаем."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "CanDevs\\DCT_ural.0.2.1.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство MCU_THCU_FLAGS, '0': неизвестный Type '2' — пропускаем.",
+        "Устройство PTC1_CONTROL_MESSAGE, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство PTC1_STATUS_MESSAGE, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство MCU_TEMP_INFO, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство BTMS_INFORMATION, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство BTMS_HEATER_INFORMATION, '0': неизвестный Type '1' — пропускаем."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "CanDevs\\整车发电机、驱动电机 CAN通讯协议汇总.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "DST\\result\\result_trc_merged.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство ВРЕМЯ, 'Реальная скорость ДВС': неизвестный Type 'ТРЕБУЕМАЯ СКОРОСТЬ ДВС' — пропускаем.",
+        "Устройство 0,27888029172338, '1890': неизвестный Type '1850' — пропускаем.",
+        "Устройство 0,278882520335648, '1930': неизвестный Type '1880' — пропускаем.",
+        "Устройство 0,27888507359838, '1890': неизвестный Type '1890' — пропускаем.",
+        "Устройство 0,278887075936343, '1860': неизвестный Type '1890' — пропускаем.",
+        "Устройство 0,278889421215278, '1870': неизвестный Type '1860' — пропускаем.",
+        "Устройство 0,278891751689815, '1850': неизвестный Type '1820' — пропускаем.",
+        "Устройство 0,278894262106481, '1810': неизвестный Type '1810' — пропускаем.",
+        "Устройство 0,278896619258102, '1810': неизвестный Type '1790' — пропускаем.",
+        "Устройство 0,278898674988426, '1750': неизвестный Type '1770' — пропускаем.",
+        "Устройство 0,278901321956019, '1710': неизвестный Type '1760' — пропускаем.",
+        "Устройство 0,278903650438657, '1730': неизвестный Type '1740' — пропускаем.",
+        "Устройство 0,278905557533565, '1740': неизвестный Type '1730' — пропускаем.",
+        "Устройство 0,278907917523148, '1760': неизвестный Type '1720' — пропускаем.",
+        "Устройство 0,278910253969907, '1770': неизвестный Type '1710' — пропускаем.",
+        "Устройство 0,278912864917824, '1680': неизвестный Type '1700' — пропускаем.",
+        "Устройство 0,278915194641204, '1680': неизвестный Type '1690' — пропускаем.",
+        "Устройство 0,278917497581019, '1730': неизвестный Type '1680' — пропускаем.",
+        "Устройство 0,278919837118056, '1730': неизвестный Type '1680' — пропускаем.",
+        "Устройство 0,278921838309028, '1670': неизвестный Type '1670' — пропускаем.",
+        "Устройство 0,278924458829861, '1630': неизвестный Type '1670' — пропускаем.",
+        "Устройство 0,278926756202546, '1630': неизвестный Type '1650' — пропускаем.",
+        "Устройство 0,278928735543981, '1610': неизвестный Type '1650' — пропускаем.",
+        "Устройство 0,278931427059028, '1600': неизвестный Type '1650' — пропускаем.",
+        "Устройство 0,278933420405093, '1630': неизвестный Type '1640' — пропускаем.",
+        "Устройство 0,278936005914352, '1670': неизвестный Type '1640' — пропускаем.",
+        "Устройство 0,278938405751157, '1630': неизвестный Type '1640' — пропускаем.",
+        "Устройство 0,278940524478009, '1600': неизвестный Type '1630' — пропускаем.",
+        "Устройство 0,27894288709375, '1630': неизвестный Type '1630' — пропускаем.",
+        "Устройство 0,278945299791667, '1680': неизвестный Type '1630' — пропускаем."
+      ],
+      "MessagesOmitted": 3699
+    },
+    {
+      "File": "DST\\trace_2025-10-16T06_45_04_085033_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство ВРЕМЯ: пустой Header — пропускаем.",
+        "Устройство 0,278883005866898: пустой Header — пропускаем.",
+        "Устройство 0,278885090288194: пустой Header — пропускаем.",
+        "Устройство 0,278887371028935: пустой Header — пропускаем.",
+        "Устройство 0,278889700971065: пустой Header — пропускаем.",
+        "Устройство 0,278892166063657: пустой Header — пропускаем.",
+        "Устройство 0,278894275358796: пустой Header — пропускаем.",
+        "Устройство 0,27889663369213: пустой Header — пропускаем.",
+        "Устройство 0,278898961516204: пустой Header — пропускаем.",
+        "Устройство 0,278901341271991: пустой Header — пропускаем.",
+        "Устройство 0,278903669234954: пустой Header — пропускаем.",
+        "Устройство 0,278905904582176: пустой Header — пропускаем.",
+        "Устройство 0,278908217905093: пустой Header — пропускаем.",
+        "Устройство 0,278910559178241: пустой Header — пропускаем.",
+        "Устройство 0,278912883019676: пустой Header — пропускаем.",
+        "Устройство 0,278915210809028: пустой Header — пропускаем.",
+        "Устройство 0,278917514200231: пустой Header — пропускаем.",
+        "Устройство 0,278919856701389: пустой Header — пропускаем.",
+        "Устройство 0,278922133783565: пустой Header — пропускаем.",
+        "Устройство 0,278924474709491: пустой Header — пропускаем.",
+        "Устройство 0,278926772614583: пустой Header — пропускаем.",
+        "Устройство 0,278929057417824: пустой Header — пропускаем.",
+        "Устройство 0,278931445416667: пустой Header — пропускаем.",
+        "Устройство 0,278933700681713: пустой Header — пропускаем.",
+        "Устройство 0,278936022695602: пустой Header — пропускаем.",
+        "Устройство 0,278938421260417: пустой Header — пропускаем.",
+        "Устройство 0,278940538274306: пустой Header — пропускаем.",
+        "Устройство 0,27894292047338: пустой Header — пропускаем.",
+        "Устройство 0,278945321167824: пустой Header — пропускаем.",
+        "Устройство 0,278947544756944: пустой Header — пропускаем."
+      ],
+      "MessagesOmitted": 1008
+    },
+    {
+      "File": "DatabaseMsgsL450E.DBF",
+      "Devices": 1,
+      "Parameters": 6,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "DatabaseMsgsL450E.dbc",
+      "Devices": 1,
+      "Parameters": 6,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "L450E_CanLogger.dbc",
+      "Devices": 35,
+      "Parameters": 270,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "L450E_ElTrsmMot_RecupBrk_T1_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство 1, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 20,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 41,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 60,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 80,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 100,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 121,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 141,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 161, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 180,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 201, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 220,9, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 241, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 260,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 281, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 301, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 321,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 341,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 361,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 381, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 401,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 420,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 441,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 460,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 481, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 500,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 521, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 541, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 561,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 581, '0': неизвестный Type '0' — пропускаем."
+      ],
+      "MessagesOmitted": 911
+    },
+    {
+      "File": "LOGER\\BUSMASTERbase.DBF",
+      "Devices": 6,
+      "Parameters": 19,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "LOGER\\BUSMASTERbase.dbc",
+      "Devices": 6,
+      "Parameters": 19,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство ВРЕМЯ, 'Motor temp': неизвестный Type 'TEMPERATURE MOTOR CONTROLLER' — пропускаем.",
+        "Устройство 0,696000837961806, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696001070601852, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696001302083333, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696001534722222, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696001767361111, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696001998842593, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696002230324074, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696002461804398, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696002695601852, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696002924767361, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696003158564815, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696003393517361, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696003624998843, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696003855324074, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696004087961806, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696004319443287, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696004550924769, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696004783564815, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696005015046296, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696005248842593, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696005480324074, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696005711805556, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696005944444444, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696006177082176, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696006413194444, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696006641203704, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696006873841435, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696007106481481, '18': неизвестный Type '24' — пропускаем.",
+        "Устройство 0,696007340277778, '18': неизвестный Type '24' — пропускаем."
+      ],
+      "MessagesOmitted": 1526
+    },
+    {
+      "File": "LOGER\\canlog_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство 1, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 4, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 9, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 10, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 11, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 12, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 13, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 14, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 15, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 16, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 17, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 18, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 19, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 20, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 21, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 22, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 23, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 24, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 25, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 26, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 27, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 28, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 29, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 30, '0': неизвестный Type '0' — пропускаем."
+      ],
+      "MessagesOmitted": 5970
+    },
+    {
+      "File": "LOGER\\comp.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Предупреждение: строка 3: разные Extended для DeviceID=COMPOSITE. Оставлено 'Standard'.",
+        "Предупреждение: строка 4: разные Extended для DeviceID=COMPOSITE. Оставлено 'Standard'.",
+        "Предупреждение: строка 5: разные MessageName для DeviceID=COMPOSITE ('spn err 1' vs 'spn err 4'). Оставлено 'spn err 1'.",
+        "Предупреждение: строка 6: разные MessageName для DeviceID=COMPOSITE ('spn err 1' vs 'spn err 4'). Оставлено 'spn err 1'.",
+        "Предупреждение: строка 6: разные Extended для DeviceID=COMPOSITE. Оставлено 'Standard'.",
+        "Предупреждение: строка 7: разные MessageName для DeviceID=COMPOSITE ('spn err 1' vs 'spn err 4'). Оставлено 'spn err 1'.",
+        "Предупреждение: строка 7: разные Extended для DeviceID=COMPOSITE. Оставлено 'Standard'.",
+        "Устройство COMPOSITE, '5': неизвестный Type '3' — пропускаем.",
+        "Устройство COMPOSITE, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство COMPOSITE, '5': неизвестный Type '3' — пропускаем.",
+        "Устройство COMPOSITE, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство COMPOSITE, '0': неизвестный Type '8' — пропускаем.",
+        "Устройство COMPOSITE, '0': неизвестный Type '8' — пропускаем."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "LOGER\\ejifrbv.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "LOGER\\locarusBASE1.dbc",
+      "Devices": 8,
+      "Parameters": 59,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "LOGER\\locarusBASE_L450E.dbc",
+      "Devices": 13,
+      "Parameters": 114,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "Locarus_v3_2026_04_28.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Предупреждение: строка 59: разные MessageName для DeviceID=39 ('Давление на правом гидронасосе вперед' vs 'Моточасы целая часть'). Оставлено 'Давление на правом гидронасосе вперед'.",
+        "Устройство 1, 'Наклон джойстика НО по оси Y (вперед/назад)': неизвестный Type 'НАКЛОН ДЖОЙСТИКА НО ПО ОСИ Y (ВПЕРЕД/НАЗАД)' — пропускаем.",
+        "Устройство 2, 'Наклон джойстика НО по оси X (влево/вправо)': неизвестный Type 'НАКЛОН ДЖОЙСТИКА НО ПО ОСИ X (ВЛЕВО/ВПРАВО)' — пропускаем.",
+        "Устройство 3, 'Температура масла ГСТ': неизвестный Type 'ТЕМПЕРАТУРА МАСЛА ГСТ' — пропускаем.",
+        "Устройство 4, 'Температура окружающей среды + 1 бит': неизвестный Type 'ТЕМПЕРАТУРА ОКРУЖАЮЩЕЙ СРЕДЫ + 1 БИТ' — пропускаем.",
+        "Устройство 5, 'Реальная скорость ДВС': неизвестный Type 'РЕАЛЬНАЯ СКОРОСТЬ ДВС' — пропускаем.",
+        "Устройство 6, 'Требуемая скорость ДВС (TSC1)': неизвестный Type 'ТРЕБУЕМАЯ СКОРОСТЬ ДВС (TSC1)' — пропускаем.",
+        "Устройство 7, 'Давление масла ДВС': неизвестный Type 'ДАВЛЕНИЕ МАСЛА ДВС' — пропускаем.",
+        "Устройство 8, 'Регулятор оборотов(ручка газа) + 1 бит': неизвестный Type 'РЕГУЛЯТОР ОБОРОТОВ(РУЧКА ГАЗА) + 1 БИТ' — пропускаем.",
+        "Устройство 9, 'Скорость левого борта': неизвестный Type 'СКОРОСТЬ ЛЕВОГО БОРТА' — пропускаем.",
+        "Устройство 10, 'Скорость правого борта': неизвестный Type 'СКОРОСТЬ ПРАВОГО БОРТА' — пропускаем.",
+        "Устройство 11, 'РЕЗЕРВ': неизвестный Type 'ТЕМПЕРАТУРА РАЗДАТОЧНОГО РЕДУКТОРА' — пропускаем.",
+        "Устройство 12, 'Температура контроллера ГСТ': неизвестный Type 'ТЕМПЕРАТУРА КОНТРОЛЛЕРА ГСТ' — пропускаем.",
+        "Устройство 13, 'Температура ОЖ': неизвестный Type 'ТЕМПЕРАТУРА ОЖ' — пропускаем.",
+        "Устройство 14, 'Уровень топлива': неизвестный Type 'УРОВЕНЬ ТОПЛИВА' — пропускаем.",
+        "Устройство 15, 'Температура ОНВ': неизвестный Type 'ТЕМПЕРАТУРА ОНВ' — пропускаем.",
+        "Устройство 16, 'Заданный объем насоса(-ов) левого борта': неизвестный Type 'ЗАДАННЫЙ ОБЪЕМ НАСОСА(-ОВ) ЛЕВОГО БОРТА' — пропускаем.",
+        "Устройство 17, 'Заданный объем насоса(-ов) правого борта': неизвестный Type 'ЗАДАННЫЙ ОБЪЕМ НАСОСА(-ОВ) ПРАВОГО БОРТА' — пропускаем.",
+        "Устройство 18, 'Заданный объем моторов': неизвестный Type 'ЗАДАННЫЙ ОБЪЕМ МОТОРОВ' — пропускаем.",
+        "Устройство 19, 'Выбранный режим работы Fan-drive': неизвестный Type 'ВЫБРАННЫЙ РЕЖИМ РАБОТЫ FAN-DRIVE' — пропускаем.",
+        "Устройство 20, 'Состояние системы управления Fan-drive': неизвестный Type 'СОСТОЯНИЕ СИСТЕМЫ УПРАВЛЕНИЯ FAN-DRIVE' — пропускаем.",
+        "Устройство 21: пустой Header — пропускаем.",
+        "Устройство 22, 'Концевик закрытия двери (КЗД)': неизвестный Type 'ДАТЧИК ПРИСУТСТВИЯ ОПЕРАТОРА (ДПО)' — пропускаем.",
+        "Устройство 23, 'Флаг - наличие тока на тормозном клапане': неизвестный Type 'ФЛАГ - НАЛИЧИЕ ТОКА НА ТОРМОЗНОМ КЛАПАНЕ' — пропускаем.",
+        "Устройство 24, 'Флаг дистанционное управление': неизвестный Type 'ФЛАГ ДИСТАНЦИОННОЕ УПРАВЛЕНИЕ' — пропускаем.",
+        "Устройство 25, 'Датчик низкого давления масла ДВС': неизвестный Type 'ДАТЧИК НИЗКОГО ДАВЛЕНИЯ МАСЛА ДВС' — пропускаем.",
+        "Устройство 26, 'Датчик перегрева масла ГСТ': неизвестный Type 'ДАТЧИК ПЕРЕГРЕВА МАСЛА ГСТ' — пропускаем.",
+        "Устройство 27, 'Концевик рамы безопасности (КРБ)': неизвестный Type 'ДАТЧИК ЗАСОРА МАСЛЯННОГО ФИЛЬТРА ДВС' — пропускаем.",
+        "Устройство 28, 'Датчик засора сливного фильтра': неизвестный Type 'ДАТЧИК ЗАСОРА СЛИВНОГО ФИЛЬТРА' — пропускаем.",
+        "Устройство 29, 'Датчик засора фильтра насосов ГСТ': неизвестный Type 'ДАТЧИК ЗАСОРА ФИЛЬТРА НАСОСОВ ГСТ' — пропускаем."
+      ],
+      "MessagesOmitted": 58
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство ВРЕМЯ, 'MainGenr FaultGrade': неизвестный Type 'MAINGENR FASTDCHA' — пропускаем.",
+        "Устройство 566815,9, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566838,1, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566855,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566875,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566895,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566916,1, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566935,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566955,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566975,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 566995,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567018,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567035,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567055,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567075,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 00567096, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567115,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567136,1, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567155,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567175,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567195,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567217,2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567235,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567255,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567275,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567299,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 00567316, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567338,2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567355,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 567375,6, '0': неизвестный Type '0' — пропускаем."
+      ],
+      "MessagesOmitted": 30980
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство 166126,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166146,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166166,2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166186,2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166206,4, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166227,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166246,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166266,2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166286,2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166306,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 00166331, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166346,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166366,4, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166386,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166406,7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166430,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166446,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166466,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166486,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 00166507, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166526,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166546,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166566,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166586,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166609,8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166626,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166646,5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166666,3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166686,6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 166708,1, '0': неизвестный Type '0' — пропускаем."
+      ],
+      "MessagesOmitted": 31358
+    },
+    {
+      "File": "dbf examples\\L450E_CanLogger.dbc",
+      "Devices": 35,
+      "Parameters": 270,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "dbf examples\\L450E_CanLogger.dbf",
+      "Devices": 35,
+      "Parameters": 271,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "dbf examples\\L450E_devices.dbc",
+      "Devices": 13,
+      "Parameters": 51,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "dbf examples\\L450E_devices.dbf",
+      "Devices": 13,
+      "Parameters": 51,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "l450e.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство 0000FE20: пустой Header — пропускаем.",
+        "Устройство 0000FE21: пустой Header — пропускаем.",
+        "Устройство 0000FE22: пустой Header — пропускаем.",
+        "Устройство 0000FE23: пустой Header — пропускаем.",
+        "Устройство 0000FE24: пустой Header — пропускаем.",
+        "Устройство 0000FE25: пустой Header — пропускаем.",
+        "Устройство 0000FE26, 'fmi err 1': Length вне диапазона 1..64 — пропускаем.",
+        "Устройство 0000FE27: пустой Header — пропускаем.",
+        "Устройство 0000FE28: пустой Header — пропускаем.",
+        "Устройство 0000FE29: пустой Header — пропускаем.",
+        "Устройство 0000FE2A: пустой Header — пропускаем.",
+        "Устройство 0000FE2B: пустой Header — пропускаем.",
+        "Устройство 0000FE2C: пустой Header — пропускаем.",
+        "Устройство 0000FE2D: пустой Header — пропускаем.",
+        "Устройство 0000FE2E: пустой Header — пропускаем.",
+        "Устройство 0000FE2F: пустой Header — пропускаем."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "new ЧЯ\\260616\\150318_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство 1: пустой Header — пропускаем.",
+        "Устройство 2: пустой Header — пропускаем.",
+        "Устройство 3: пустой Header — пропускаем.",
+        "Устройство 4: пустой Header — пропускаем.",
+        "Устройство 5: пустой Header — пропускаем.",
+        "Устройство 6: пустой Header — пропускаем.",
+        "Устройство 7: пустой Header — пропускаем.",
+        "Устройство 8: пустой Header — пропускаем.",
+        "Устройство 9: пустой Header — пропускаем.",
+        "Устройство 10: пустой Header — пропускаем.",
+        "Устройство 11: пустой Header — пропускаем.",
+        "Устройство 12: пустой Header — пропускаем.",
+        "Устройство 13: пустой Header — пропускаем.",
+        "Устройство 14: пустой Header — пропускаем.",
+        "Устройство 15: пустой Header — пропускаем.",
+        "Устройство 16: пустой Header — пропускаем.",
+        "Устройство 17: пустой Header — пропускаем.",
+        "Устройство 18: пустой Header — пропускаем.",
+        "Устройство 19: пустой Header — пропускаем.",
+        "Устройство 20: пустой Header — пропускаем.",
+        "Устройство 21: пустой Header — пропускаем.",
+        "Устройство 22: пустой Header — пропускаем.",
+        "Устройство 23: пустой Header — пропускаем.",
+        "Устройство 24: пустой Header — пропускаем.",
+        "Устройство 25: пустой Header — пропускаем.",
+        "Устройство 26: пустой Header — пропускаем.",
+        "Устройство 27: пустой Header — пропускаем.",
+        "Устройство 28: пустой Header — пропускаем.",
+        "Устройство 29: пустой Header — пропускаем.",
+        "Устройство 30: пустой Header — пропускаем."
+      ],
+      "MessagesOmitted": 29970
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319_result.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Устройство 1, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 2, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 3, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 4, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 5, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 6, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 7, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 8, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 9, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 10, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 11, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 12, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 13, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 14, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 15, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 16, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 17, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 18, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 19, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 20, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 21, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 22, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 23, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 24, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 25, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 26, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 27, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 28, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 29, '0': неизвестный Type '0' — пропускаем.",
+        "Устройство 30, '0': неизвестный Type '0' — пропускаем."
+      ],
+      "MessagesOmitted": 29970
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices — копия.dbc",
+      "Devices": 13,
+      "Parameters": 51,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices.dbc",
+      "Devices": 13,
+      "Parameters": 51,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices.dbf",
+      "Devices": 13,
+      "Parameters": 51,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "new ЧЯ\\L450E_devices.xlsx",
+      "Devices": 1,
+      "Parameters": 1,
+      "Messages": [
+        "Предупреждение: строка 3: разные MessageName для DeviceID=1FEEFF88 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 3: разные DLC для DeviceID=1FEEFF88 (0 vs 1). Оставлено 0.",
+        "Предупреждение: строка 4: разные MessageName для DeviceID=1FEEFF88 ('0' vs '2'). Оставлено '0'.",
+        "Предупреждение: строка 4: разные DLC для DeviceID=1FEEFF88 (0 vs 3). Оставлено 0.",
+        "Предупреждение: строка 5: разные MessageName для DeviceID=1FEEFF88 ('0' vs '3'). Оставлено '0'.",
+        "Предупреждение: строка 5: разные DLC для DeviceID=1FEEFF88 (0 vs 5). Оставлено 0.",
+        "Предупреждение: строка 6: разные MessageName для DeviceID=1FEEFF88 ('0' vs '4'). Оставлено '0'.",
+        "Предупреждение: строка 6: разные DLC для DeviceID=1FEEFF88 (0 vs 7). Оставлено 0.",
+        "Предупреждение: строка 8: разные MessageName для DeviceID=1FEEFF85 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 8: разные DLC для DeviceID=1FEEFF85 (1 vs 3). Оставлено 1.",
+        "Предупреждение: строка 9: разные MessageName для DeviceID=1FEEFF85 ('0' vs '2'). Оставлено '0'.",
+        "Предупреждение: строка 9: разные DLC для DeviceID=1FEEFF85 (1 vs 4). Оставлено 1.",
+        "Предупреждение: строка 10: разные MessageName для DeviceID=1FEEFF85 ('0' vs '3'). Оставлено '0'.",
+        "Предупреждение: строка 10: разные DLC для DeviceID=1FEEFF85 (1 vs 5). Оставлено 1.",
+        "Предупреждение: строка 11: разные MessageName для DeviceID=1FEEFF85 ('0' vs '4'). Оставлено '0'.",
+        "Предупреждение: строка 11: разные DLC для DeviceID=1FEEFF85 (1 vs 6). Оставлено 1.",
+        "Предупреждение: строка 12: разные MessageName для DeviceID=1FEEFF85 ('0' vs '5'). Оставлено '0'.",
+        "Предупреждение: строка 12: разные DLC для DeviceID=1FEEFF85 (1 vs 7). Оставлено 1.",
+        "Предупреждение: строка 14: разные MessageName для DeviceID=1FEEFF86 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 14: разные DLC для DeviceID=1FEEFF86 (3 vs 5). Оставлено 3.",
+        "Предупреждение: строка 15: разные MessageName для DeviceID=1FEEFF86 ('0' vs '2'). Оставлено '0'.",
+        "Предупреждение: строка 15: разные DLC для DeviceID=1FEEFF86 (3 vs 7). Оставлено 3.",
+        "Предупреждение: строка 17: разные MessageName для DeviceID=1FEEFF87 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 17: разные DLC для DeviceID=1FEEFF87 (1 vs 3). Оставлено 1.",
+        "Предупреждение: строка 18: разные MessageName для DeviceID=1FEEFF87 ('0' vs '2'). Оставлено '0'.",
+        "Предупреждение: строка 18: разные DLC для DeviceID=1FEEFF87 (1 vs 5). Оставлено 1.",
+        "Предупреждение: строка 20: разные MessageName для DeviceID=1FEEFF8A ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 20: разные DLC для DeviceID=1FEEFF8A (3 vs 5). Оставлено 3.",
+        "Предупреждение: строка 22: разные MessageName для DeviceID=0CFF0008 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 22: разные DLC для DeviceID=0CFF0008 (0 vs 2). Оставлено 0."
+      ],
+      "MessagesOmitted": 89
+    },
+    {
+      "File": "new ЧЯ\\New_Database1.DBF",
+      "Devices": 1,
+      "Parameters": 2,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "new ЧЯ\\New_Database2.DBF",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "Некит\\L450E_CanLogger.dbc",
+      "Devices": 35,
+      "Parameters": 270,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "Некит\\L450E_CanLogger.dbf",
+      "Devices": 35,
+      "Parameters": 271,
+      "Messages": [],
+      "MessagesOmitted": 0
+    },
+    {
+      "File": "Некит\\devices.xlsx",
+      "Devices": 0,
+      "Parameters": 0,
+      "Messages": [
+        "Предупреждение: строка 4: разные MessageName для DeviceID=18FF32F1 ('0' vs '2'). Оставлено '0'.",
+        "Предупреждение: строка 4: разные DLC для DeviceID=18FF32F1 (0 vs 6). Оставлено 0.",
+        "Предупреждение: строка 5: разные MessageName для DeviceID=18FF32F1 ('0' vs '3'). Оставлено '0'.",
+        "Предупреждение: строка 5: разные DLC для DeviceID=18FF32F1 (0 vs 7). Оставлено 0.",
+        "Предупреждение: строка 7: разные MessageName для DeviceID=18FF41F1 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 7: разные DLC для DeviceID=18FF41F1 (0 vs 2). Оставлено 0.",
+        "Предупреждение: строка 8: разные MessageName для DeviceID=18FF41F1 ('0' vs '2'). Оставлено '0'.",
+        "Предупреждение: строка 8: разные DLC для DeviceID=18FF41F1 (0 vs 4). Оставлено 0.",
+        "Предупреждение: строка 10: разные MessageName для DeviceID=18FF32F1 ('0' vs '1'). Оставлено '0'.",
+        "Предупреждение: строка 10: разные DLC для DeviceID=18FF32F1 (0 vs 3). Оставлено 0.",
+        "Устройство 18FF32F1, '1': неизвестный Type '-40' — пропускаем.",
+        "Устройство 18FF32F1, '1': неизвестный Type '-40' — пропускаем.",
+        "Устройство 18FF32F1, '0.2': неизвестный Type '0' — пропускаем.",
+        "Устройство 18FF32F1, '0.4': неизвестный Type '-800' — пропускаем.",
+        "Устройство 18FF35F1: пустой Header — пропускаем.",
+        "Устройство 18FF41F1, '0.5': неизвестный Type '0' — пропускаем.",
+        "Устройство 18FF41F1, '0.5': неизвестный Type '-15000' — пропускаем.",
+        "Устройство 18FF41F1, '0.1': неизвестный Type '-3200' — пропускаем."
+      ],
+      "MessagesOmitted": 0
+    }
+  ],
+  "Inventory": [
+    {
+      "File": "CanDevs\\6KW DCDC CAN communication protocol V2.0.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "CanDevs\\CAN-PWM FD Ptcol.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "CanDevs\\DCT_ural.0.2.1.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "CanDevs\\整车发电机、驱动电机 CAN通讯协议汇总.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DST\\result\\result_2025-10-16.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DST\\result\\result_trc_merged.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DST\\trace_2025-10-16T06_45_04_085033.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\trace_2025-10-16T06_45_04_085033_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DST\\контрвращение_085008.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\мтс15е-1_085623.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\мтс15е-горка-вверх_085611.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\мтс15е-горка-спуск-торможение_085600.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\мтс15е-езда_085258.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\мтс15е-подъемвгорку_085433.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\мтс15е-спуск-рекуперация_085413.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DST\\торможение_085545.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-03T09_01_07_TrsmStartRapid.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-07T07_31_50AtchTst1.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-07T07_36_47_AtchSctn4Test1.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "DstConnectOutp\\5169_2026-07-07T08_PIDtest1.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "L450E_ElTrsmMot_RecupBrk_T1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "L450E_ElTrsmMot_RecupBrk_T1_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1.asc",
+      "Kind": "Asc"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "LOGER\\ElecTrsm_TrqCtrl1_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "LOGER\\MovWLoad_t6.asc",
+      "Kind": "Asc"
+    },
+    {
+      "File": "LOGER\\canlog.csv",
+      "Kind": "StepCsv"
+    },
+    {
+      "File": "LOGER\\педаль газа и ручка газа 0CF00300.txt",
+      "Kind": "CanfoxTxt"
+    },
+    {
+      "File": "LocarusOutp\\10005169#2026-07-06 – 2026-07-08.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "TrcLogs\\L450E_CANPWM_log.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotRotateSpd_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_Diag.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_ElTrsmMot_RecupBrk_T1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_ElTrsmMot_RecupBrk_T2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_HVbusShtDn1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\L450E_HVbusShtDn2(1).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\elecIvtrAtch_L450_CANlog_ModChng_t1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\elecIvtrAtch_L450_CANlog_t1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\elecTrsmIvtr_L450_CANlog_t1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_Can4Getaway500kBps_after2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_Can5Atch.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_Can5Getaway250kBps_after2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGateway250kBps.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGateway250kBps_NewFirmware.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGateway500kBps_NewFirmware.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway250kBps_After_3.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway250kBps_After_CAN_gateway_R1_(3).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway250kBps_After_CAN_gateway_R1_(4).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_3.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_R1_(3).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_R1_(4).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_excld.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusShtDn (1).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusShtDn.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusShtDn2.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusTurnOn (1).trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\l450e_hvBusTurnOn.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\pdu A1-10 reset copy.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\pdu A1-10 reset.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\pdu1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "TrcLogs\\sanyTCU_Can1.trc",
+      "Kind": "Trc"
+    },
+    {
+      "File": "new ЧЯ\\260616\\135525.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "new ЧЯ\\260616\\145705.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "new ЧЯ\\260616\\145840.asc",
+      "Kind": "Asc"
+    },
+    {
+      "File": "new ЧЯ\\260616\\145840.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\150318.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\150318_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319.asc",
+      "Kind": "Asc"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\151319_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "new ЧЯ\\260616\\152321.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\152846.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\152846_result.csv",
+      "Kind": "None"
+    },
+    {
+      "File": "new ЧЯ\\260616\\153848.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\154849.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\155850.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\160851.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\161124.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\161333.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\162335.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\163336.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\260616\\164337.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "new ЧЯ\\MovWLoad_t6.asc",
+      "Kind": "Asc"
+    },
+    {
+      "File": "Некит\\canlog.csv",
+      "Kind": "StepCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\111954.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\113637.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\114639.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\115639.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\120640.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\121642.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\122643.csv",
+      "Kind": "MatrixCsv"
+    },
+    {
+      "File": "Некит\\Логи ЧЯ с L450E\\260619\\123644.csv",
+      "Kind": "MatrixCsv"
+    }
+  ],
+  "Scenarios": [
+    {
+      "Scenario": "000-Csv",
+      "Input": "DST\\trace_2025-10-16T06_45_04_085033.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 214.304,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "001-Csv",
+      "Input": "DST\\контрвращение_085008.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 23.653,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "002-Csv",
+      "Input": "DST\\мтс15е-1_085623.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 104.8497,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "003-Csv",
+      "Input": "DST\\мтс15е-горка-вверх_085611.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 30.9734,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "004-Csv",
+      "Input": "DST\\мтс15е-горка-спуск-торможение_085600.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 24.0702,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "005-Csv",
+      "Input": "DST\\мтс15е-езда_085258.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 111.0524,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "006-Csv",
+      "Input": "DST\\мтс15е-подъемвгорку_085433.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 135.1273,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "007-Csv",
+      "Input": "DST\\мтс15е-спуск-рекуперация_085413.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 35.085,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "008-Csv",
+      "Input": "DST\\торможение_085545.trc",
+      "Description": "LOGER\\locarusBASE_L450E.dbc",
+      "Format": "Csv",
+      "Status": "FAIL",
+      "RowsWritten": 0,
+      "Error": "Нет совпадающих устройств — проверьте файл посылок.",
+      "ElapsedMs": 27.5825,
+      "Hash": null,
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.",
+        "Нет совпадающих устройств — проверьте файл посылок."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "009-Csv",
+      "Input": "L450E_ElTrsmMot_RecupBrk_T1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 2014,
+      "Error": null,
+      "ElapsedMs": 150.1412,
+      "Hash": "7C992E5E16C14688669241BD7D37FD035BFB98756DE1E4D2D0022F1E2305D275",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "010-Csv",
+      "Input": "LOGER\\ElecTrsm_TrqCtrl1.asc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1560,
+      "Error": null,
+      "ElapsedMs": 69.6504,
+      "Hash": "43138181DE8F32EC47ACC262C82F470A4BF3D556FEEE7EB47FF31044D62AAE75",
+      "Messages": [
+        "Формат: ASC",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "011-Csv",
+      "Input": "LOGER\\ElecTrsm_TrqCtrl1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1560,
+      "Error": null,
+      "ElapsedMs": 61.1977,
+      "Hash": "F26943FA331EA883D4965B40FA29BEF9FBBDC76422E4DB629CAB10CB5EF18F45",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "012-Csv",
+      "Input": "LOGER\\MovWLoad_t6.asc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 25688,
+      "Error": null,
+      "ElapsedMs": 939.6129,
+      "Hash": "0A4BC18FCA5CFE2A2C4E8FE2F9A53E0624955D9F328B9011DCA1BFCB326F1732",
+      "Messages": [
+        "Формат: ASC",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "013-Csv",
+      "Input": "LOGER\\canlog.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 6000,
+      "Error": null,
+      "ElapsedMs": 189.8388,
+      "Hash": "7350C49381340833D7446ADCF7A4FAC66F7728C51F574EC42105C811B1398A04",
+      "Messages": [
+        "Формат: legacy CSV",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Input": "LOGER\\педаль газа и ручка газа 0CF00300.txt",
+      "Kind": "CanfoxTxt",
+      "Status": "NOT TESTED",
+      "Reason": "No matching supplied description in the first 2000 lines"
+    },
+    {
+      "Scenario": "015-Csv",
+      "Input": "TrcLogs\\L450E_CANPWM_log.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 33642,
+      "Error": null,
+      "ElapsedMs": 886.0688,
+      "Hash": "AE3481D4C5AACB586241BA83091F5A9BC8AAEEA720B56E83ACAB6DC2ACD99D26",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "016-Csv",
+      "Input": "TrcLogs\\L450E_Can4_ElMotRotateSpd.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 96924,
+      "Error": null,
+      "ElapsedMs": 1519.746,
+      "Hash": "36B5EB99EB2320711A521DBC3913B8C9CB07172EA12A2BF44B85515ED2427326",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "017-Csv",
+      "Input": "TrcLogs\\L450E_Can4_ElMotRotateSpd_2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 172766,
+      "Error": null,
+      "ElapsedMs": 2797.987,
+      "Hash": "F5B18853D3D0E89AA29C59969D8E3851531BD7875666662F2999D56EBE691011",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "018-Csv",
+      "Input": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 170389,
+      "Error": null,
+      "ElapsedMs": 2812.137,
+      "Hash": "D74F4041E858CA44C453320961F157AB980B973BDDC23EF3E7A254F66F4E20D7",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "019-Csv",
+      "Input": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 158439,
+      "Error": null,
+      "ElapsedMs": 2708.2194,
+      "Hash": "983C936022AC9CB75BBD8EA8CF1B9CDB04459BA9788E06A65349477AEF133C15",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Input": "TrcLogs\\L450E_Can4_ElMotTrsmCtrl_Diag.trc",
+      "Kind": "Trc",
+      "Status": "NOT TESTED",
+      "Reason": "No matching supplied description in the first 2000 lines"
+    },
+    {
+      "Scenario": "021-Csv",
+      "Input": "TrcLogs\\L450E_ElTrsmMot_RecupBrk_T1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 2014,
+      "Error": null,
+      "ElapsedMs": 62.7801,
+      "Hash": "7C992E5E16C14688669241BD7D37FD035BFB98756DE1E4D2D0022F1E2305D275",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "022-Csv",
+      "Input": "TrcLogs\\L450E_ElTrsmMot_RecupBrk_T2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 31488,
+      "Error": null,
+      "ElapsedMs": 992.3164,
+      "Hash": "3545EDD518C54896E6D109E07F7937A28DA35A4E0EC89E97BAE7C62D5D948211",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "023-Csv",
+      "Input": "TrcLogs\\L450E_HVbusShtDn1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 9747,
+      "Error": null,
+      "ElapsedMs": 338.7613,
+      "Hash": "84F446655D8A2F7E891A20BD33ECCBBAFA2ADFFA5ED859C0CDF6B35990DF0DAA",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "024-Csv",
+      "Input": "TrcLogs\\L450E_HVbusShtDn2(1).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 23049,
+      "Error": null,
+      "ElapsedMs": 634.6767,
+      "Hash": "3A421982F4D3DBE784CD04F0C09F2A0259E3BB846D3398B8BFEAD68095B2AD39",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "025-Csv",
+      "Input": "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 144,
+      "Error": null,
+      "ElapsedMs": 6.1009,
+      "Hash": "6153298943E9CD2BDEE3B05382508728C22698B9B93C0E510A53BD39261C130E",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "026-Csv",
+      "Input": "TrcLogs\\elecIvtrAtch_L450_CANlog_ModChng_t1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1250,
+      "Error": null,
+      "ElapsedMs": 14.356,
+      "Hash": "51DDAD605D7C5ACB8FEEE751E99E250FA2E6CF8367FC02B228AC890B6273083D",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "027-Csv",
+      "Input": "TrcLogs\\elecIvtrAtch_L450_CANlog_t1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1441,
+      "Error": null,
+      "ElapsedMs": 14.9736,
+      "Hash": "C1C236E457F625D52DFCFF018A0EC80C3A37396B7D7222BA17CD4C6C7C5C2219",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "028-Csv",
+      "Input": "TrcLogs\\elecTrsmIvtr_L450_CANlog_t1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 582,
+      "Error": null,
+      "ElapsedMs": 9.4828,
+      "Hash": "1EE4511939CCA8CCAE448622EB5CF67E503C6348772FB7CC3BDC8EAA5E446F92",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "029-Csv",
+      "Input": "TrcLogs\\l450e_Can4Getaway500kBps_after2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 2289,
+      "Error": null,
+      "ElapsedMs": 68.0916,
+      "Hash": "8299412480674C4F4FD0DFB23CCAEB89B817582FEFF79355D586F2B8FBC455F2",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "030-Csv",
+      "Input": "TrcLogs\\l450e_Can5Atch.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1873,
+      "Error": null,
+      "ElapsedMs": 39.1378,
+      "Hash": "B73C3A08CF4A4ABA13E2905ABFEA25DDD48B42706C066FBD0AE160C80890611D",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "031-Csv",
+      "Input": "TrcLogs\\l450e_Can5Getaway250kBps_after2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 11329,
+      "Error": null,
+      "ElapsedMs": 270.3772,
+      "Hash": "976629EB9665AFCACAA7FD05C047FA778C55CB0D7160FADA49468AFCD283C5E0",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "032-Csv",
+      "Input": "TrcLogs\\l450e_CanGateway250kBps.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 349,
+      "Error": null,
+      "ElapsedMs": 7.2635,
+      "Hash": "012731D89D10F4567DC8754352459499C78FA7C66E0F532ABAE4D56D08EE8878",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "033-Csv",
+      "Input": "TrcLogs\\l450e_CanGateway250kBps_NewFirmware.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1739,
+      "Error": null,
+      "ElapsedMs": 15.4657,
+      "Hash": "52FF98F657B64C9317D3AA670B2615232637A3A2C4ABC594E6CA0C1B16D82983",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "034-Csv",
+      "Input": "TrcLogs\\l450e_CanGateway500kBps_NewFirmware.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 5340,
+      "Error": null,
+      "ElapsedMs": 127.5957,
+      "Hash": "C0402A6B030E57D8A2669923C17D96E424884B546528E08BC655BA8294AFEDBB",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "035-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway250kBps_After_3.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 2170,
+      "Error": null,
+      "ElapsedMs": 65.2343,
+      "Hash": "FF3D5C55C2E7D58B8963C1058BBD25943DE117530670B98C6A0503CE0664BD6D",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "036-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway250kBps_After_CAN_gateway_R1_(3).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 454,
+      "Error": null,
+      "ElapsedMs": 9.4025,
+      "Hash": "97D39BA286C6D79553F2B7749537001870CDC91D8430C9D6A64AAC8F4D0F3E82",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "037-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway250kBps_After_CAN_gateway_R1_(4).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1775,
+      "Error": null,
+      "ElapsedMs": 81.9378,
+      "Hash": "41EE7AB62F7F63D26A0129B3112C7F30AA144047E327F62EA31970FA22A09268",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "038-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway500kBps_After_3.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 16828,
+      "Error": null,
+      "ElapsedMs": 349.0529,
+      "Hash": "8B479D5BE335DA90F4C2CA447B7A4F69F25ECC572772D5B03CDD58FE0F444871",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "039-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_R1_(3).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 10656,
+      "Error": null,
+      "ElapsedMs": 252.5283,
+      "Hash": "44A71872EECD0304E172263E4AB14F4FA2F2D5A5CEA570E55FE9BB3008A2D374",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "040-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_R1_(4).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 998,
+      "Error": null,
+      "ElapsedMs": 59.6593,
+      "Hash": "4ADEA4DE857E3AA796574F39F979576A623B641D24653EF71E86AFAB8A6505B7",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "041-Csv",
+      "Input": "TrcLogs\\l450e_CanGetaway500kBps_After_CAN_gateway_excld.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 20555,
+      "Error": null,
+      "ElapsedMs": 611.5872,
+      "Hash": "832B62B47F5CB88D28EA9182108550503AA89089B1AC61553DDC391AF5110BF0",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "042-Csv",
+      "Input": "TrcLogs\\l450e_hvBusShtDn (1).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 18107,
+      "Error": null,
+      "ElapsedMs": 376.4745,
+      "Hash": "44D988F4179C794A061FACDB33B433B2E2B15DDD182154490E8EA7A798083048",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "043-Csv",
+      "Input": "TrcLogs\\l450e_hvBusShtDn.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 18107,
+      "Error": null,
+      "ElapsedMs": 364.0604,
+      "Hash": "44D988F4179C794A061FACDB33B433B2E2B15DDD182154490E8EA7A798083048",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "044-Csv",
+      "Input": "TrcLogs\\l450e_hvBusShtDn2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 10635,
+      "Error": null,
+      "ElapsedMs": 215.9971,
+      "Hash": "BEA8D66B0929A6A257587B5FE42CEF8D4FD121DCD73D6CD2B5E4D738ADD97B34",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "045-Csv",
+      "Input": "TrcLogs\\l450e_hvBusTurnOn (1).trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 24444,
+      "Error": null,
+      "ElapsedMs": 720.4378,
+      "Hash": "6041629D0BCBC3E046516695158EF85046F36CB53DE48934307C27740AA2955A",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "046-Csv",
+      "Input": "TrcLogs\\l450e_hvBusTurnOn.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 24444,
+      "Error": null,
+      "ElapsedMs": 702.7221,
+      "Hash": "6041629D0BCBC3E046516695158EF85046F36CB53DE48934307C27740AA2955A",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Input": "TrcLogs\\pdu A1-10 reset copy.trc",
+      "Kind": "Trc",
+      "Status": "NOT TESTED",
+      "Reason": "No matching supplied description in the first 2000 lines"
+    },
+    {
+      "Input": "TrcLogs\\pdu A1-10 reset.trc",
+      "Kind": "Trc",
+      "Status": "NOT TESTED",
+      "Reason": "No matching supplied description in the first 2000 lines"
+    },
+    {
+      "Input": "TrcLogs\\pdu1.trc",
+      "Kind": "Trc",
+      "Status": "NOT TESTED",
+      "Reason": "No matching supplied description in the first 2000 lines"
+    },
+    {
+      "Scenario": "050-Csv",
+      "Input": "TrcLogs\\sanyTCU_Can1.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 1006,
+      "Error": null,
+      "ElapsedMs": 11.5405,
+      "Hash": "23804700605399D25CEAD5D671BCF300BA4ED22797BB87FE5064EFE714A5920E",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "051-Csv",
+      "Input": "new ЧЯ\\260616\\145840.asc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 11702,
+      "Error": null,
+      "ElapsedMs": 740.08,
+      "Hash": "49EE38620EFCC04B3025441B5B4AB206C356EAEC02E2201E536570026FE548BB",
+      "Messages": [
+        "Формат: ASC",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "052-Csv",
+      "Input": "new ЧЯ\\260616\\145840.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 13000,
+      "Error": null,
+      "ElapsedMs": 443.7698,
+      "Hash": "5B50910B83EF7D35AC9A666AE1E66D85576F0FE584CF4A866D379B5EE927EF7F",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "053-Csv",
+      "Input": "new ЧЯ\\260616\\150318.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 831.1396,
+      "Hash": "F7E6C9BA91BF2406CD402832D7E3EB71CD12B07EF25E433AB0BA0304D8436BA7",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "054-Csv",
+      "Input": "new ЧЯ\\260616\\151319.asc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 29991,
+      "Error": null,
+      "ElapsedMs": 1910.5161,
+      "Hash": "3C0D83778F445FB35D2E5EF45C516641B78D342B1C832B2362A91B45D7D6048B",
+      "Messages": [
+        "Формат: ASC",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "055-Csv",
+      "Input": "new ЧЯ\\260616\\151319.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 848.3378,
+      "Hash": "FD7AD55B2E918698F81E3022C1B70EA59F97C54DF521CF7768922CAF47FD1929",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "056-Csv",
+      "Input": "new ЧЯ\\260616\\152321.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 16000,
+      "Error": null,
+      "ElapsedMs": 452.4538,
+      "Hash": "138FAAA4527D4F27AC2E7138055C7435A69E93955C19478805BE686CD3DAEC5C",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "057-Csv",
+      "Input": "new ЧЯ\\260616\\152846.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 739.159,
+      "Hash": "D0BCB8BCAD85455C91711059018C24569A51580F9A7A311D62914745FF7BE4F3",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "058-Csv",
+      "Input": "new ЧЯ\\260616\\153848.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 720.2055,
+      "Hash": "5B89F834B8685A1A23C87E88880FE91CB307A428C4A1A8CCD7554C77B8E8EB7C",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "059-Csv",
+      "Input": "new ЧЯ\\260616\\154849.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 783.7654,
+      "Hash": "305AB0EEF731CE98FB7E30D29E87A6A93C0A1FA6154A288C6733B77A079FDADE",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "060-Csv",
+      "Input": "new ЧЯ\\260616\\155850.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 933.39,
+      "Hash": "CE4903F03054AAA85644968EB6CDEE6D64A7BD4804C751C3DF3090917A5C3CBA",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "061-Csv",
+      "Input": "new ЧЯ\\260616\\160851.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 6500,
+      "Error": null,
+      "ElapsedMs": 202.5379,
+      "Hash": "10CF2CEE05817103FA1F3B01BE94F2A85B3F5D6555CDA4DE3645D2BB4286277F",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "062-Csv",
+      "Input": "new ЧЯ\\260616\\161124.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 2500,
+      "Error": null,
+      "ElapsedMs": 76.988,
+      "Hash": "005A4E94A3C8AADD9C350D07DE5E771CB623AEAD3EF5C9AFEFBEC95F34D6F1C0",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "063-Csv",
+      "Input": "new ЧЯ\\260616\\161333.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 830.7412,
+      "Hash": "C1BF1AC1F607701D1ADFC4F7E2A6750E7A4E559C964155B09CFF778884F6A7FD",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "064-Csv",
+      "Input": "new ЧЯ\\260616\\162335.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 1106.1932,
+      "Hash": "012C6C9B0C190840C5E210A2ED8E9C0B98E84157DD2FEBC1336B2141C60C3E8F",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "065-Csv",
+      "Input": "new ЧЯ\\260616\\163336.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 966.358,
+      "Hash": "989088965A28D1C93E8EF576FFB0EC955B6FDC77FBBB72D5AFD24F158D4630BC",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "066-Csv",
+      "Input": "new ЧЯ\\260616\\164337.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 8500,
+      "Error": null,
+      "ElapsedMs": 279.0385,
+      "Hash": "FA3668CEDAEE250396DCD1B56B3D9247760A372497FD3ABD28E1091AB89535B4",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "067-Csv",
+      "Input": "new ЧЯ\\MovWLoad_t6.asc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 25688,
+      "Error": null,
+      "ElapsedMs": 735.153,
+      "Hash": "0A4BC18FCA5CFE2A2C4E8FE2F9A53E0624955D9F328B9011DCA1BFCB326F1732",
+      "Messages": [
+        "Формат: ASC",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "068-Csv",
+      "Input": "Некит\\canlog.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 6000,
+      "Error": null,
+      "ElapsedMs": 135.9634,
+      "Hash": "7350C49381340833D7446ADCF7A4FAC66F7728C51F574EC42105C811B1398A04",
+      "Messages": [
+        "Формат: legacy CSV",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "069-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\111954.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 7000,
+      "Error": null,
+      "ElapsedMs": 178.8956,
+      "Hash": "C4CB2362B5031D115EE5ADB86D47B5356D326DF935168EC7EA8B090F1A1D2EE3",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "070-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\113637.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 715.5403,
+      "Hash": "7B921C62DF7ECE6397DC8E58813D4310EA60AA105EDFFFFAD4BE99AFCFE36011",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "071-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\114639.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 675.1191,
+      "Hash": "4C2072D29EBF687CD415BC4188ED1382F3F8CF2D1A0B79FFD8D2D8C5E848A327",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "072-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\115639.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 685.5852,
+      "Hash": "6D5AB7142B249C368B5B6B58A524193C7F5921AE22BC1206B249B7DC57CC9CA4",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "073-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\120640.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 738.2643,
+      "Hash": "143765A49BCFD19AB36DF7B58D53F437A9E4E42625C1CE43C6ABF4D1AA4756BC",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "074-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\121642.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 736.1794,
+      "Hash": "A5897426C601DF90B5B659FDC06924660C258C88C4584A8055C15A261652E0BA",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "075-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\122643.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 756.6234,
+      "Hash": "59E3068274891A29D4D4550413A9655D2CB9887ACE6F08E1077DCEBCE157DF0C",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "076-Csv",
+      "Input": "Некит\\Логи ЧЯ с L450E\\260619\\123644.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Csv",
+      "Status": "PASS",
+      "RowsWritten": 30000,
+      "Error": null,
+      "ElapsedMs": 734.1104,
+      "Hash": "3A88CEA54ED60895ED56CFC45A57D5A9BBAF3698C9932613C8F414D23804E0DD",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "077-Xlsx",
+      "Input": "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Xlsx",
+      "Status": "PASS",
+      "RowsWritten": 144,
+      "Error": null,
+      "ElapsedMs": 316.8298,
+      "Hash": "6FFD09D9EA518E5A99B5A0B4A6AE497A127E57491D64545379CC2752F504CF66",
+      "Messages": [
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "078-CsvDstConnect",
+      "Input": "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "CsvDstConnect",
+      "Status": "PASS",
+      "RowsWritten": 135,
+      "Error": null,
+      "ElapsedMs": 53.0294,
+      "Hash": "537DBC67EAF11E60A1F7B779F2B7E7647CBD7F525CA707AC80FE6B5002A752C2",
+      "Messages": [
+        "Формат: CSV ДСТ Коннект (pCAN .trc)",
+        "ДСТ: повтор якорной посылки не подтверждён — запасной детект по временной сетке.",
+        "ДСТ: период 20 мс, сетка от t=4,0 мс, первая граница — посылка №36, целевых ID: 2.",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "079-Xlsx",
+      "Input": "LOGER\\ElecTrsm_TrqCtrl1.asc",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Xlsx",
+      "Status": "PASS",
+      "RowsWritten": 1560,
+      "Error": null,
+      "ElapsedMs": 398.301,
+      "Hash": "25B90E1904616F74D786CCE96497EBA46FDC52CCEE9FA5392FD14AAD366E600F",
+      "Messages": [
+        "Формат: ASC",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "080-Xlsx",
+      "Input": "new ЧЯ\\260616\\161124.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Xlsx",
+      "Status": "PASS",
+      "RowsWritten": 2500,
+      "Error": null,
+      "ElapsedMs": 1882.4257,
+      "Hash": "58999ECF78D7B63CAE7200E8E33B8DBBE08F256EB578844E372D00EC2475E78D",
+      "Messages": [
+        "Формат: CSV (20 мс)",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "081-Xlsx",
+      "Input": "Некит\\canlog.csv",
+      "Description": "dbf examples\\L450E_CanLogger.dbf",
+      "Format": "Xlsx",
+      "Status": "PASS",
+      "RowsWritten": 6000,
+      "Error": null,
+      "ElapsedMs": 789.4707,
+      "Hash": "CBC640AE0F895EB5C4C5AF1CAFF4B81B442CDCF2EF0EDE8F7317463D964A7B78",
+      "Messages": [
+        "Формат: legacy CSV",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "batch-PerInputFile",
+      "Input": [
+        "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+        "TrcLogs\\l450e_CanGateway250kBps.trc"
+      ],
+      "Created": 2,
+      "Expected": 2,
+      "Failed": 0,
+      "Status": "PASS",
+      "ElapsedMs": 20.3005,
+      "Outputs": [
+        {
+          "File": "dcdc_L450_CANlog_t2_trc_result.csv",
+          "Sha256": "6153298943E9CD2BDEE3B05382508728C22698B9B93C0E510A53BD39261C130E"
+        },
+        {
+          "File": "l450e_CanGateway250kBps_trc_result.csv",
+          "Sha256": "012731D89D10F4567DC8754352459499C78FA7C66E0F532ABAE4D56D08EE8878"
+        }
+      ],
+      "Messages": [
+        "--- dcdc_L450_CANlog_t2.trc ---",
+        "Формат: pCAN Viewer",
+        "Обработка завершена.",
+        "--- l450e_CanGateway250kBps.trc ---",
+        "Формат: pCAN Viewer",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "batch-MergeToSingleFile",
+      "Input": [
+        "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+        "TrcLogs\\l450e_CanGateway250kBps.trc"
+      ],
+      "Created": 1,
+      "Expected": 1,
+      "Failed": 0,
+      "Status": "PASS",
+      "ElapsedMs": 19.3878,
+      "Outputs": [
+        {
+          "File": "result_trc_merged.csv",
+          "Sha256": "B49273202586431EE62D4CB9FA8616BC9EDE8A47CD2BF627294D6CA04413F64F"
+        }
+      ],
+      "Messages": [
+        "--- .trc: объединение в один файл ---",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    },
+    {
+      "Scenario": "batch-SplitTrcByDate",
+      "Input": [
+        "TrcLogs\\dcdc_L450_CANlog_t2.trc",
+        "TrcLogs\\l450e_CanGateway250kBps.trc"
+      ],
+      "Created": 2,
+      "Expected": 2,
+      "Failed": 0,
+      "Status": "PASS",
+      "ElapsedMs": 24.3797,
+      "Outputs": [
+        {
+          "File": "result_2025-10-27.csv",
+          "Sha256": "F369A60DC1C354D08A89FA13792F329B3F324FD1181DD7C4E9B619337E368FA6"
+        },
+        {
+          "File": "result_2026-03-04.csv",
+          "Sha256": "85A5CD423A307332583747ACE20A052911FECF4D3E0DADB53BD6110E3A1331FB"
+        }
+      ],
+      "Messages": [
+        "--- .trc: разбивка по датам ---",
+        "--- result_2025-10-27.csv ---",
+        "Обработка завершена.",
+        "--- result_2026-03-04.csv ---",
+        "Обработка завершена."
+      ],
+      "MessagesOmitted": 0
+    }
+  ],
+  "Method": "Full supplied logs; CSV for every recognized input with a sampled matching description; representative XLSX/DST and three batch modes. No edits to source fixtures. One run per case, not a performance benchmark."
+}
