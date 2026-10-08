@@ -290,7 +290,7 @@ namespace logReader.UI
                 ? "Сохранить изменения?"
                 : "Сохранить изменения?\n\n" + description.Trim();
 
-            return MessageBox.Show(
+            return ThemedMessageBox.Show(
                 owner,
                 body,
                 "Подтверждение",

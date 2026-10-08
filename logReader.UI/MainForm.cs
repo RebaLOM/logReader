@@ -86,7 +86,7 @@ namespace logReader.UI
                 _saveOptions.OutputFormat = OutputFormat.Xlsx;
         }
 
-        private void buttonSaveOptions_Click(object sender, EventArgs e)
+        private void buttonSaveOptions_Click(object? sender, EventArgs e)
         {
             string? folderPath = Directory.Exists(textBoxCanLog.Text.Trim()) ? textBoxCanLog.Text.Trim() : null;
             using var dlg = new SaveOptionsForm(
@@ -104,6 +104,8 @@ namespace logReader.UI
             _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
             _saveOptions.DstConnect = dlg.SelectedDstConnectOptions;
             _saveOptions.IncludeDeviceIdHeaderRow = dlg.IncludeDeviceIdHeaderRow;
+            buttonOpenOutput.Visible = false;
+            RefreshWorkspaceSummary();
 
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
                 return;
@@ -168,7 +170,7 @@ namespace logReader.UI
             if (devices == null || devices.Count == 0)
             {
                 labelFilterStatus.Text = "Файл посылок не загружен";
-                labelFilterStatus.ForeColor = Color.DarkGray;
+                labelFilterStatus.ForeColor = ThemeManager.Current.Muted;
                 return;
             }
 
@@ -179,7 +181,7 @@ namespace logReader.UI
             int enabledParams = devices.Sum(d => filter.GetActiveParams(d).Length);
 
             labelFilterStatus.Text = $"Устройства: {enabledDevices}/{devices.Count}  Параметры: {enabledParams}/{totalParams}";
-            labelFilterStatus.ForeColor = SystemColors.ControlText;
+            labelFilterStatus.ForeColor = ThemeManager.Current.Muted;
         }
 
         private void ResetFilters()
@@ -227,11 +229,13 @@ namespace logReader.UI
             dlg.AcceptButton = btnFile;
             dlg.CancelButton = btnCancel;
 
+            ThemeManager.Attach(dlg);
+
             dlg.ShowDialog(this);
             return kind;
         }
 
-        private void buttonCANlog_Click(object sender, EventArgs e)
+        private void buttonCANlog_Click(object? sender, EventArgs e)
         {
             LogSourceKind kind = ShowPickLogSourceDialog();
             if (kind == LogSourceKind.None) return;
@@ -258,7 +262,7 @@ namespace logReader.UI
             textBoxOutput.Text = Path.Combine(fbd.SelectedPath, "result");
         }
 
-        private void buttonViewLog_Click(object sender, EventArgs e)
+        private void buttonViewLog_Click(object? sender, EventArgs e)
         {
             string path = textBoxCanLog.Text.Trim();
             if (string.IsNullOrWhiteSpace(path))
@@ -277,7 +281,7 @@ namespace logReader.UI
             viewForm.ShowDialog(this);
         }
 
-        private void buttonDevices_Click(object sender, EventArgs e)
+        private void buttonDevices_Click(object? sender, EventArgs e)
         {
             using OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Файлы посылок (*.xlsx;*.dbc;*.dbf)|*.xlsx;*.dbc;*.dbf|Excel files (*.xlsx)|*.xlsx|DBC files (*.dbc)|*.dbc|DBF files (*.dbf)|*.dbf";
@@ -285,7 +289,7 @@ namespace logReader.UI
                 textBoxDevices.Text = ofd.FileName;
         }
 
-        private void textBoxDevices_TextChanged(object sender, EventArgs e)
+        private void textBoxDevices_TextChanged(object? sender, EventArgs e)
         {
             UpdateDevicesCreateAddButtonState();
             string path = textBoxDevices.Text;
@@ -324,7 +328,7 @@ namespace logReader.UI
             }
         }
 
-        private void buttonDevicesCreateOrAdd_Click(object sender, EventArgs e)
+        private void buttonDevicesCreateOrAdd_Click(object? sender, EventArgs e)
         {
             if (IsDevicesFileSelectedAndExists())
                 OpenDevicesEditor();
@@ -424,6 +428,7 @@ namespace logReader.UI
 
             if (editor.Modified)
             {
+                buttonOpenOutput.Visible = false;
                 _devicesCache.Clear();
                 if (TryLoadDevices(path, logDetails: true) != null)
                 {
@@ -460,13 +465,13 @@ namespace logReader.UI
             return _compositesCache.Get(textBoxComposites.Text, Log);
         }
 
-        private void textBoxComposites_TextChanged(object sender, EventArgs e)
+        private void textBoxComposites_TextChanged(object? sender, EventArgs e)
         {
             UpdateCompositesCreateAddButtonState();
             _compositesCache.Clear();
         }
 
-        private void buttonComposites_Click(object sender, EventArgs e)
+        private void buttonComposites_Click(object? sender, EventArgs e)
         {
             using OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Файл составных параметров (*.xlsx)|*.xlsx";
@@ -474,7 +479,7 @@ namespace logReader.UI
                 textBoxComposites.Text = ofd.FileName;
         }
 
-        private void buttonCompositesCreateOrAdd_Click(object sender, EventArgs e)
+        private void buttonCompositesCreateOrAdd_Click(object? sender, EventArgs e)
         {
             if (IsCompositesFileSelectedAndExists())
             {
@@ -530,12 +535,13 @@ namespace logReader.UI
 
             if (editor.Modified)
             {
+                buttonOpenOutput.Visible = false;
                 _compositesCache.Clear();
                 Log("Файл составных параметров обновлён.");
             }
         }
 
-        private void buttonOutput_Click(object sender, EventArgs e)
+        private void buttonOutput_Click(object? sender, EventArgs e)
         {
             using SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
@@ -592,13 +598,13 @@ namespace logReader.UI
             }
         }
 
-        private void textBoxOutput_TextChanged(object sender, EventArgs e)
+        private void textBoxOutput_TextChanged(object? sender, EventArgs e)
         {
             SyncOutputFormatWithPath(textBoxOutput.Text);
             buttonOpenOutput.Visible = false;
         }
 
-        private void buttonOpenOutput_Click(object sender, EventArgs e)
+        private void buttonOpenOutput_Click(object? sender, EventArgs e)
         {
             string p = textBoxOutput.Text;
             if (string.IsNullOrWhiteSpace(p))
@@ -631,7 +637,7 @@ namespace logReader.UI
 
         private HelpForm? _helpForm;
 
-        private void buttonHelp_Click(object sender, EventArgs e)
+        private void buttonHelp_Click(object? sender, EventArgs e)
         {
             // Немодальная справка: один экземпляр, ссылку обнуляем при закрытии.
             if (_helpForm is { IsDisposed: false })
@@ -645,14 +651,14 @@ namespace logReader.UI
             _helpForm.Show(this);
         }
 
-        private void buttonFormatConvert_Click(object sender, EventArgs e)
+        private void buttonFormatConvert_Click(object? sender, EventArgs e)
         {
             string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
             using var dialog = new FormatConversionDialog(_conversionPairs, initialPath, Log);
             dialog.ShowDialog(this);
         }
 
-        private async void buttonDevicesParams_Click(object sender, EventArgs e)
+        private async void buttonDevicesParams_Click(object? sender, EventArgs e)
         {
             if (!IsDevicesFileSelectedAndExists())
             {
@@ -701,6 +707,7 @@ namespace logReader.UI
                 missingInDevices, scan.MatchedInDevices))
                 form.ShowDialog(this);
 
+            buttonOpenOutput.Visible = false;
             UpdateFilterLabel();
         }
 
@@ -715,6 +722,7 @@ namespace logReader.UI
                 return;
             }
             textBoxLog.AppendText(message + Environment.NewLine);
+            ShowWorkspaceNotice(message);
         }
 
         // Длительная операция в фоне: ввод заблокирован, есть прогресс и «Отмена».
@@ -757,12 +765,7 @@ namespace logReader.UI
 
         private void SetBusy(bool busy, string stage)
         {
-            foreach (Control c in contentSplit.Panel1.Controls)
-            {
-                if (c == buttonCancel || c == buttonHelp || c == progressBarProcess || c == labelProgress || c == labelFilterStatus)
-                    continue;
-                c.Enabled = !busy;
-            }
+            UpdateWorkspaceBusy(busy, stage);
 
             buttonCancel.Enabled = busy;
             buttonCancel.Visible = busy;
@@ -775,7 +778,7 @@ namespace logReader.UI
             buttonCancel.UseWaitCursor = false;
         }
 
-        private void buttonCancel_Click(object sender, EventArgs e)
+        private void buttonCancel_Click(object? sender, EventArgs e)
         {
             _operation?.Cancel();
             buttonCancel.Enabled = false;
@@ -786,7 +789,7 @@ namespace logReader.UI
         {
             if (!IsBusy) return;
 
-            var answer = MessageBox.Show(this,
+            var answer = ThemedMessageBox.Show(this,
                 "Обработка ещё выполняется. Прервать её и закрыть программу?",
                 "LOGER", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             e.Cancel = true;
@@ -797,8 +800,9 @@ namespace logReader.UI
             _operation?.Cancel();
         }
 
-        private async void buttonProcess_Click(object sender, EventArgs e)
+        private async void buttonProcess_Click(object? sender, EventArgs e)
         {
+            buttonOpenOutput.Visible = false;
             textBoxLog.Clear();
 
             string canInput = textBoxCanLog.Text.Trim();
@@ -913,7 +917,7 @@ namespace logReader.UI
             LogFormatKind formats = _saveOptions.FolderFormatFilter;
             if (formats == LogFormatKind.None)
             {
-                Log("Ошибка: в «Параметрах сохранения» не выбран ни один формат логов для папки.");
+                Log("Ошибка: в «Параметрах экспорта» не выбран ни один формат логов для папки.");
                 return;
             }
 

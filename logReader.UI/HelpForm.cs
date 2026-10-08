@@ -13,6 +13,15 @@ namespace logReader.UI
             InitializeComponent();
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             CacheSearchText();
+            ThemeManager.Attach(this);
+            ThemeManager.ThemeChanged += OnThemeChanged;
+            FormClosed += (_, _) => ThemeManager.ThemeChanged -= OnThemeChanged;
+            Disposed += (_, _) => ThemeManager.ThemeChanged -= OnThemeChanged;
+        }
+
+        private void OnThemeChanged(object? sender, EventArgs e)
+        {
+            if (treeViewTopics.SelectedNode?.Tag is string topicId) RenderSelectedTopic(topicId);
         }
 
         private void HelpForm_Load(object? sender, EventArgs e)

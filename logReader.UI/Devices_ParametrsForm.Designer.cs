@@ -15,7 +15,7 @@ namespace logReader.UI
 
         private void InitializeComponent()
         {
-            tabControlMain = new TabControl();
+            tabControlMain = new ThemedTabControl();
             tabKnown = new TabPage();
             tabUnknown = new TabPage();
             scrollPanel = new Panel();

@@ -62,6 +62,7 @@ namespace logReader.UI
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void WireGridSync()
@@ -260,20 +261,20 @@ namespace logReader.UI
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Введите имя сигнала.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Введите имя сигнала.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return;
             }
 
             if (name.Any(char.IsWhiteSpace))
             {
-                MessageBox.Show(this, "Имя сигнала не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Имя сигнала не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return;
             }
             if (!DbcLineParser.IsValidSymbolName(name))
             {
-                MessageBox.Show(this,
+                ThemedMessageBox.Show(this,
                     "Недопустимое имя сигнала. " + DbcLineParser.SymbolNameRulesHint,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
@@ -281,7 +282,7 @@ namespace logReader.UI
             }
             if (_existingSignalNames.Any(x => x.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return;
             }
@@ -296,7 +297,7 @@ namespace logReader.UI
 
             if (!SignalFitsInDlc(globalStartBit, length, littleEndian, payloadBits))
             {
-                MessageBox.Show(this,
+                ThemedMessageBox.Show(this,
                     $"Сигнал выходит за пределы DLC ({_messageDlc} байт).",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -304,25 +305,25 @@ namespace logReader.UI
 
             if (!NumberParseHelper.TryParseOrDefault(_txtFactor.Text, 1.0, out double factor))
             {
-                MessageBox.Show(this, "Factor: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Factor: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
                 return;
             }
             if (double.IsNaN(factor) || double.IsInfinity(factor))
             {
-                MessageBox.Show(this, "Factor: значение должно быть конечным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Factor: значение должно быть конечным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
                 return;
             }
             if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset))
             {
-                MessageBox.Show(this, "Offset: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Offset: неверный формат числа.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
                 return;
             }
             if (double.IsNaN(offset) || double.IsInfinity(offset))
             {
-                MessageBox.Show(this, "Offset: значение должно быть конечным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Offset: значение должно быть конечным числом.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
                 return;
             }

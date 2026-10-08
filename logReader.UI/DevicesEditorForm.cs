@@ -56,7 +56,7 @@ namespace logReader.UI
             };
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new Size(820, 520);
-            ClientSize = new Size(820, 520);
+            ClientSize = new Size(1020, 650);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
@@ -64,17 +64,12 @@ namespace logReader.UI
             LoadFromFile();
             FormClosing += OnFormClosing;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void BuildLayout()
         {
-            _lblInfo.Dock = DockStyle.Top;
-            _lblInfo.AutoSize = false;
-            _lblInfo.Height = 28;
-            _lblInfo.Padding = new Padding(12, 8, 12, 0);
             _lblInfo.Text = $"Файл: {_path}";
-            _lblInfo.ForeColor = Color.DimGray;
-
             _grid.Dock = DockStyle.Fill;
             _grid.AllowUserToAddRows = false;
             _grid.AllowUserToDeleteRows = false;
@@ -84,114 +79,78 @@ namespace logReader.UI
             _grid.MultiSelect = false;
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.ReadOnly = true;
+            _grid.RowTemplate.Height = 30;
+            _grid.ColumnHeadersHeight = 32;
             _grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) EditSelected(); };
-
-            _grid.Columns.Add("Name", "Name");
-            _grid.Columns.Add("Id", "ID (hex)");
+            _grid.Columns.Add("Name", "Посылка / Name");
+            _grid.Columns.Add("Id", "CAN ID (hex)");
             _grid.Columns.Add("Fmt", "Формат");
             _grid.Columns.Add("Dlc", "DLC");
             _grid.Columns.Add("Count", "Сигналов");
             MessageEditFormHelpers.MakeGridColumnsNotSortable(_grid);
             MessageEditFormHelpers.ApplyDevicesListColumnWeights(_grid);
-
-            var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
+            var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 0, 24, 0), Tag = "background" };
             gridHost.Controls.Add(_grid);
 
-            var topBtns = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                Padding = new Padding(12, 6, 12, 6),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
-            };
-            _btnAdd.Text = "Добавить";
-            _btnAdd.AutoSize = true;
+            _btnAdd.Text = "Добавить посылку";
             _btnAdd.Click += (_, _) => AddNew();
-
             _btnEdit.Text = "Изменить";
-            _btnEdit.AutoSize = true;
             _btnEdit.Click += (_, _) => EditSelected();
-
             _btnDelete.Text = "Удалить";
-            _btnDelete.AutoSize = true;
             _btnDelete.Click += (_, _) => DeleteSelected();
-
-            topBtns.Controls.AddRange(new Control[] { _btnAdd, _btnEdit, _btnDelete });
-
-            var filterPanel = BuildMessageFilterPanel();
+            _btnSave.Text = "Сохранить изменения";
+            _btnSave.Click += (_, _) => SaveToDisk();
 
             _lblFilterStatus.Dock = DockStyle.Top;
-            _lblFilterStatus.AutoSize = false;
-            _lblFilterStatus.Height = 22;
-            _lblFilterStatus.Padding = new Padding(12, 2, 12, 0);
-            _lblFilterStatus.ForeColor = Color.DimGray;
-
-            var bottom = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(12),
-                Height = 54,
-                WrapContents = false
-            };
-            _btnSave.Text = "Сохранить изменения";
-            _btnSave.AutoSize = true;
-            _btnSave.Click += (_, _) => SaveToDisk();
-            bottom.Controls.Add(_btnSave);
-
+            _lblFilterStatus.Height = 28;
+            _lblFilterStatus.Padding = new Padding(24, 4, 24, 4);
+            _lblFilterStatus.Tag = "muted";
+            var type = _kind.ToString().ToUpperInvariant();
             Controls.Add(gridHost);
             Controls.Add(_lblFilterStatus);
-            Controls.Add(filterPanel);
-            Controls.Add(topBtns);
-            Controls.Add(_lblInfo);
-            Controls.Add(bottom);
+            Controls.Add(BuildMessageFilterPanel());
+            Controls.Add(DialogLayout.Actions(_btnAdd, _btnEdit, _btnDelete));
+            Controls.Add(DialogLayout.Header(this, $"Конфигурация / {type}", "Посылки и сигналы", _lblInfo));
+            Controls.Add(DialogLayout.Footer(_btnSave, "Правки сохраняются в исходный файл."));
         }
 
         private Panel BuildMessageFilterPanel()
         {
-            var panel = new FlowLayoutPanel
+            var panel = new TableLayoutPanel
             {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                Padding = new Padding(12, 0, 12, 4),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true
+                Dock = DockStyle.Top, Height = 74, ColumnCount = 8, RowCount = 2,
+                Padding = new Padding(24, 0, 24, 8), Tag = "background"
             };
-
-            _txtSearch.Width = 160;
-            _txtSearch.Margin = new Padding(3, 3, 8, 0);
-            _txtSearch.PlaceholderText = "Имя или ID…";
-
-            _txtDlcMin.PlaceholderText = "—";
-            _txtDlcMax.PlaceholderText = "—";
-            _txtSigMin.PlaceholderText = "—";
-            _txtSigMax.PlaceholderText = "—";
-
-            void OnFilterChanged(object? s, EventArgs e) => RefreshGrid();
+            for (int column = 0; column < 8; column++)
+                panel.ColumnStyles.Add(column % 2 == 0
+                    ? new ColumnStyle(SizeType.AutoSize) : new ColumnStyle(SizeType.Percent, 25));
+            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+            _txtSearch.PlaceholderText = "Имя посылки или CAN ID…";
+            foreach (var box in new[] { _txtDlcMin, _txtDlcMax, _txtSigMin, _txtSigMax }) box.PlaceholderText = "—";
+            foreach (var control in new Control[] { _txtSearch, _cmbFormat, _txtDlcMin, _txtDlcMax, _txtSigMin, _txtSigMax })
+            { control.Dock = DockStyle.Fill; control.Margin = new Padding(6, 2, 16, 2); }
+            void OnFilterChanged(object? sender, EventArgs e) => RefreshGrid();
             _txtSearch.TextChanged += OnFilterChanged;
             _cmbFormat.SelectedIndexChanged += OnFilterChanged;
             _txtDlcMin.TextChanged += OnFilterChanged;
             _txtDlcMax.TextChanged += OnFilterChanged;
             _txtSigMin.TextChanged += OnFilterChanged;
             _txtSigMax.TextChanged += OnFilterChanged;
-
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Поиск:"));
-            panel.Controls.Add(_txtSearch);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Формат:"));
-            panel.Controls.Add(_cmbFormat);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("DLC от:"));
-            panel.Controls.Add(_txtDlcMin);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до:"));
-            panel.Controls.Add(_txtDlcMax);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Сигналов от:"));
-            panel.Controls.Add(_txtSigMin);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до:"));
-            panel.Controls.Add(_txtSigMax);
-
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Поиск"), 0, 0);
+            panel.Controls.Add(_txtSearch, 1, 0); panel.SetColumnSpan(_txtSearch, 3);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Формат"), 4, 0);
+            panel.Controls.Add(_cmbFormat, 5, 0); panel.SetColumnSpan(_cmbFormat, 3);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("DLC от"), 0, 1);
+            panel.Controls.Add(_txtDlcMin, 1, 1);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до"), 2, 1);
+            panel.Controls.Add(_txtDlcMax, 3, 1);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Сигналов от"), 4, 1);
+            panel.Controls.Add(_txtSigMin, 5, 1);
+            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до"), 6, 1);
+            panel.Controls.Add(_txtSigMax, 7, 1);
             return panel;
         }
-
         private bool TryGetMessageFilters(out int? dlcMin, out int? dlcMax, out int? sigMin, out int? sigMax)
         {
             dlcMin = dlcMax = sigMin = sigMax = null;
@@ -234,7 +193,7 @@ namespace logReader.UI
             catch (Exception ex)
             {
                 LoadFailed = true;
-                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message + "\nРедактор не будет открыт, файл не изменён.",
+                ThemedMessageBox.Show(this, "Ошибка чтения файла: " + ex.Message + "\nРедактор не будет открыт, файл не изменён.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -334,7 +293,7 @@ namespace logReader.UI
                     x.Name.Equals(dlg.Message.Name, StringComparison.OrdinalIgnoreCase)
                     || (x.Id == dlg.Message.Id && x.IsExtended == dlg.Message.IsExtended)))
                 {
-                    MessageBox.Show(this,
+                    ThemedMessageBox.Show(this,
                         "Посылка с таким именем или ID уже существует.",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -352,7 +311,7 @@ namespace logReader.UI
 
                 if (_xlsxDevices.Any(x => x.DeviceId.Equals(dlg.Definition.DeviceId, StringComparison.OrdinalIgnoreCase)))
                 {
-                    MessageBox.Show(this,
+                    ThemedMessageBox.Show(this,
                         "Посылка с таким ID уже существует.",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -382,7 +341,7 @@ namespace logReader.UI
                     .Any(x => x.Name.Equals(dlg.Message.Name, StringComparison.OrdinalIgnoreCase)
                               || (x.Id == dlg.Message.Id && x.IsExtended == dlg.Message.IsExtended)))
                 {
-                    MessageBox.Show(this,
+                    ThemedMessageBox.Show(this,
                         "Посылка с таким именем или ID уже существует.",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -427,7 +386,7 @@ namespace logReader.UI
                 name = string.IsNullOrWhiteSpace(dx.MessageName) ? dx.DeviceId : $"{dx.MessageName} (ID={dx.DeviceId})";
             }
 
-            var confirm = MessageBox.Show(
+            var confirm = ThemedMessageBox.Show(
                 this,
                 $"Удалить посылку '{name}'?",
                 "Подтверждение",
@@ -454,7 +413,7 @@ namespace logReader.UI
         private bool ConfirmClassicDlc(int dlc)
         {
             if (dlc <= 8) return true;
-            MessageBox.Show(this,
+            ThemedMessageBox.Show(this,
                 $"Посылка с DLC = {dlc} (CAN FD) не редактируется в этой версии: форма поддерживает 1–8 байт.\n" +
                 "Посылка сохраняется в файле без изменений и используется при обработке.",
                 "CAN FD", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -481,7 +440,7 @@ namespace logReader.UI
         private void SaveToDisk()
         {
             if (TrySaveAll())
-                MessageBox.Show(this, "Изменения сохранены.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ThemedMessageBox.Show(this, "Изменения сохранены.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void OnFormClosing(object? sender, FormClosingEventArgs e)
@@ -526,7 +485,7 @@ namespace logReader.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nФайл на диске не изменён, правки остаются в редакторе.",
+                ThemedMessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nФайл на диске не изменён, правки остаются в редакторе.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }

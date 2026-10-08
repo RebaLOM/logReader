@@ -52,14 +52,16 @@ namespace logReader.UI
             AddDialogButtons();
             RefreshLogDeviceLists("");
             BuildTree("");
+            ThemeManager.Attach(this);
         }
 
         private void AddDialogButtons()
         {
             var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Size = new Size(90, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
             var cancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel, Size = new Size(90, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            cancel.Location = new Point(panelButtons.ClientSize.Width - cancel.Width - 12, 10);
-            ok.Location = new Point(cancel.Left - ok.Width - 8, 10);
+            panelButtons.Height = 92;
+            cancel.Location = new Point(panelButtons.ClientSize.Width - cancel.Width - 12, 52);
+            ok.Location = new Point(cancel.Left - ok.Width - 8, 52);
             ok.Click += (_, _) => ApplyToTarget();
             panelButtons.Controls.Add(ok);
             panelButtons.Controls.Add(cancel);

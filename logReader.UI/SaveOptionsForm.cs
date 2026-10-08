@@ -34,168 +34,110 @@ namespace logReader.UI
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(680, 472);
+            ClientSize = new Size(900, 720);
 
-            var labelFormat = new Label
-            {
-                Text = "Формат выходного файла:",
-                AutoSize = true,
-                Location = new Point(16, 20)
-            };
-
-            _comboOutputFormat = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(16, 45),
-                Size = new Size(645, 23)
-            };
-            _comboOutputFormat.Items.Add("XLSX");
-            _comboOutputFormat.Items.Add("CSV");
-            _comboOutputFormat.Items.Add("CSV ДСТ Коннект");
+            _comboOutputFormat = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Top };
+            _comboOutputFormat.Items.AddRange(new object[] { "XLSX", "CSV", "CSV ДСТ Коннект" });
             _comboOutputFormat.SelectedIndexChanged += (_, _) => UpdateDstPanelVisibility();
-
-            _dstPanel = new Panel
-            {
-                Location = new Point(16, 78),
-                Size = new Size(645, 68),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            var labelBlockPeriod = new Label { Text = "Период блока, мс:", AutoSize = true, Location = new Point(8, 10) };
-            _numBlockPeriod = new NumericUpDown
-            {
-                Minimum = 1,
-                Maximum = 3600000,
-                Value = Math.Clamp(currentDstOptions.BlockPeriodMs, 1, 3600000),
-                Location = new Point(180, 8),
-                Width = 80
-            };
-            var labelBlockPeriodHint = new Label
-            {
-                Text = "цикл шины; одна строка CSV на каждый блок",
-                AutoSize = true,
-                Location = new Point(270, 10),
-                ForeColor = Color.DimGray
-            };
-
-            var labelBlockStart = new Label { Text = "Номер якорной посылки:", AutoSize = true, Location = new Point(8, 38) };
-            _numBlockStart = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 10000000,
-                Value = Math.Max(0, currentDstOptions.BlockStartIndex),
-                Location = new Point(180, 36),
-                Width = 80
-            };
-            var labelBlockHint = new Label
-            {
-                Text = "Message Number из .trc; 0 — авто; иначе с этой посылки",
-                AutoSize = true,
-                Location = new Point(270, 38),
-                ForeColor = Color.DimGray
-            };
-
-            _dstPanel.Controls.Add(labelBlockPeriod);
-            _dstPanel.Controls.Add(_numBlockPeriod);
-            _dstPanel.Controls.Add(labelBlockPeriodHint);
-            _dstPanel.Controls.Add(labelBlockStart);
-            _dstPanel.Controls.Add(_numBlockStart);
-            _dstPanel.Controls.Add(labelBlockHint);
-
             _chkIncludeDeviceIdRow = new CheckBox
             {
-                Text = "Первая строка с ID посылок над именами параметров",
-                AutoSize = true,
-                Location = new Point(16, 154),
-                Checked = includeDeviceIdHeaderRow
+                Text = "Строка CAN ID над именами параметров", AutoSize = true,
+                Dock = DockStyle.Top, Checked = includeDeviceIdHeaderRow, Padding = new Padding(0, 14, 0, 0)
             };
-            var labelIdRowHint = new Label
+            var idHint = new Label
             {
-                Text = "по умолчанию выключено — «Шаг»/«Время» всегда в одной строке с именами параметров",
-                AutoSize = true,
-                Location = new Point(40, 176),
-                ForeColor = Color.DimGray
+                Text = "Выключено по умолчанию. «Шаг» и «Время» остаются в одной строке с именами параметров.",
+                Dock = DockStyle.Top, Height = 48, Tag = "muted", Padding = new Padding(0, 8, 0, 0)
             };
+            var formatContent = new Panel { Dock = DockStyle.Fill };
+            formatContent.Controls.Add(idHint);
+            formatContent.Controls.Add(_chkIncludeDeviceIdRow);
+            formatContent.Controls.Add(_comboOutputFormat);
 
-            var labelBatch = new Label
+            _comboBatchMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Top };
+            _comboBatchMode.Items.AddRange(new object[]
             {
-                Text = "Режим сохранения при обработке папки:",
-                AutoSize = true,
-                Location = new Point(16, 206)
+                "Отдельный файл на каждый входной лог",
+                "В единый файл (.trc / CSV)",
+                "Разбить .trc на файлы по датам из содержимого"
+            });
+            var batchHint = new Label
+            {
+                Text = "При выборе папки этот режим определяет структуру результатов. Форматы входа выбираются ниже.",
+                Dock = DockStyle.Top, Height = 62, Tag = "muted", Padding = new Padding(0, 14, 0, 0)
             };
+            var batchContent = new Panel { Dock = DockStyle.Fill };
+            batchContent.Controls.Add(batchHint);
+            batchContent.Controls.Add(_comboBatchMode);
+            var topCards = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Tag = "background" };
+            topCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            topCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            topCards.Controls.Add(DialogLayout.Section("Формат результата", formatContent), 0, 0);
+            topCards.Controls.Add(DialogLayout.Section("Пакетная обработка", batchContent), 1, 0);
 
-            _comboBatchMode = new ComboBox
+            _numBlockPeriod = new NumericUpDown
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(16, 231),
-                Size = new Size(645, 23)
+                Minimum = 1, Maximum = 3600000, Value = Math.Clamp(currentDstOptions.BlockPeriodMs, 1, 3600000),
+                Width = 100, Margin = new Padding(8, 3, 18, 3)
             };
-            _comboBatchMode.Items.Add("Отдельный файл на каждый входной лог");
-            _comboBatchMode.Items.Add("В единый файл (.trc / CSV)");
-            _comboBatchMode.Items.Add("Разбить .trc на отдельные файлы по датам (из содержимого)");
+            _numBlockStart = new NumericUpDown
+            {
+                Minimum = 0, Maximum = 10000000, Value = Math.Max(0, currentDstOptions.BlockStartIndex),
+                Width = 100, Margin = new Padding(8, 3, 18, 3)
+            };
+            var dstContent = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
+            dstContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
+            dstContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            dstContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            dstContent.Controls.Add(MessageEditFormHelpers.MakeLabel("Период блока, мс"), 0, 0);
+            dstContent.Controls.Add(_numBlockPeriod, 1, 0);
+            dstContent.Controls.Add(new Label { Text = "Цикл шины; одна строка CSV на блок", Dock = DockStyle.Fill, Tag = "muted", TextAlign = ContentAlignment.MiddleLeft }, 2, 0);
+            dstContent.Controls.Add(MessageEditFormHelpers.MakeLabel("Якорная посылка"), 0, 1);
+            dstContent.Controls.Add(_numBlockStart, 1, 1);
+            dstContent.Controls.Add(new Label { Text = "Message Number в TRC; 0 — автоматически", Dock = DockStyle.Fill, Tag = "muted", TextAlign = ContentAlignment.MiddleLeft }, 2, 1);
+            _dstPanel = DialogLayout.Section("CSV ДСТ Коннект / границы блоков", dstContent);
+            _dstPanel.Height = 126;
+            _dstPanel.Dock = DockStyle.Top;
+            _dstPanel.Margin = new Padding(0, 0, 12, 14);
 
-            var labelFormats = new Label
-            {
-                Text = "Форматы в папке:",
-                AutoSize = true,
-                Location = new Point(16, 270)
-            };
-
-            _formatsList = new CheckedListBox
-            {
-                Location = new Point(16, 294),
-                Size = new Size(645, 100),
-                CheckOnClick = true
-            };
+            _formatsList = new ThemedCheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, IntegralHeight = false };
             _formatsList.ItemCheck += formatsList_ItemCheck;
-
-            _formatsHint = new Label
+            _formatsHint = new Label { Dock = DockStyle.Bottom, Height = 24, Tag = "muted", TextAlign = ContentAlignment.MiddleLeft };
+            var formatsContent = new Panel { Dock = DockStyle.Fill };
+            formatsContent.Controls.Add(_formatsList);
+            formatsContent.Controls.Add(_formatsHint);
+            var body = new TableLayoutPanel
             {
-                AutoSize = false,
-                Location = new Point(16, 398),
-                Size = new Size(645, 18),
-                ForeColor = Color.DimGray,
-                Text = ""
+                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
+                Padding = new Padding(24, 0, 12, 0), Tag = "background"
             };
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 194));
+            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            body.Controls.Add(topCards, 0, 0);
+            body.Controls.Add(_dstPanel, 0, 1);
+            body.Controls.Add(DialogLayout.Section("Форматы в папке", formatsContent, compact: true), 0, 2);
 
-            var buttonOk = new Button
-            {
-                Text = "OK",
-                DialogResult = DialogResult.OK,
-                Location = new Point(505, 432),
-                Size = new Size(75, 26)
-            };
+            var buttonOk = new Button { Text = "Применить параметры", DialogResult = DialogResult.OK, Tag = "primary", AutoSize = true, MinimumSize = new Size(170, 34) };
             buttonOk.Click += buttonOk_Click;
-            // ItemCheck приходит до смены флажка: состояние «OK» пересчитывается уже после неё.
             _formatsList.ItemCheck += (_, _) =>
             {
                 if (IsHandleCreated) BeginInvoke(() => UpdateOkEnabledState(buttonOk));
             };
-
-            var buttonCancel = new Button
+            var buttonCancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(100, 34) };
+            var footer = new FlowLayoutPanel
             {
-                Text = "Отмена",
-                DialogResult = DialogResult.Cancel,
-                Location = new Point(586, 432),
-                Size = new Size(75, 26)
+                Dock = DockStyle.Bottom, Height = 68, FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(24, 16, 24, 16), WrapContents = false, Tag = "background"
             };
-
-            Controls.Add(labelFormat);
-            Controls.Add(_comboOutputFormat);
-            Controls.Add(_dstPanel);
-            Controls.Add(_chkIncludeDeviceIdRow);
-            Controls.Add(labelIdRowHint);
-            Controls.Add(labelBatch);
-            Controls.Add(_comboBatchMode);
-            Controls.Add(labelFormats);
-            Controls.Add(_formatsList);
-            Controls.Add(_formatsHint);
-            Controls.Add(buttonOk);
-            Controls.Add(buttonCancel);
-
+            footer.Controls.Add(buttonOk);
+            footer.Controls.Add(buttonCancel);
+            Controls.Add(body);
+            Controls.Add(DialogLayout.Header(this, "Экспорт / Настройки", "Параметры результата"));
+            Controls.Add(footer);
             AcceptButton = buttonOk;
             CancelButton = buttonCancel;
-
             _comboOutputFormat.SelectedIndex = currentFormat switch
             {
                 OutputFormat.Csv => 1,
@@ -214,6 +156,7 @@ namespace logReader.UI
             UpdateDstPanelVisibility();
             UpdateOkEnabledState(buttonOk);
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void UpdateDstPanelVisibility()

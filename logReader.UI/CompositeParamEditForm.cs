@@ -39,6 +39,7 @@ namespace logReader.UI
                 _txtOffset.Text = "0";
             }
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void BuildLayout()
@@ -300,7 +301,7 @@ namespace logReader.UI
         }
 
         private void Warn(string msg)
-            => MessageBox.Show(this, msg, "Проверка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            => ThemedMessageBox.Show(this, msg, "Проверка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
         private static bool TryParseInt(object? value, out int result)
         {

@@ -76,6 +76,7 @@ namespace logReader.UI
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private static DeviceFieldRow CreateDefaultNumRow() => new(
@@ -416,7 +417,7 @@ namespace logReader.UI
                 string header = _txtBinName.Text.Trim();
                 if (string.IsNullOrWhiteSpace(header))
                 {
-                    MessageBox.Show(this, "Введите Name.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ThemedMessageBox.Show(this, "Введите Name.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     _txtBinName.Focus();
                     return;
                 }
@@ -426,7 +427,7 @@ namespace logReader.UI
                 int len = (int)_numBinLength.Value;
                 if (bitStart + len > 8)
                 {
-                    MessageBox.Show(this, "BitStart + Length не должны превышать 8.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ThemedMessageBox.Show(this, "BitStart + Length не должны превышать 8.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -453,13 +454,13 @@ namespace logReader.UI
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Введите Name.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Введите Name.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return;
             }
             if (name.Any(char.IsWhiteSpace))
             {
-                MessageBox.Show(this, "Имя не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Имя не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return;
             }
@@ -473,13 +474,13 @@ namespace logReader.UI
             // Motorola: start+length не описывает раскладку по байтам.
             if (!SignalFitsInDlc(globalStartBit, length, littleEndian, _dlc * 8))
             {
-                MessageBox.Show(this, $"Сигнал выходит за пределы DLC ({_dlc} байт).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, $"Сигнал выходит за пределы DLC ({_dlc} байт).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             if (!NumberParseHelper.TryParseOrDefault(_txtFactor.Text, 1.0, out double factor))
             {
-                MessageBox.Show(this, "Factor: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Factor: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtFactor.Focus();
                 return;
             }
@@ -487,7 +488,7 @@ namespace logReader.UI
 
             if (!NumberParseHelper.TryParseOrDefault(_txtOffset.Text, 0.0, out double offset))
             {
-                MessageBox.Show(this, "Offset: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Offset: неверный формат.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtOffset.Focus();
                 return;
             }

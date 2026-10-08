@@ -109,6 +109,7 @@ namespace logReader.UI
             Controls.Add(root);
             CancelButton = btnCancel;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
     }
 }

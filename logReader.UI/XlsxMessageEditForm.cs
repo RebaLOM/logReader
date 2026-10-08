@@ -60,6 +60,7 @@ namespace logReader.UI
 
             AcceptButton = _btnSave;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void WireDirtyTracking()
@@ -457,7 +458,7 @@ namespace logReader.UI
 
             if (_rows.Any(x => x.Header.Equals(dlg.Row.Header, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "Параметр с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Параметр с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -484,7 +485,7 @@ namespace logReader.UI
                 .Where((_, i) => i != idx)
                 .Any(x => x.Header.Equals(dlg.Row.Header, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "Параметр с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Параметр с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -499,7 +500,7 @@ namespace logReader.UI
             int idx = SelectedIndex();
             if (idx < 0 || idx >= _rows.Count) return;
 
-            var confirm = MessageBox.Show(
+            var confirm = ThemedMessageBox.Show(
                 this,
                 $"Удалить параметр '{_rows[idx].Header}'?",
                 "Подтверждение",
@@ -556,7 +557,7 @@ namespace logReader.UI
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Введите имя посылки (MessageName).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Введите имя посылки (MessageName).", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return false;
             }
@@ -564,14 +565,14 @@ namespace logReader.UI
             bool isExtended = _rbExtended.Checked;
             if (!MessageEditFormHelpers.TryParseHexId(_txtId.Text, isExtended, out uint id, out string idError))
             {
-                MessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtId.Focus();
                 return false;
             }
 
             if (_rows.Count == 0)
             {
-                var cont = MessageBox.Show(
+                var cont = ThemedMessageBox.Show(
                     this,
                     "Нет ни одного параметра. Продолжить?",
                     "Подтверждение",
@@ -587,7 +588,7 @@ namespace logReader.UI
                 {
                     if (!BitMath.SignalFitsInDlc(r.StartBit, r.Length, r.IsLittleEndian, dlc * 8))
                     {
-                        MessageBox.Show(
+                        ThemedMessageBox.Show(
                             this,
                             $"Параметр '{r.Header}' выходит за пределы DLC={dlc} байт.",
                             "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);

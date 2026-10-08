@@ -56,6 +56,7 @@ namespace logReader.UI
 
             AcceptButton = _btnSave;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void WireDirtyTracking()
@@ -450,7 +451,7 @@ namespace logReader.UI
                 .Where((s, i) => i != idx)
                 .Any(s => s.Name.Equals(dlg.Signal.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -465,7 +466,7 @@ namespace logReader.UI
             int idx = SelectedIndex();
             if (idx < 0 || idx >= _signals.Count) return;
 
-            var confirm = MessageBox.Show(
+            var confirm = ThemedMessageBox.Show(
                 this,
                 $"Удалить сигнал '{_signals[idx].Name}'?",
                 "Подтверждение",
@@ -522,19 +523,19 @@ namespace logReader.UI
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Введите имя посылки.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Введите имя посылки.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return false;
             }
             if (name.Any(char.IsWhiteSpace))
             {
-                MessageBox.Show(this, "Имя посылки не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, "Имя посылки не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return false;
             }
             if (!DbcLineParser.IsValidSymbolName(name))
             {
-                MessageBox.Show(this,
+                ThemedMessageBox.Show(this,
                     "Недопустимое имя посылки. " + DbcLineParser.SymbolNameRulesHint,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
@@ -544,14 +545,14 @@ namespace logReader.UI
             bool isExtended = _rbExtended.Checked;
             if (!MessageEditFormHelpers.TryParseHexId(_txtId.Text, isExtended, out uint id, out string idError))
             {
-                MessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ThemedMessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtId.Focus();
                 return false;
             }
 
             if (_signals.Count == 0)
             {
-                var cont = MessageBox.Show(
+                var cont = ThemedMessageBox.Show(
                     this,
                     "У посылки нет ни одного сигнала. Продолжить?",
                     "Подтверждение",
@@ -565,7 +566,7 @@ namespace logReader.UI
             {
                 if (!DbcLineParser.IsValidSymbolName(s.Name))
                 {
-                    MessageBox.Show(
+                    ThemedMessageBox.Show(
                         this,
                         $"Сигнал '{s.Name}': недопустимое имя. {DbcLineParser.SymbolNameRulesHint}",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -573,7 +574,7 @@ namespace logReader.UI
                 }
                 if (!SignalFitsInDlc(s, dlc))
                 {
-                    MessageBox.Show(
+                    ThemedMessageBox.Show(
                         this,
                         $"Сигнал '{s.Name}' выходит за пределы DLC={dlc} байт.",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);

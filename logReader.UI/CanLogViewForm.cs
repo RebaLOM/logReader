@@ -37,6 +37,7 @@ namespace logReader.UI
             textBoxSearch.Enabled = false;
             Shown += async (_, _) => await LoadAsync();
             FormClosing += (_, _) => _loading.Cancel();
+            ThemeManager.Attach(this);
         }
 
         private async Task LoadAsync()
@@ -51,7 +52,7 @@ namespace logReader.UI
                 if (counts.Count == 0 && Directory.Exists(_sourcePath)
                     && !logReader.Processing.LogFolderScanner.EnumerateSupportedLogFiles(_sourcePath).Any())
                 {
-                    MessageBox.Show(this, "В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
+                    ThemedMessageBox.Show(this, "В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
                         "Нет логов", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     Close();
                     return;
@@ -69,7 +70,7 @@ namespace logReader.UI
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 if (IsDisposed) return;
-                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message,
+                ThemedMessageBox.Show(this, "Ошибка чтения файла: " + ex.Message,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
             }
@@ -100,7 +101,7 @@ namespace logReader.UI
         private void FitColumns()
         {
             if (_list.Columns.Count < 2) return;
-            int countWidth = TextRenderer.MeasureText("Кол-во посылок__", _list.Font).Width;
+            int countWidth = TextRenderer.MeasureText("Кол-во посылок", _list.Font).Width + 20;
             _list.Columns[1].Width = countWidth;
             _list.Columns[0].Width = Math.Max(80, _list.ClientSize.Width - countWidth);
         }

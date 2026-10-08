@@ -156,6 +156,7 @@ namespace logReader.UI
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private async void convertButton_Click(object? sender, EventArgs e)

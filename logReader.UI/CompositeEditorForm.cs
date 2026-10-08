@@ -15,6 +15,7 @@ namespace logReader.UI
         private readonly Button _btnDelete = new();
         private readonly Button _btnSave = new();
         private readonly Label _lblInfo = new();
+        private readonly Label _lblCount = new();
 
         private List<CompositeSignal> _signals = new();
         private List<int> _skippedRows = new();
@@ -34,23 +35,19 @@ namespace logReader.UI
             Text = BaseTitle;
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new Size(820, 480);
-            ClientSize = new Size(820, 480);
+            ClientSize = new Size(1020, 620);
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             BuildLayout();
             LoadFromFile();
             FormClosing += OnFormClosing;
             UiScaling.Apply(this);
+            ThemeManager.Attach(this);
         }
 
         private void BuildLayout()
         {
-            _lblInfo.Dock = DockStyle.Top;
-            _lblInfo.AutoSize = false;
-            _lblInfo.Height = 28;
-            _lblInfo.Padding = new Padding(12, 8, 12, 0);
             _lblInfo.Text = $"Файл: {_path}";
-            _lblInfo.ForeColor = Color.DimGray;
 
             _grid.Dock = DockStyle.Fill;
             _grid.AllowUserToAddRows = false;
@@ -61,6 +58,8 @@ namespace logReader.UI
             _grid.MultiSelect = false;
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.ReadOnly = true;
+            _grid.RowTemplate.Height = 30;
+            _grid.ColumnHeadersHeight = 32;
             _grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) EditSelected(); };
             _grid.KeyDown += (_, e) =>
             {
@@ -79,18 +78,10 @@ namespace logReader.UI
             _grid.Columns["Trigger"]!.FillWeight = 14;
             _grid.Columns["Sources"]!.FillWeight = 38;
 
-            var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 6) };
+            var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 0, 24, 0), Tag = "background" };
             gridHost.Controls.Add(_grid);
 
-            var topBtns = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                Padding = new Padding(12, 6, 12, 6),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
-            };
-            _btnAdd.Text = "&Добавить";
+            _btnAdd.Text = "&Добавить параметр";
             _btnAdd.AutoSize = true;
             _btnAdd.Click += (_, _) => AddNew();
             _btnEdit.Text = "&Изменить";
@@ -99,25 +90,21 @@ namespace logReader.UI
             _btnDelete.Text = "&Удалить";
             _btnDelete.AutoSize = true;
             _btnDelete.Click += (_, _) => DeleteSelected();
-            topBtns.Controls.AddRange(new Control[] { _btnAdd, _btnEdit, _btnDelete });
-
-            var bottom = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(12),
-                AutoSize = true,
-                WrapContents = false
-            };
             _btnSave.Text = "&Сохранить изменения";
+            _btnSave.Tag = "primary";
             _btnSave.AutoSize = true;
             _btnSave.Click += (_, _) => SaveToDisk();
-            bottom.Controls.Add(_btnSave);
+
+            _lblCount.Dock = DockStyle.Top;
+            _lblCount.Height = 28;
+            _lblCount.Padding = new Padding(24, 4, 24, 4);
+            _lblCount.Tag = "muted";
 
             Controls.Add(gridHost);
-            Controls.Add(topBtns);
-            Controls.Add(_lblInfo);
-            Controls.Add(bottom);
+            Controls.Add(_lblCount);
+            Controls.Add(DialogLayout.Actions(_btnAdd, _btnEdit, _btnDelete));
+            Controls.Add(DialogLayout.Header(this, "Конфигурация / XLSX", "Составные параметры", _lblInfo));
+            Controls.Add(DialogLayout.Footer(_btnSave, "Enter — изменить · Delete — удалить"));
         }
 
         private void LoadFromFile()
@@ -133,7 +120,7 @@ namespace logReader.UI
             catch (Exception ex)
             {
                 LoadFailed = true;
-                MessageBox.Show(this, "Ошибка чтения файла: " + ex.Message + "\nРедактор не будет открыт, файл не изменён.",
+                ThemedMessageBox.Show(this, "Ошибка чтения файла: " + ex.Message + "\nРедактор не будет открыт, файл не изменён.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -141,6 +128,9 @@ namespace logReader.UI
         private void RefreshGrid()
         {
             _grid.Rows.Clear();
+            _lblCount.Text = _signals.Count == 0
+                ? "Параметров пока нет. Добавьте значение из нескольких CAN-посылок."
+                : $"Параметров: {_signals.Count} · порядок кусков: от старших битов к младшим";
             foreach (var sig in _signals)
             {
                 int totalBits = sig.Pieces.Sum(p => p.BitLen);
@@ -171,7 +161,7 @@ namespace logReader.UI
 
             if (IsDuplicate(dlg.Signal, -1))
             {
-                MessageBox.Show(this, "Параметр с таким именем уже есть в этом блоке.",
+                ThemedMessageBox.Show(this, "Параметр с таким именем уже есть в этом блоке.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -192,7 +182,7 @@ namespace logReader.UI
 
             if (IsDuplicate(dlg.Signal, idx))
             {
-                MessageBox.Show(this, "Параметр с таким именем уже есть в этом блоке.",
+                ThemedMessageBox.Show(this, "Параметр с таким именем уже есть в этом блоке.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -209,7 +199,7 @@ namespace logReader.UI
             if (idx < 0 || idx >= _signals.Count) return;
 
             var sig = _signals[idx];
-            var confirm = MessageBox.Show(
+            var confirm = ThemedMessageBox.Show(
                 this,
                 $"Удалить параметр '{sig.Param}' (блок {sig.Block})?",
                 "Подтверждение",
@@ -239,7 +229,7 @@ namespace logReader.UI
         private void SaveToDisk()
         {
             if (TrySaveAll())
-                MessageBox.Show(this, "Изменения сохранены.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ThemedMessageBox.Show(this, "Изменения сохранены.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void OnFormClosing(object? sender, FormClosingEventArgs e)
@@ -265,7 +255,7 @@ namespace logReader.UI
         {
             if (_skippedRows.Count > 0)
             {
-                var answer = MessageBox.Show(this,
+                var answer = ThemedMessageBox.Show(this,
                     "В файле есть некорректные строки, которые не были загружены (строки " +
                     string.Join(", ", _skippedRows.Take(20)) + (_skippedRows.Count > 20 ? ", …" : "") + ").\n" +
                     "При сохранении они будут удалены. Продолжить?",
@@ -285,7 +275,7 @@ namespace logReader.UI
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                MessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nФайл на диске не изменён, правки остаются в редакторе.",
+                ThemedMessageBox.Show(this, "Ошибка сохранения: " + ex.Message + "\nФайл на диске не изменён, правки остаются в редакторе.",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
