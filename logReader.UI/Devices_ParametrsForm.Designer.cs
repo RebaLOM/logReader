@@ -2,300 +2,172 @@ namespace logReader.UI
 {
     partial class Devices_ParametrsForm
     {
-        private System.ComponentModel.IContainer components = null;
+        private System.ComponentModel.IContainer components = new System.ComponentModel.Container();
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
-                components.Dispose();
+            if (disposing) components?.Dispose();
             base.Dispose(disposing);
         }
 
-        #region Windows Form Designer generated code
-
         private void InitializeComponent()
         {
-            tabControlMain = new TabControl();
-            tabKnown = new TabPage();
-            tabUnknown = new TabPage();
-            scrollPanel = new Panel();
-            panelButtons = new Panel();
-            panelSearch = new Panel();
-            buttonEnableAll = new Button();
-            buttonDisableAll = new Button();
-            textBoxSearch = new TextBox();
-            labelSearch = new Label();
-            listBoxMissing = new ListBox();
-            listBoxMatched = new ListBox();
-            panelSearchUnknown = new Panel();
-            labelSearchUnknown = new Label();
-            textBoxSearchUnknown = new TextBox();
-            splitContainerLog = new SplitContainer();
-            panelMissingColumn = new Panel();
-            panelMatchedColumn = new Panel();
-            labelMissingTitle = new Label();
-            labelMatchedTitle = new Label();
-            
-            tabControlMain.SuspendLayout();
-            tabKnown.SuspendLayout();
-            tabUnknown.SuspendLayout();
-            panelButtons.SuspendLayout();
-            panelSearch.SuspendLayout();
-            panelSearchUnknown.SuspendLayout();
-            splitContainerLog.Panel1.SuspendLayout();
-            splitContainerLog.Panel2.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)splitContainerLog).BeginInit();
-            splitContainerLog.SuspendLayout();
-            panelMissingColumn.SuspendLayout();
-            panelMatchedColumn.SuspendLayout();
             SuspendLayout();
-            // 
-            // tabControlMain
-            // 
-            tabControlMain.Controls.Add(tabKnown);
-            tabControlMain.Controls.Add(tabUnknown);
-            tabControlMain.Dock = DockStyle.Fill;
-            tabControlMain.Location = new Point(0, 0);
-            tabControlMain.Name = "tabControlMain";
-            tabControlMain.SelectedIndex = 0;
-            tabControlMain.Size = new Size(580, 620);
-            tabControlMain.TabIndex = 0;
-            // 
-            // tabKnown
-            // 
-            tabKnown.Controls.Add(scrollPanel);
-            tabKnown.Controls.Add(panelSearch);
-            tabKnown.Controls.Add(panelButtons);
-            tabKnown.Location = new Point(4, 24);
-            tabKnown.Name = "tabKnown";
-            tabKnown.Padding = new Padding(3);
-            tabKnown.Size = new Size(572, 592);
-            tabKnown.TabIndex = 0;
-            tabKnown.Text = "Устройства";
-            tabKnown.UseVisualStyleBackColor = true;
-            // 
-            // tabUnknown
-            // 
-            tabUnknown.Controls.Add(splitContainerLog);
-            tabUnknown.Controls.Add(panelSearchUnknown);
-            tabUnknown.Location = new Point(4, 24);
-            tabUnknown.Name = "tabUnknown";
-            tabUnknown.Padding = new Padding(3);
-            tabUnknown.Size = new Size(572, 592);
-            tabUnknown.TabIndex = 1;
-            tabUnknown.Text = "Сверка с логом";
-            tabUnknown.UseVisualStyleBackColor = true;
-            // 
-            // panelSearchUnknown
-            // 
-            panelSearchUnknown.Controls.Add(labelSearchUnknown);
-            panelSearchUnknown.Controls.Add(textBoxSearchUnknown);
-            panelSearchUnknown.Dock = DockStyle.Top;
-            panelSearchUnknown.Height = 44;
-            panelSearchUnknown.Name = "panelSearchUnknown";
-            panelSearchUnknown.BackColor = Color.FromArgb(248, 248, 248);
-            panelSearchUnknown.TabIndex = 0;
-            // 
-            // labelSearchUnknown
-            // 
-            labelSearchUnknown.AutoSize = true;
-            labelSearchUnknown.Location = new Point(10, 13);
-            labelSearchUnknown.Name = "labelSearchUnknown";
-            labelSearchUnknown.Text = "Поиск:";
-            // 
-            // textBoxSearchUnknown
-            // 
-            textBoxSearchUnknown.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBoxSearchUnknown.Location = new Point(60, 10);
-            textBoxSearchUnknown.Name = "textBoxSearchUnknown";
-            textBoxSearchUnknown.PlaceholderText = "Поиск по ID устройства...";
-            textBoxSearchUnknown.Size = new Size(490, 23);
-            textBoxSearchUnknown.TabIndex = 1;
-            textBoxSearchUnknown.TextChanged += textBoxSearchUnknown_TextChanged;
-            // 
-            // splitContainerLog
-            // 
-            splitContainerLog.Dock = DockStyle.Fill;
-            splitContainerLog.Location = new Point(3, 47);
-            splitContainerLog.Name = "splitContainerLog";
-            splitContainerLog.Size = new Size(566, 542);
-            splitContainerLog.SplitterDistance = 283;
-            splitContainerLog.TabIndex = 1;
-            // 
-            // panelMissingColumn
-            // 
-            panelMissingColumn.Controls.Add(listBoxMissing);
-            panelMissingColumn.Controls.Add(labelMissingTitle);
-            panelMissingColumn.Dock = DockStyle.Fill;
-            panelMissingColumn.Name = "panelMissingColumn";
-            panelMissingColumn.Padding = new Padding(6, 4, 3, 4);
-            panelMissingColumn.TabIndex = 0;
-            // 
-            // labelMissingTitle
-            // 
-            labelMissingTitle.Dock = DockStyle.Top;
-            labelMissingTitle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
-            labelMissingTitle.ForeColor = Color.FromArgb(64, 64, 64);
-            labelMissingTitle.Name = "labelMissingTitle";
-            labelMissingTitle.Padding = new Padding(0, 0, 0, 4);
-            labelMissingTitle.Size = new Size(268, 40);
-            labelMissingTitle.TabIndex = 0;
-            labelMissingTitle.Text = "В логе, но нет в файле посылок:";
-            // 
-            // listBoxMissing
-            // 
-            listBoxMissing.BorderStyle = BorderStyle.FixedSingle;
-            listBoxMissing.Dock = DockStyle.Fill;
-            listBoxMissing.Font = new Font("Consolas", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
-            listBoxMissing.FormattingEnabled = true;
-            listBoxMissing.ItemHeight = 18;
-            listBoxMissing.Name = "listBoxMissing";
-            listBoxMissing.TabIndex = 1;
-            // 
-            // panelMatchedColumn
-            // 
-            panelMatchedColumn.Controls.Add(listBoxMatched);
-            panelMatchedColumn.Controls.Add(labelMatchedTitle);
-            panelMatchedColumn.Dock = DockStyle.Fill;
-            panelMatchedColumn.Name = "panelMatchedColumn";
-            panelMatchedColumn.Padding = new Padding(3, 4, 6, 4);
-            panelMatchedColumn.TabIndex = 0;
-            // 
-            // labelMatchedTitle
-            // 
-            labelMatchedTitle.Dock = DockStyle.Top;
-            labelMatchedTitle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold, GraphicsUnit.Point);
-            labelMatchedTitle.ForeColor = Color.FromArgb(64, 64, 64);
-            labelMatchedTitle.Name = "labelMatchedTitle";
-            labelMatchedTitle.Padding = new Padding(0, 0, 0, 4);
-            labelMatchedTitle.Size = new Size(268, 40);
-            labelMatchedTitle.TabIndex = 0;
-            labelMatchedTitle.Text = "Есть и в логе, и в файле посылок:";
-            // 
-            // listBoxMatched
-            // 
-            listBoxMatched.BorderStyle = BorderStyle.FixedSingle;
-            listBoxMatched.Dock = DockStyle.Fill;
-            listBoxMatched.Font = new Font("Consolas", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
-            listBoxMatched.FormattingEnabled = true;
-            listBoxMatched.ItemHeight = 18;
-            listBoxMatched.Name = "listBoxMatched";
-            listBoxMatched.TabIndex = 1;
-            splitContainerLog.Panel1.Controls.Add(panelMissingColumn);
-            splitContainerLog.Panel2.Controls.Add(panelMatchedColumn);
-            // 
-            // panelButtons
-            // 
-            panelButtons.Controls.Add(buttonEnableAll);
-            panelButtons.Controls.Add(buttonDisableAll);
-            panelButtons.Dock = DockStyle.Bottom;
-            panelButtons.Height = 48;
-            panelButtons.Name = "panelButtons";
-            panelButtons.BackColor = Color.FromArgb(240, 240, 240);
-            panelButtons.TabIndex = 2;
-            // 
-            // buttonEnableAll
-            // 
-            buttonEnableAll.Location = new Point(12, 10);
-            buttonEnableAll.Name = "buttonEnableAll";
-            buttonEnableAll.Size = new Size(130, 28);
-            buttonEnableAll.TabIndex = 0;
-            buttonEnableAll.Text = "Включить все";
-            buttonEnableAll.UseVisualStyleBackColor = true;
-            buttonEnableAll.Click += buttonEnableAll_Click;
-            // 
-            // buttonDisableAll
-            // 
-            buttonDisableAll.Location = new Point(150, 10);
-            buttonDisableAll.Name = "buttonDisableAll";
-            buttonDisableAll.Size = new Size(140, 28);
-            buttonDisableAll.TabIndex = 1;
-            buttonDisableAll.Text = "Выключить все";
-            buttonDisableAll.UseVisualStyleBackColor = true;
-            buttonDisableAll.Click += buttonDisableAll_Click;
-            // 
-            // panelSearch
-            // 
-            panelSearch.Controls.Add(labelSearch);
-            panelSearch.Controls.Add(textBoxSearch);
-            panelSearch.Dock = DockStyle.Top;
-            panelSearch.Height = 44;
-            panelSearch.Name = "panelSearch";
-            panelSearch.BackColor = Color.FromArgb(248, 248, 248);
-            panelSearch.TabIndex = 1;
-            // 
-            // labelSearch
-            // 
-            labelSearch.Text = "Поиск:";
-            labelSearch.Location = new Point(10, 13);
-            labelSearch.AutoSize = true;
-            labelSearch.Name = "labelSearch";
-            // 
-            // textBoxSearch
-            // 
-            textBoxSearch.Location = new Point(60, 10);
-            textBoxSearch.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
-            textBoxSearch.Size = new Size(490, 23);
-            textBoxSearch.Name = "textBoxSearch";
-            textBoxSearch.PlaceholderText = "Поиск по ID устройства...";
-            textBoxSearch.TabIndex = 0;
-            textBoxSearch.TextChanged += textBoxSearch_TextChanged;
-            // 
-            // scrollPanel
-            // 
-            scrollPanel.AutoScroll = true;
-            scrollPanel.Dock = DockStyle.Fill;
-            scrollPanel.Name = "scrollPanel";
-            scrollPanel.TabIndex = 0;
-            // 
-            // Devices_ParametrsForm
-            // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(580, 620);
-            MinimumSize = new Size(480, 400);
-            Controls.Add(tabControlMain);
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(860, 760);
+            MinimumSize = new Size(660, 520);
+            Padding = new Padding(24);
             Name = "Devices_ParametrsForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Устройства и параметры";
-            tabControlMain.ResumeLayout(false);
-            tabKnown.ResumeLayout(false);
-            tabUnknown.ResumeLayout(false);
-            panelButtons.ResumeLayout(false);
-            panelSearch.ResumeLayout(false);
-            panelSearch.PerformLayout();
-            panelSearchUnknown.ResumeLayout(false);
-            panelSearchUnknown.PerformLayout();
-            splitContainerLog.Panel1.ResumeLayout(false);
-            splitContainerLog.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)splitContainerLog).EndInit();
-            splitContainerLog.ResumeLayout(false);
-            panelMissingColumn.ResumeLayout(false);
-            panelMatchedColumn.ResumeLayout(false);
-            ResumeLayout(false);
+
+            tabControlMain = new ModernTabControl { Dock = DockStyle.Fill, Name = "tabControlMain", TabIndex = 0 };
+            tabKnown = new TabPage("Устройства") { Padding = new Padding(12), BackColor = AppTheme.Background };
+            tabUnknown = new TabPage("Сверка с логом") { Padding = new Padding(12), BackColor = AppTheme.Background };
+            tabControlMain.TabPages.Add(tabKnown);
+            tabControlMain.TabPages.Add(tabUnknown);
+
+            panelSearch = new ModernCard { Dock = DockStyle.Top, Height = 96, Padding = new Padding(16) };
+            textBoxSearch = new ModernTextBox
+            {
+                Name = "textBoxSearch", TabIndex = 0,
+                PlaceholderText = "Введите CAN ID устройства"
+            };
+            textBoxSearch.TextChanged += textBoxSearch_TextChanged;
+            var deviceSearchField = UiFactory.Field("ПОИСК УСТРОЙСТВА", textBoxSearch);
+            labelSearch = deviceSearchField.Controls.OfType<Label>().First();
+            panelSearch.Controls.Add(deviceSearchField);
+            scrollPanel = new Panel
+            {
+                Dock = DockStyle.Fill, AutoScroll = true, BackColor = AppTheme.Background,
+                Name = "scrollPanel", TabIndex = 1
+            };
+            emptyDevices = new EmptyState
+            {
+                Dock = DockStyle.Fill, Title = "Нет устройств", Icon = IconKind.Devices, Visible = false,
+                Description = "Загрузите файл посылок, чтобы выбрать устройства и параметры."
+            };
+            scrollPanel.Controls.Add(emptyDevices);
+
+            buttonEnableAll = new ModernButton
+            {
+                Text = "Включить все", Icon = IconKind.Check, Variant = ButtonVariant.Secondary,
+                Width = 154, Height = 36, Name = "buttonEnableAll", TabIndex = 0
+            };
+            buttonDisableAll = new ModernButton
+            {
+                Text = "Выключить все", Variant = ButtonVariant.Ghost,
+                Width = 154, Height = 36, Name = "buttonDisableAll", TabIndex = 1
+            };
+            buttonEnableAll.Click += buttonEnableAll_Click;
+            buttonDisableAll.Click += buttonDisableAll_Click;
+            var selectionTips = new ToolTip(components);
+            selectionTips.SetToolTip(buttonEnableAll, "Включить все устройства и параметры, включая скрытые поиском.");
+            selectionTips.SetToolTip(buttonDisableAll, "Выключить все устройства и параметры, включая скрытые поиском.");
+            panelButtons = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom, Height = 58, Padding = new Padding(0, 12, 0, 0),
+                WrapContents = false, BackColor = AppTheme.Background
+            };
+            panelButtons.Controls.Add(buttonEnableAll);
+            panelButtons.Controls.Add(buttonDisableAll);
+            tabKnown.Controls.Add(scrollPanel);
+            tabKnown.Controls.Add(panelButtons);
+            tabKnown.Controls.Add(panelSearch);
+
+            panelSearchUnknown = new ModernCard { Dock = DockStyle.Top, Height = 96, Padding = new Padding(16) };
+            textBoxSearchUnknown = new ModernTextBox
+            {
+                Name = "textBoxSearchUnknown", TabIndex = 0,
+                PlaceholderText = "Поиск по ID в обеих колонках"
+            };
+            textBoxSearchUnknown.TextChanged += textBoxSearchUnknown_TextChanged;
+            var reconciliationSearchField = UiFactory.Field("СВЕРКА CAN ID", textBoxSearchUnknown);
+            labelSearchUnknown = reconciliationSearchField.Controls.OfType<Label>().First();
+            panelSearchUnknown.Controls.Add(reconciliationSearchField);
+            splitContainerLog = new SplitContainer
+            {
+                Dock = DockStyle.Fill, Name = "splitContainerLog", Size = new Size(780, 440),
+                SplitterDistance = 384, SplitterWidth = 12, Panel1MinSize = 210, Panel2MinSize = 210,
+                BackColor = AppTheme.Background, TabIndex = 1
+            };
+            panelMissingColumn = new ModernCard { Dock = DockStyle.Fill, Padding = new Padding(16) };
+            panelMatchedColumn = new ModernCard { Dock = DockStyle.Fill, Padding = new Padding(16) };
+            labelMissingTitle = new Label
+            {
+                Dock = DockStyle.Top, Height = 48, Text = "Нет в файле посылок", AutoEllipsis = true,
+                Font = Typography.CardTitle, ForeColor = AppTheme.TextPrimary
+            };
+            labelMatchedTitle = new Label
+            {
+                Dock = DockStyle.Top, Height = 48, Text = "Совпадают", AutoEllipsis = true,
+                Font = Typography.CardTitle, ForeColor = AppTheme.TextPrimary
+            };
+            listBoxMissing = CreateLogIdList("listBoxMissing");
+            listBoxMatched = CreateLogIdList("listBoxMatched");
+            emptyMissing = new EmptyState { Dock = DockStyle.Fill, Icon = IconKind.Check, Title = "Нет отсутствующих устройств" };
+            emptyMatched = new EmptyState { Dock = DockStyle.Fill, Icon = IconKind.Devices, Title = "Нет совпадающих устройств" };
+            var missingContent = new Panel { Dock = DockStyle.Fill, BackColor = AppTheme.Surface };
+            var matchedContent = new Panel { Dock = DockStyle.Fill, BackColor = AppTheme.Surface };
+            missingContent.Controls.Add(listBoxMissing);
+            missingContent.Controls.Add(emptyMissing);
+            matchedContent.Controls.Add(listBoxMatched);
+            matchedContent.Controls.Add(emptyMatched);
+            panelMissingColumn.Controls.Add(missingContent);
+            panelMissingColumn.Controls.Add(labelMissingTitle);
+            panelMatchedColumn.Controls.Add(matchedContent);
+            panelMatchedColumn.Controls.Add(labelMatchedTitle);
+            splitContainerLog.Panel1.Controls.Add(panelMissingColumn);
+            splitContainerLog.Panel2.Controls.Add(panelMatchedColumn);
+            var reconciliationGap = new Panel { Dock = DockStyle.Top, Height = 16, BackColor = AppTheme.Background };
+            tabUnknown.Controls.Add(splitContainerLog);
+            tabUnknown.Controls.Add(reconciliationGap);
+            tabUnknown.Controls.Add(panelSearchUnknown);
+
+            labelSelectionCount = new Label
+            {
+                Dock = DockStyle.Bottom, Height = 40, Font = Typography.Secondary,
+                ForeColor = AppTheme.TextSecondary, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
+            };
+            var header = UiFactory.Header("Устройства и параметры", "Выберите данные для обработки и сверьте CAN ID с логом", IconKind.Devices);
+            header.Dock = DockStyle.Top;
+            Controls.Add(tabControlMain);
+            Controls.Add(labelSelectionCount);
+            Controls.Add(header);
+            ResumeLayout(true);
         }
 
-        #endregion
+        private static ListBox CreateLogIdList(string name) => new ListBox
+        {
+            Dock = DockStyle.Fill, Name = name, BorderStyle = BorderStyle.None,
+            Font = Typography.Mono, ForeColor = AppTheme.TextPrimary, BackColor = AppTheme.Surface,
+            IntegralHeight = false, FormattingEnabled = true, HorizontalScrollbar = true, TabIndex = 0
+        };
 
-        private TabControl tabControlMain;
-        private TabPage tabKnown;
-        private TabPage tabUnknown;
-        private Panel scrollPanel;
-        private Panel panelButtons;
-        private Panel panelSearch;
-        private Button buttonEnableAll;
-        private Button buttonDisableAll;
-        private TextBox textBoxSearch;
-        private Label labelSearch;
-        private ListBox listBoxMissing;
-        private ListBox listBoxMatched;
-        private Panel panelSearchUnknown;
-        private Label labelSearchUnknown;
-        private TextBox textBoxSearchUnknown;
-        private SplitContainer splitContainerLog;
-        private Panel panelMissingColumn;
-        private Panel panelMatchedColumn;
-        private Label labelMissingTitle;
-        private Label labelMatchedTitle;
+        private TabControl tabControlMain = null!;
+        private TabPage tabKnown = null!;
+        private TabPage tabUnknown = null!;
+        private Panel scrollPanel = null!;
+        private Panel panelButtons = null!;
+        private Panel panelSearch = null!;
+        private Button buttonEnableAll = null!;
+        private Button buttonDisableAll = null!;
+        private TextBox textBoxSearch = null!;
+        private Label labelSearch = null!;
+        private ListBox listBoxMissing = null!;
+        private ListBox listBoxMatched = null!;
+        private Panel panelSearchUnknown = null!;
+        private Label labelSearchUnknown = null!;
+        private TextBox textBoxSearchUnknown = null!;
+        private SplitContainer splitContainerLog = null!;
+        private Panel panelMissingColumn = null!;
+        private Panel panelMatchedColumn = null!;
+        private Label labelMissingTitle = null!;
+        private Label labelMatchedTitle = null!;
+        private Label labelSelectionCount = null!;
+        private EmptyState emptyDevices = null!;
+        private EmptyState emptyMissing = null!;
+        private EmptyState emptyMatched = null!;
     }
 }

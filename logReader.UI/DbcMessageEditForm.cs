@@ -1,22 +1,27 @@
 using System.Globalization;
 using System.Linq;
 using logReader;
+using logReader.UI.Controls;
+using logReader.UI.Icons;
+using logReader.UI.Theme;
 
 namespace logReader.UI
 {
     internal sealed class DbcMessageEditForm : Form
     {
-        private readonly TextBox _txtName = new();
-        private readonly TextBox _txtId = new();
-        private readonly NumericUpDown _numDlc = new();
+        private readonly TextBox _txtName = new ModernTextBox();
+        private readonly TextBox _txtId = new ModernTextBox();
+        private readonly NumericUpDown _numDlc = new ModernNumericUpDown();
         private readonly RadioButton _rbStandard = new();
         private readonly RadioButton _rbExtended = new();
         private readonly DataGridView _grid = new();
-        private readonly Button _btnAdd = new();
-        private readonly Button _btnEdit = new();
-        private readonly Button _btnDelete = new();
-        private readonly Button _btnSave = new();
-        private readonly TextBox _txtSearch = new();
+        private readonly Button _btnAdd = new ModernButton { Icon = IconKind.Plus, Variant = ButtonVariant.Primary };
+        private readonly Button _btnEdit = new ModernButton { Icon = IconKind.Edit, Variant = ButtonVariant.Secondary };
+        private readonly Button _btnDelete = new ModernButton { Icon = IconKind.Trash, Variant = ButtonVariant.Danger };
+        private readonly Button _btnSave = new ModernButton { Icon = IconKind.Save, Variant = ButtonVariant.Primary };
+        private readonly Button _btnClose = new ModernButton { Icon = IconKind.Close, Variant = ButtonVariant.Ghost };
+        private readonly InlineNotice _notice = new();
+        private readonly TextBox _txtSearch = new ModernTextBox();
         private readonly ComboBox _cmbType = MessageEditFormHelpers.MakeSignalTypeFilterCombo(includeBin: false);
         private readonly ComboBox _cmbOrder = MessageEditFormHelpers.MakeByteOrderFilterCombo();
         private readonly TextBox _txtLenMin = MessageEditFormHelpers.MakeFilterTextBox();
@@ -42,20 +47,25 @@ namespace logReader.UI
             _signals = new List<DbcSignal>(Message.Signals);
 
             _baseTitle = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
+            SuspendLayout();
             Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
             AutoScaleMode = AutoScaleMode.Dpi;
-            MinimumSize = new Size(1000, 500);
-            ClientSize = new Size(1000, 500);
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            MinimumSize = new Size(960, 600);
+            ClientSize = new Size(1280, 860);
 
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
 
             BuildLayout();
+            ResumeLayout(true);
+            AppTheme.Apply(this);
             WireDirtyTracking();
             LoadFromMessage(Message);
             FormClosing += OnFormClosing;
 
             AcceptButton = _btnSave;
+            CancelButton = _btnClose;
         }
 
         private void WireDirtyTracking()
@@ -75,6 +85,8 @@ namespace logReader.UI
         {
             if (_dirty) return;
             _dirty = true;
+            _notice.Text = "Есть несохранённые изменения.";
+            _notice.Tone = StatusTone.Warning;
             UpdateTitle();
         }
 
@@ -82,59 +94,20 @@ namespace logReader.UI
 
         private void BuildLayout()
         {
-            var top = new TableLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                ColumnCount = 6,
-                Padding = new Padding(12, 12, 12, 6),
-            };
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
-
-            top.Controls.Add(MessageEditFormHelpers.MakeLabel("Имя"), 0, 0);
-            _txtName.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtName, 1, 0);
-
-            top.Controls.Add(MessageEditFormHelpers.MakeLabel("ID (hex)"), 2, 0);
-            _txtId.Dock = DockStyle.Fill;
-            top.Controls.Add(_txtId, 3, 0);
-
-            top.Controls.Add(MessageEditFormHelpers.MakeLabel("DLC"), 4, 0);
-            _numDlc.Minimum = 1;
-            _numDlc.Maximum = 8;
-            _numDlc.Value = 8;
-            _numDlc.Dock = DockStyle.Left;
-            _numDlc.Width = 60;
-            top.Controls.Add(_numDlc, 5, 0);
-
-            var fmtPanel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                Padding = new Padding(12, 0, 12, 6),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
-            };
-            fmtPanel.Controls.Add(MessageEditFormHelpers.MakeLabel("Формат:"));
-            _rbStandard.Text = "Standard (11-bit)";
-            _rbStandard.AutoSize = true;
-            _rbStandard.Margin = new Padding(8, 3, 8, 0);
-            _rbExtended.Text = "Extended (29-bit)";
-            _rbExtended.AutoSize = true;
-            _rbExtended.Margin = new Padding(8, 3, 8, 0);
-            fmtPanel.Controls.Add(_rbStandard);
-            fmtPanel.Controls.Add(_rbExtended);
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(24), ColumnCount = 1, RowCount = 4 };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.Controls.Add(UiFactory.Header("Посылка DBC", "Параметры CAN-кадра и расположение сигналов в данных.", IconKind.Signal), 0, 0);
+            root.Controls.Add(MessageEditFormHelpers.BuildMessageMetadata(_txtName, _txtId, _numDlc, _rbStandard, _rbExtended), 0, 1);
 
             var signalButtons = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
+                Dock = DockStyle.Fill,
                 AutoSize = true,
-                Padding = new Padding(12, 0, 12, 6),
+                Padding = new Padding(0, 0, 0, 12),
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false
             };
@@ -147,15 +120,16 @@ namespace logReader.UI
             _btnDelete.Text = "Удалить";
             _btnDelete.AutoSize = true;
             _btnDelete.Click += (_, _) => DeleteSignal();
+            signalButtons.Controls.Add(new Label { Text = "Сигналы", AutoSize = true, Font = Typography.SectionTitle, ForeColor = AppTheme.TextPrimary, Margin = new Padding(0, 8, 24, 0) });
             signalButtons.Controls.AddRange(new Control[] { _btnAdd, _btnEdit, _btnDelete });
 
             var filterPanel = BuildSignalFilterPanel();
 
-            _lblFilterStatus.Dock = DockStyle.Top;
+            _lblFilterStatus.Dock = DockStyle.Fill;
             _lblFilterStatus.AutoSize = false;
-            _lblFilterStatus.Height = 22;
-            _lblFilterStatus.Padding = new Padding(12, 0, 12, 2);
-            _lblFilterStatus.ForeColor = Color.DimGray;
+            _lblFilterStatus.Height = 28;
+            _lblFilterStatus.Font = Typography.Caption;
+            _lblFilterStatus.ForeColor = AppTheme.TextSecondary;
 
             _grid.Dock = DockStyle.Fill;
             _grid.AllowUserToAddRows = false;
@@ -167,59 +141,65 @@ namespace logReader.UI
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.ReadOnly = true;
             _grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) EditSignal(); };
-            _grid.Columns.Add("Name", "Name");
-            _grid.Columns.Add("ByteIdx", "Byte Idx");
-            _grid.Columns.Add("StartBit", "Start Bit");
-            _grid.Columns.Add("Length", "Length");
-            _grid.Columns.Add("Type", "Type");
-            _grid.Columns.Add("Factor", "Factor");
-            _grid.Columns.Add("Offset", "Offset");
-            _grid.Columns.Add("Unit", "Unit");
-            _grid.Columns.Add("Order", "Order");
+            _grid.Columns.Add("Name", "Сигнал");
+            _grid.Columns.Add("ByteIdx", "Байт");
+            _grid.Columns.Add("StartBit", "Бит");
+            _grid.Columns.Add("Length", "Длина");
+            _grid.Columns.Add("Type", "Тип");
+            _grid.Columns.Add("Factor", "Масштаб");
+            _grid.Columns.Add("Offset", "Смещение");
+            _grid.Columns.Add("Unit", "Ед.");
+            _grid.Columns.Add("Order", "Порядок");
             MessageEditFormHelpers.AddSignalColorColumn(_grid);
             MessageEditFormHelpers.MakeGridColumnsNotSortable(_grid);
             MessageEditFormHelpers.ApplySignalListColumnWeights(_grid);
             MessageEditFormHelpers.WireSignalColorColumnPainting(_grid, GetColorForGridRow);
+            AppTheme.StyleGrid(_grid, "Сигналов пока нет. Добавьте первый сигнал или измените фильтры.");
+            _grid.SelectionChanged += (_, _) => UpdateSelectionActions();
 
             var gridHost = MessageEditFormHelpers.BuildSignalListWithPayloadGrid(_grid, _payloadGrid);
             WirePayloadSelectionSync();
 
-            var bottom = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(12),
-                Height = 54,
-                WrapContents = false
-            };
-            _btnSave.Text = "Сохранить изменения";
+            var card = new ModernCard { Dock = DockStyle.Fill, Margin = new Padding(0) };
+            var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4 };
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            content.Controls.Add(signalButtons, 0, 0);
+            content.Controls.Add(filterPanel, 0, 1);
+            content.Controls.Add(_lblFilterStatus, 0, 2);
+            content.Controls.Add(gridHost, 0, 3);
+            card.Controls.Add(content);
+            root.Controls.Add(card, 0, 2);
+
+            _btnSave.Text = "Применить изменения";
             _btnSave.AutoSize = true;
             _btnSave.Click += (_, _) => SaveChanges();
-            bottom.Controls.Add(_btnSave);
-
-            Controls.Add(gridHost);
-            Controls.Add(_lblFilterStatus);
-            Controls.Add(filterPanel);
-            Controls.Add(signalButtons);
-            Controls.Add(fmtPanel);
-            Controls.Add(top);
-            Controls.Add(bottom);
+            _btnClose.Text = "Закрыть";
+            _btnClose.AutoSize = true;
+            _btnClose.Click += (_, _) => Close();
+            _notice.Text = "Примените посылку, затем сохраните исходный файл.";
+            _notice.Tone = StatusTone.Neutral;
+            root.Controls.Add(MessageEditFormHelpers.BuildEditorFooter(_notice, _btnSave, _btnClose), 0, 3);
+            Controls.Add(root);
+            UpdateSelectionActions();
         }
 
         private Panel BuildSignalFilterPanel()
         {
             var panel = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
+                Dock = DockStyle.Fill,
                 AutoSize = true,
-                Padding = new Padding(12, 0, 12, 4),
+                Padding = new Padding(0, 0, 0, 8),
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = true
             };
 
-            _txtSearch.Width = 160;
-            _txtSearch.Margin = new Padding(3, 3, 8, 0);
-            _txtSearch.PlaceholderText = "Имя сигнала…";
+            _txtSearch.Width = 220;
+            _txtSearch.PlaceholderText = "Имя сигнала";
             _txtLenMin.PlaceholderText = "—";
             _txtLenMax.PlaceholderText = "—";
 
@@ -230,16 +210,13 @@ namespace logReader.UI
             _txtLenMin.TextChanged += OnFilterChanged;
             _txtLenMax.TextChanged += OnFilterChanged;
 
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Поиск:"));
-            panel.Controls.Add(_txtSearch);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Тип:"));
-            panel.Controls.Add(_cmbType);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Длина от:"));
-            panel.Controls.Add(_txtLenMin);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("до:"));
-            panel.Controls.Add(_txtLenMax);
-            panel.Controls.Add(MessageEditFormHelpers.MakeLabel("Порядок:"));
-            panel.Controls.Add(_cmbOrder);
+            panel.Controls.Add(MessageEditFormHelpers.BuildFilterField("Поиск", _txtSearch, 220));
+            panel.Controls.Add(MessageEditFormHelpers.BuildFilterField("Тип", _cmbType, 120));
+            panel.Controls.Add(MessageEditFormHelpers.BuildRangeFilter("Длина, бит", _txtLenMin, _txtLenMax));
+            panel.Controls.Add(MessageEditFormHelpers.BuildFilterField("Порядок байтов", _cmbOrder, 132));
+            var reset = new ModernButton { Text = "Сбросить", Icon = IconKind.Clear, Variant = ButtonVariant.Ghost, AutoSize = true, Margin = new Padding(8, 20, 0, 0) };
+            reset.Click += (_, _) => { _txtSearch.Clear(); _cmbType.SelectedIndex = 0; _cmbOrder.SelectedIndex = 0; _txtLenMin.Clear(); _txtLenMax.Clear(); };
+            panel.Controls.Add(reset);
 
             return panel;
         }
@@ -281,6 +258,8 @@ namespace logReader.UI
             _rbStandard.Checked = !m.IsExtended;
             RefreshGrid();
             _dirty = false;
+            _notice.Text = "Примените посылку, затем сохраните исходный файл.";
+            _notice.Tone = StatusTone.Neutral;
             UpdateTitle();
         }
 
@@ -342,6 +321,7 @@ namespace logReader.UI
             finally
             {
                 _syncingPayloadSelection = false;
+                UpdateSelectionActions();
             }
         }
 
@@ -415,6 +395,13 @@ namespace logReader.UI
 
         private int SelectedIndex() => MessageEditFormHelpers.SelectedSourceIndex(_grid);
 
+        private void UpdateSelectionActions()
+        {
+            bool selected = SelectedIndex() >= 0;
+            _btnEdit.Enabled = selected;
+            _btnDelete.Enabled = selected;
+        }
+
         private void SelectRowBySourceIndex(int sourceIndex)
             => MessageEditFormHelpers.SelectRowBySourceIndex(_grid, sourceIndex);
 
@@ -450,7 +437,7 @@ namespace logReader.UI
                 .Where((s, i) => i != idx)
                 .Any(s => s.Name.Equals(dlg.Signal.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                AppDialog.Show(this, "Сигнал с таким именем уже существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -465,7 +452,7 @@ namespace logReader.UI
             int idx = SelectedIndex();
             if (idx < 0 || idx >= _signals.Count) return;
 
-            var confirm = MessageBox.Show(
+            var confirm = AppDialog.Show(
                 this,
                 $"Удалить сигнал '{_signals[idx].Name}'?",
                 "Подтверждение",
@@ -486,6 +473,8 @@ namespace logReader.UI
 
             _dirty = false;
             _saved = true;
+            _notice.Text = "Изменения применены. Сохраните файл в редакторе посылок.";
+            _notice.Tone = StatusTone.Success;
             UpdateTitle();
         }
 
@@ -522,19 +511,19 @@ namespace logReader.UI
             string name = _txtName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                MessageBox.Show(this, "Введите имя посылки.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                AppDialog.Show(this, "Введите имя посылки.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return false;
             }
             if (name.Any(char.IsWhiteSpace))
             {
-                MessageBox.Show(this, "Имя посылки не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                AppDialog.Show(this, "Имя посылки не должно содержать пробелов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
                 return false;
             }
             if (!DbcLineParser.IsValidSymbolName(name))
             {
-                MessageBox.Show(this,
+                AppDialog.Show(this,
                     "Недопустимое имя посылки. " + DbcLineParser.SymbolNameRulesHint,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtName.Focus();
@@ -544,14 +533,14 @@ namespace logReader.UI
             bool isExtended = _rbExtended.Checked;
             if (!MessageEditFormHelpers.TryParseHexId(_txtId.Text, isExtended, out uint id, out string idError))
             {
-                MessageBox.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                AppDialog.Show(this, idError, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _txtId.Focus();
                 return false;
             }
 
             if (_signals.Count == 0)
             {
-                var cont = MessageBox.Show(
+                var cont = AppDialog.Show(
                     this,
                     "У посылки нет ни одного сигнала. Продолжить?",
                     "Подтверждение",
@@ -565,7 +554,7 @@ namespace logReader.UI
             {
                 if (!DbcLineParser.IsValidSymbolName(s.Name))
                 {
-                    MessageBox.Show(
+                    AppDialog.Show(
                         this,
                         $"Сигнал '{s.Name}': недопустимое имя. {DbcLineParser.SymbolNameRulesHint}",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -573,7 +562,7 @@ namespace logReader.UI
                 }
                 if (!SignalFitsInDlc(s, dlc))
                 {
-                    MessageBox.Show(
+                    AppDialog.Show(
                         this,
                         $"Сигнал '{s.Name}' выходит за пределы DLC={dlc} байт.",
                         "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);

@@ -11,12 +11,16 @@ namespace logReader.UI
         public HelpForm()
         {
             InitializeComponent();
+            AppTheme.Apply(this);
+            richTextBoxHelp.Font = Typography.Body;
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             CacheSearchText();
         }
 
         private void HelpForm_Load(object? sender, EventArgs e)
         {
+            treeViewTopics.ItemHeight = UiScale.Px(this, 32);
+            treeViewTopics.Indent = UiScale.Px(this, 16);
             BuildTree();
             SelectTopic("quickstart");
         }
@@ -48,6 +52,8 @@ namespace logReader.UI
             }
 
             treeViewTopics.EndUpdate();
+            labelTopicCount.Text = hasFilter
+                ? $"Найдено тем: {_nodesById.Count}" : $"Тем в справке: {_nodesById.Count}";
         }
 
         private void AddChildNodes(TreeNode parentNode, string parentId, string needle, bool hasFilter)
@@ -119,6 +125,8 @@ namespace logReader.UI
             if (topic == null)
                 return;
 
+            emptyHelp.Visible = false;
+            richTextBoxHelp.Visible = true;
             HelpRenderer.Render(richTextBoxHelp, topic, textBoxSearch.Text.Trim());
         }
 
@@ -137,7 +145,30 @@ namespace logReader.UI
                 SelectTopic((string)first.Tag!);
             }
             else
+            {
                 richTextBoxHelp.Clear();
+                richTextBoxHelp.Visible = false;
+                emptyHelp.Visible = true;
+                emptyHelp.BringToFront();
+            }
+        }
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F))
+            {
+                textBoxSearch.Focus();
+                textBoxSearch.SelectAll();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        protected override void OnDpiChanged(DpiChangedEventArgs e)
+        {
+            base.OnDpiChanged(e);
+            if (treeViewTopics == null) return;
+            treeViewTopics.ItemHeight = UiScale.Px(this, 32);
+            treeViewTopics.Indent = UiScale.Px(this, 16);
         }
     }
 }

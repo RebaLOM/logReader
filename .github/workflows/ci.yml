@@ -56,3 +56,6 @@ jobs:
 
       - name: Run tests
         run: dotnet test logReader.Tests/logReader.Tests.csproj -c Release
+
+      - name: Run native WinForms regression tests
+        run: dotnet test logReader.UI.Tests/logReader.UI.Tests.csproj -c Release --no-build

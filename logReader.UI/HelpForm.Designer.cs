@@ -2,120 +2,97 @@ namespace logReader.UI
 {
     partial class HelpForm
     {
-        private System.ComponentModel.IContainer components = null;
+        private System.ComponentModel.IContainer components = new System.ComponentModel.Container();
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
-                components.Dispose();
+            if (disposing) components?.Dispose();
             base.Dispose(disposing);
         }
 
-        #region Windows Form Designer generated code
-
         private void InitializeComponent()
         {
-            panelSearch = new Panel();
-            textBoxSearch = new TextBox();
-            splitContainer = new SplitContainer();
-            treeViewTopics = new TreeView();
-            richTextBoxHelp = new RichTextBox();
-            panelSearch.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)splitContainer).BeginInit();
-            splitContainer.Panel1.SuspendLayout();
-            splitContainer.Panel2.SuspendLayout();
-            splitContainer.SuspendLayout();
             SuspendLayout();
-            // 
-            // panelSearch
-            // 
-            panelSearch.Controls.Add(textBoxSearch);
-            panelSearch.Dock = DockStyle.Top;
-            panelSearch.Padding = new Padding(8, 8, 8, 4);
-            panelSearch.Size = new Size(900, 40);
-            panelSearch.TabIndex = 0;
-            // 
-            // textBoxSearch
-            // 
-            textBoxSearch.Dock = DockStyle.Fill;
-            textBoxSearch.Location = new Point(8, 8);
-            textBoxSearch.Name = "textBoxSearch";
-            textBoxSearch.PlaceholderText = "Поиск по справке…";
-            textBoxSearch.Size = new Size(884, 23);
-            textBoxSearch.TabIndex = 0;
-            textBoxSearch.TextChanged += textBoxSearch_TextChanged;
-            // 
-            // splitContainer
-            // 
-            splitContainer.Dock = DockStyle.Fill;
-            splitContainer.FixedPanel = FixedPanel.Panel1;
-            splitContainer.Location = new Point(0, 40);
-            splitContainer.Name = "splitContainer";
-            // 
-            // splitContainer.Panel1
-            // 
-            splitContainer.Panel1.Controls.Add(treeViewTopics);
-            splitContainer.Panel1.Padding = new Padding(4, 0, 0, 4);
-            // 
-            // splitContainer.Panel2
-            // 
-            splitContainer.Panel2.Controls.Add(richTextBoxHelp);
-            splitContainer.Panel2.Padding = new Padding(0, 0, 4, 4);
-            splitContainer.Size = new Size(900, 560);
-            splitContainer.SplitterDistance = 260;
-            splitContainer.TabIndex = 1;
-            // 
-            // treeViewTopics
-            // 
-            treeViewTopics.Dock = DockStyle.Fill;
-            treeViewTopics.HideSelection = false;
-            treeViewTopics.Location = new Point(4, 0);
-            treeViewTopics.Name = "treeViewTopics";
-            treeViewTopics.ShowLines = true;
-            treeViewTopics.ShowPlusMinus = true;
-            treeViewTopics.Size = new Size(256, 556);
-            treeViewTopics.TabIndex = 0;
-            treeViewTopics.AfterSelect += treeViewTopics_AfterSelect;
-            // 
-            // richTextBoxHelp
-            // 
-            richTextBoxHelp.BackColor = Color.White;
-            richTextBoxHelp.BorderStyle = BorderStyle.None;
-            richTextBoxHelp.Dock = DockStyle.Fill;
-            richTextBoxHelp.Location = new Point(0, 0);
-            richTextBoxHelp.Name = "richTextBoxHelp";
-            richTextBoxHelp.ReadOnly = true;
-            richTextBoxHelp.Size = new Size(632, 556);
-            richTextBoxHelp.TabIndex = 0;
-            richTextBoxHelp.Text = "";
-            // 
-            // HelpForm
-            // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(900, 600);
-            Controls.Add(splitContainer);
-            Controls.Add(panelSearch);
-            MinimumSize = new Size(720, 480);
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(1100, 760);
+            MinimumSize = new Size(800, 540);
+            Padding = new Padding(24);
             Name = "HelpForm";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Помощь";
+            Text = "Справка LOGER";
+
+            panelSearch = new ModernCard { Dock = DockStyle.Top, Height = 96, Padding = new Padding(16) };
+            textBoxSearch = new ModernTextBox
+            {
+                Dock = DockStyle.Top, Name = "textBoxSearch", TabIndex = 0,
+                PlaceholderText = "Поиск по разделам и тексту справки"
+            };
+            textBoxSearch.TextChanged += textBoxSearch_TextChanged;
+            panelSearch.Controls.Add(UiFactory.Field("ПОИСК В СПРАВКЕ", textBoxSearch));
+            splitContainer = new SplitContainer
+            {
+                Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel1, Name = "splitContainer",
+                Size = new Size(1052, 540), SplitterDistance = 286, SplitterWidth = 16,
+                Panel1MinSize = 220, Panel2MinSize = 360, BackColor = AppTheme.Background, TabIndex = 1
+            };
+            var navigation = new ModernCard { Dock = DockStyle.Fill, Padding = new Padding(16) };
+            var caption = new Label
+            {
+                Dock = DockStyle.Top, Text = "РАЗДЕЛЫ СПРАВКИ", Height = 32,
+                Font = Typography.Caption, ForeColor = AppTheme.TextSecondary
+            };
+            treeViewTopics = new TreeView
+            {
+                Dock = DockStyle.Fill, Name = "treeViewTopics", HideSelection = false,
+                ShowLines = false, ShowRootLines = false, ShowPlusMinus = true,
+                BorderStyle = BorderStyle.None, BackColor = AppTheme.Surface, ForeColor = AppTheme.TextPrimary,
+                Font = Typography.Body, ItemHeight = 30, Indent = 16, FullRowSelect = true, TabIndex = 0
+            };
+            treeViewTopics.AfterSelect += treeViewTopics_AfterSelect;
+            navigation.Controls.Add(treeViewTopics);
+            navigation.Controls.Add(caption);
+            var article = new ModernCard { Dock = DockStyle.Fill, Padding = new Padding(24) };
+            richTextBoxHelp = new RichTextBox
+            {
+                Dock = DockStyle.Fill, Name = "richTextBoxHelp", ReadOnly = true,
+                BorderStyle = BorderStyle.None, BackColor = AppTheme.Surface,
+                ForeColor = AppTheme.TextPrimary, Font = Typography.Body,
+                DetectUrls = false, HideSelection = false, ScrollBars = RichTextBoxScrollBars.Vertical,
+                TabIndex = 0
+            };
+            emptyHelp = new EmptyState
+            {
+                Dock = DockStyle.Fill, Icon = IconKind.Search, Title = "Ничего не найдено",
+                Description = "Попробуйте другое слово или очистите строку поиска.", Visible = false
+            };
+            article.Controls.Add(richTextBoxHelp);
+            article.Controls.Add(emptyHelp);
+            splitContainer.Panel1.Controls.Add(navigation);
+            splitContainer.Panel2.Controls.Add(article);
+            labelTopicCount = new Label
+            {
+                Dock = DockStyle.Bottom, Height = 36, TextAlign = ContentAlignment.MiddleLeft,
+                Font = Typography.Secondary, ForeColor = AppTheme.TextSecondary
+            };
+            var gap = new Panel { Dock = DockStyle.Top, Height = 16, BackColor = AppTheme.Background };
+            var header = UiFactory.Header("Справка", "Форматы логов, настройка устройств и работа с результатами", IconKind.Help);
+            header.Dock = DockStyle.Top;
+            Controls.Add(splitContainer);
+            Controls.Add(labelTopicCount);
+            Controls.Add(gap);
+            Controls.Add(panelSearch);
+            Controls.Add(header);
             Load += HelpForm_Load;
-            panelSearch.ResumeLayout(false);
-            panelSearch.PerformLayout();
-            splitContainer.Panel1.ResumeLayout(false);
-            splitContainer.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)splitContainer).EndInit();
-            splitContainer.ResumeLayout(false);
-            ResumeLayout(false);
+            ResumeLayout(true);
         }
 
-        #endregion
-
-        private Panel panelSearch;
-        private TextBox textBoxSearch;
-        private SplitContainer splitContainer;
-        private TreeView treeViewTopics;
-        private RichTextBox richTextBoxHelp;
+        private Panel panelSearch = null!;
+        private TextBox textBoxSearch = null!;
+        private SplitContainer splitContainer = null!;
+        private TreeView treeViewTopics = null!;
+        private RichTextBox richTextBoxHelp = null!;
+        private Label labelTopicCount = null!;
+        private EmptyState emptyHelp = null!;
     }
 }

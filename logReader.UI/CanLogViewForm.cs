@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Text;
 
 namespace logReader.UI
@@ -6,56 +6,87 @@ namespace logReader.UI
     public partial class CanLogViewForm : Form
     {
         private readonly string _sourcePath;
-        private Panel _innerPanel = null!;
-        private const int ROW_MARGIN = 2;
-
-        private int RowH => Font.Height + 10;
-        private int HeaderH => Font.Height + 14;
-
         private List<(string ID, int Count)> _packets = new();
+        private CancellationTokenSource? _loadingCancellation;
+        private ProgressBar _loadingProgress = null!;
 
         public CanLogViewForm(string sourcePath)
         {
             InitializeComponent();
+            AppTheme.Apply(this);
+            AppTheme.StyleGrid(dataGridPackets, "В этом логе нет распознанных посылок");
+            dataGridPackets.Columns[0].DefaultCellStyle.Font = Typography.Mono;
+            dataGridPackets.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
             _sourcePath = sourcePath;
-            Shown += (_, _) => LoadAndBuild();
+            _loadingProgress = new ProgressBar { Dock = DockStyle.Bottom, Height = UiScale.Px(this, 4),
+                Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30, Visible = false };
+            panelTop.Controls.Add(_loadingProgress);
+            FormClosed += (_, _) => _loadingCancellation?.Cancel();
+            Disposed += (_, _) => _loadingCancellation?.Cancel();
+            Shown += async (_, _) => await LoadAndBuildAsync();
         }
 
-        private void LoadAndBuild()
+        private async Task LoadAndBuildAsync()
         {
-            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
+            using var cancellation = new CancellationTokenSource();
+            _loadingCancellation = cancellation;
+            textBoxSearch.Enabled = false;
+            _loadingProgress.Visible = true;
+            dataGridPackets.Visible = false;
+            emptyState.Visible = true;
+            emptyState.Title = "Подсчитываем посылки";
+            emptyState.Description = "Читаем выбранные логи. Это может занять время для больших файлов.";
+            labelCount.Text = "Чтение логов…";
             try
             {
-                Span<int> bytes = stackalloc int[8];
-                var paths = ResolveInputPaths(_sourcePath);
-                if (paths.Count == 0)
+                var packets = await Task.Run(() => ReadPacketCounts(_sourcePath, cancellation.Token), cancellation.Token);
+                if (IsDisposed || cancellation.IsCancellationRequested) return;
+                if (packets == null)
                 {
-                    MessageBox.Show("В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
+                    AppDialog.Show("В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
                         "Нет логов", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     Close();
                     return;
                 }
-
-                foreach (var inputPath in paths)
-                    ProcessSingleLogFile(inputPath, counts, bytes);
+                _packets = packets;
+                labelCount.Text = $"Уникальных ID: {_packets.Count}   Всего посылок: {_packets.Sum(p => p.Count):N0}";
+                BuildList(_packets);
+            }
+            catch (OperationCanceledException)
+            {
+                // Closing the viewer cancels counting and does not show an error.
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка чтения файла: " + ex.Message,
+                if (IsDisposed || cancellation.IsCancellationRequested) return;
+                AppDialog.Show("Ошибка чтения файла: " + ex.Message,
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
-                return;
             }
+            finally
+            {
+                _loadingCancellation = null;
+                if (!IsDisposed)
+                {
+                    textBoxSearch.Enabled = true;
+                    _loadingProgress.Visible = false;
+                }
+            }
+        }
 
-            _packets = counts.OrderBy(kv => kv.Key)
-                             .Select(kv => (kv.Key, kv.Value))
-                             .ToList();
-
-            int totalPackets = _packets.Sum(p => p.Count);
-            labelCount.Text = $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}";
-            BuildList(_packets);
+        private static List<(string ID, int Count)>? ReadPacketCounts(string sourcePath, CancellationToken cancellation)
+        {
+            var paths = ResolveInputPaths(sourcePath);
+            if (paths.Count == 0) return null;
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            Span<int> bytes = stackalloc int[8];
+            foreach (string path in paths)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                ProcessSingleLogFile(path, counts, bytes, cancellation);
+            }
+            return counts.OrderBy(kv => kv.Key).Select(kv => (kv.Key, kv.Value)).ToList();
         }
 
         private static List<string> ResolveInputPaths(string sourcePath)
@@ -86,7 +117,8 @@ namespace logReader.UI
         private static void ProcessSingleLogFile(
             string inputPath,
             Dictionary<string, int> counts,
-            Span<int> bytes)
+            Span<int> bytes,
+            CancellationToken cancellation)
         {
             string ext = Path.GetExtension(inputPath);
             bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
@@ -97,12 +129,13 @@ namespace logReader.UI
             if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase)
                 && MatrixCsvLogParser.LooksLikeMatrixCsv(inputPath, encoding))
             {
-                ProcessMatrixCsvFile(inputPath, encoding, counts);
+                ProcessMatrixCsvFile(inputPath, encoding, counts, cancellation);
                 return;
             }
 
             foreach (var line in File.ReadLines(inputPath, encoding))
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
@@ -152,7 +185,8 @@ namespace logReader.UI
         private static void ProcessMatrixCsvFile(
             string inputPath,
             Encoding encoding,
-            Dictionary<string, int> counts)
+            Dictionary<string, int> counts,
+            CancellationToken cancellation)
         {
             bool headerRead = false;
             List<MatrixCsvColumn> columns = new();
@@ -160,6 +194,7 @@ namespace logReader.UI
 
             foreach (string line in File.ReadLines(inputPath, encoding))
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
@@ -200,118 +235,21 @@ namespace logReader.UI
 
         private void BuildList(List<(string ID, int Count)> items)
         {
-            scrollPanel.Controls.Clear();
+            dataGridPackets.SuspendLayout();
+            dataGridPackets.Rows.Clear();
+            foreach (var (id, count) in items)
+                dataGridPackets.Rows.Add(id, count.ToString("N0"));
+            dataGridPackets.ClearSelection();
+            dataGridPackets.ResumeLayout();
 
-            if (items.Count == 0)
-            {
-                scrollPanel.Controls.Add(new Label
-                {
-                    Text = "Ничего не найдено",
-                    Left = 12,
-                    Top = 12,
-                    AutoSize = true,
-                    ForeColor = Color.Gray
-                });
-                return;
-            }
-
-            int totalH = 4 + HeaderH + ROW_MARGIN;
-            foreach (var _ in items)
-                totalH += RowH + ROW_MARGIN;
-
-            int panelW = scrollPanel.ClientSize.Width
-                         - SystemInformation.VerticalScrollBarWidth - 2;
-            if (panelW < 100) panelW = scrollPanel.ClientSize.Width;
-
-            _innerPanel = new Panel
-            {
-                Top = 0,
-                Left = 0,
-                Width = panelW,
-                Height = totalH
-            };
-
-            int colCntW = 140;
-            var headerPanel = new Panel
-            {
-                Left = 4,
-                Top = 4,
-                Height = HeaderH,
-                Width = panelW - 8,
-                BackColor = Color.FromArgb(60, 80, 120)
-            };
-
-            int colIdW = headerPanel.Width - colCntW - 12;
-
-            headerPanel.Controls.Add(new Label
-            {
-                Text = "ID посылки",
-                Left = 8,
-                Top = 0,
-                Width = colIdW,
-                Height = HeaderH,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.White,
-                Font = new Font(Font, FontStyle.Bold)
-            });
-            headerPanel.Controls.Add(new Label
-            {
-                Text = "Кол-во посылок",
-                Left = colIdW + 4,
-                Top = 0,
-                Width = colCntW,
-                Height = HeaderH,
-                Anchor = AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleRight,
-                ForeColor = Color.White,
-                Font = new Font(Font, FontStyle.Bold)
-            });
-
-            _innerPanel.Controls.Add(headerPanel);
-
-            int yOffset = 4 + HeaderH + ROW_MARGIN;
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                var (id, count) = items[i];
-                Color bg = i % 2 == 0 ? Color.White : Color.FromArgb(245, 246, 250);
-
-                int rowW = panelW - 8;
-                var row = new Panel
-                {
-                    Left = 4,
-                    Top = yOffset,
-                    Height = RowH,
-                    Width = rowW,
-                    BackColor = bg
-                };
-
-                row.Controls.Add(new Label
-                {
-                    Text = id,
-                    Left = 8,
-                    Top = 0,
-                    Width = rowW - colCntW - 12,
-                    Height = RowH,
-                    TextAlign = ContentAlignment.MiddleLeft
-                });
-                row.Controls.Add(new Label
-                {
-                    Text = count.ToString("N0"),
-                    Left = rowW - colCntW - 4,
-                    Top = 0,
-                    Width = colCntW,
-                    Height = RowH,
-                    TextAlign = ContentAlignment.MiddleRight,
-                    ForeColor = Color.DimGray
-                });
-
-                _innerPanel.Controls.Add(row);
-                yOffset += RowH + ROW_MARGIN;
-            }
-
-            scrollPanel.Controls.Add(_innerPanel);
+            bool empty = items.Count == 0;
+            dataGridPackets.Visible = !empty;
+            emptyState.Visible = empty;
+            emptyState.Title = string.IsNullOrWhiteSpace(textBoxSearch.Text)
+                ? "Посылки не найдены" : "Нет совпадений";
+            emptyState.Description = string.IsNullOrWhiteSpace(textBoxSearch.Text)
+                ? "В выбранных файлах нет распознанных CAN-посылок."
+                : "Попробуйте другой CAN ID или очистите строку поиска.";
         }
 
         private void textBoxSearch_TextChanged(object? sender, EventArgs e)
@@ -331,17 +269,25 @@ namespace logReader.UI
             BuildList(filtered);
         }
 
-        protected override void OnResize(EventArgs e)
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            base.OnResize(e);
-            if (_packets.Count == 0 || scrollPanel == null) return;
+            if (keyData == (Keys.Control | Keys.F))
+            {
+                textBoxSearch.Focus();
+                textBoxSearch.SelectAll();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
 
-            string query = textBoxSearch.Text.Trim();
-            var current = string.IsNullOrEmpty(query)
-                ? _packets
-                : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
-
-            BuildList(current);
+        protected override void OnDpiChanged(DpiChangedEventArgs e)
+        {
+            base.OnDpiChanged(e);
+            if (dataGridPackets == null) return;
+            int rowHeight = UiScale.Px(this, 36);
+            dataGridPackets.RowTemplate.Height = rowHeight;
+            foreach (DataGridViewRow row in dataGridPackets.Rows) row.Height = rowHeight;
+            AppTheme.StyleGrid(dataGridPackets, "В этом логе нет распознанных посылок");
         }
     }
 }
