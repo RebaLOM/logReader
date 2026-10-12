@@ -233,7 +233,7 @@ namespace logReader.UI
         }
 
         public static int SelectedSourceIndex(DataGridView grid)
-            => grid.CurrentRow?.Tag is int idx ? idx : -1;
+            => grid.CurrentRow is { Selected: true, Tag: int idx } ? idx : -1;
 
         public static TextBox MakeFilterTextBox(int width = 44)
             => new()

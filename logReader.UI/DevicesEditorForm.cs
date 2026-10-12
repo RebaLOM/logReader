@@ -432,7 +432,7 @@ namespace logReader.UI
                 $"Удалить посылку '{name}'?",
                 "Подтверждение",
                 MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+                MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (confirm != DialogResult.Yes) return;
 
             if (UsesDbcModel)

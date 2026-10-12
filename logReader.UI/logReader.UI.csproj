@@ -17,6 +17,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\logReader\logReader.csproj" />
+		<InternalsVisibleTo Include="logReader.UI.Tests" />
 	</ItemGroup>
 
 	<ItemGroup>

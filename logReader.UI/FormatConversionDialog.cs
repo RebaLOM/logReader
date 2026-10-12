@@ -7,11 +7,14 @@ namespace logReader.UI
         private readonly ComboBox _pairComboBox;
         private readonly Button _convertButton;
         private readonly Button _openButton;
+        private readonly Button _closeButton;
         private readonly List<FormatConversionPair> _pairs;
         private readonly Action<string> _log;
         private bool _suppressOutputTextChanged;
         private bool _outputEditedByUser;
         private string? _convertedOutputPath;
+        private bool _busy;
+        private CancellationTokenSource? _conversionCancellation;
 
         internal FormatConversionDialog(
             IEnumerable<FormatConversionPair> pairs,
@@ -130,12 +133,22 @@ namespace logReader.UI
             };
             _openButton.Click += openButton_Click;
 
-            var cancelButton = new Button
+            _closeButton = new Button
             {
                 Text = "Закрыть",
-                DialogResult = DialogResult.Cancel,
                 Location = new Point(455, 188),
                 Size = new Size(93, 25)
+            };
+            _closeButton.Click += (_, _) =>
+            {
+                if (_busy)
+                {
+                    _conversionCancellation?.Cancel();
+                    _closeButton.Enabled = false;
+                    _log("Запрошена остановка преобразования.");
+                }
+                else
+                    Close();
             };
 
             Controls.Add(inputPathLabel);
@@ -148,49 +161,76 @@ namespace logReader.UI
             Controls.Add(browseOutputButton);
             Controls.Add(_convertButton);
             Controls.Add(_openButton);
-            Controls.Add(cancelButton);
+            Controls.Add(_closeButton);
 
             AcceptButton = _convertButton;
-            CancelButton = cancelButton;
+            CancelButton = _closeButton;
 
             UpdateDefaultOutputPath();
             UpdateConvertButtonState();
             UiScaling.Apply(this);
+            Disposed += (_, _) => _conversionCancellation?.Cancel();
         }
 
         private async void convertButton_Click(object? sender, EventArgs e)
         {
-            if (!TryPrepareConversion(
-                    out string inputPath,
-                    out string outPath,
-                    out FormatConversionPair pair))
+            if (_busy) return;
+            string inputPath;
+            string outPath;
+            FormatConversionPair pair;
+            try
             {
+                if (!TryPrepareConversion(out inputPath, out outPath, out pair)) return;
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                _log("Ошибка: проверьте путь файла. " + ex.Message);
                 return;
             }
 
             ClearConversionResult();
+            using var cancellation = new CancellationTokenSource();
+            _conversionCancellation = cancellation;
+            var context = new ProcessingContext(_log, cancellationToken: cancellation.Token);
             SetUiBusy(true);
-            bool success;
+            ProcessingResult? result = null;
             try
             {
-                success = await Task.Run(() => RunConversion(inputPath, outPath, pair));
+                result = await Task.Run(() => RunConversion(inputPath, outPath, pair, context), cancellation.Token);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                _log("Преобразование остановлено. Файл результата не изменён.");
             }
             catch (Exception ex)
             {
                 _log("Критическая ошибка: " + ex.Message);
-                success = false;
             }
             finally
             {
-                SetUiBusy(false);
+                _conversionCancellation = null;
+                if (!IsDisposed && !Disposing) SetUiBusy(false);
             }
 
-            if (success)
-                SetConversionResult(outPath);
+            if (IsDisposed || Disposing) return;
+            if (result is { Success: true })
+                SetConversionResult(result.OutputPath ?? outPath);
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (_busy)
+            {
+                e.Cancel = true;
+                _log("Дождитесь завершения преобразования или нажмите «Остановить».");
+                return;
+            }
+            base.OnFormClosing(e);
         }
 
         private void openButton_Click(object? sender, EventArgs e)
         {
+            if (_busy) return;
             if (string.IsNullOrWhiteSpace(_convertedOutputPath))
             {
                 _log("Нет файла для открытия. Сначала выполните преобразование.");
@@ -307,20 +347,20 @@ namespace logReader.UI
             return true;
         }
 
-        private bool RunConversion(string inputPath, string outPath, FormatConversionPair pair)
+        private static ProcessingResult RunConversion(string inputPath, string outPath, FormatConversionPair pair, ProcessingContext context)
         {
-            var context = new ProcessingContext(_log);
-            ProcessingResult result = pair.Id switch
+            context.ThrowIfCancellationRequested();
+            return pair.Id switch
             {
                 "trc_to_asc" => new TrcToAscConverter().Convert(inputPath, outPath, context),
                 "csv_to_asc" => new MatrixCsvToAscConverter().Convert(inputPath, outPath, context),
                 _ => context.Fail($"Ошибка: конвертация {pair.DisplayName} пока не поддерживается.")
             };
-            return result.Success;
         }
 
         private void SetUiBusy(bool busy)
         {
+            _busy = busy;
             _inputPathTextBox.Enabled = !busy;
             _outputPathTextBox.Enabled = !busy;
             _pairComboBox.Enabled = !busy;
@@ -328,7 +368,8 @@ namespace logReader.UI
             {
                 if (control is Button button
                     && button != _convertButton
-                    && button != _openButton)
+                    && button != _openButton
+                    && button != _closeButton)
                 {
                     button.Enabled = !busy;
                 }
@@ -339,6 +380,8 @@ namespace logReader.UI
                 && !string.IsNullOrWhiteSpace(_inputPathTextBox.Text)
                 && !string.IsNullOrWhiteSpace(_outputPathTextBox.Text);
             _convertButton.Text = busy ? "Преобразование..." : "Преобразовать";
+            _closeButton.Text = busy ? "Остановить" : "Закрыть";
+            _closeButton.Enabled = true;
 
             if (busy)
                 _openButton.Enabled = false;
@@ -350,6 +393,7 @@ namespace logReader.UI
 
         private void BrowseInputFile()
         {
+            if (_busy) return;
             var pair = SelectedPair;
             using var ofd = new OpenFileDialog();
             string sourceExt = pair.SourceExtension.TrimStart('.');
@@ -360,6 +404,7 @@ namespace logReader.UI
 
         private void BrowseOutputFile()
         {
+            if (_busy) return;
             var pair = SelectedPair;
             using var sfd = new SaveFileDialog();
             string targetExt = pair.TargetExtension.TrimStart('.');
@@ -401,7 +446,7 @@ namespace logReader.UI
 
         private void UpdateConvertButtonState()
         {
-            _convertButton.Enabled = _pairComboBox.SelectedItem != null
+            _convertButton.Enabled = !_busy && _pairComboBox.SelectedItem != null
                 && !string.IsNullOrWhiteSpace(_inputPathTextBox.Text)
                 && !string.IsNullOrWhiteSpace(_outputPathTextBox.Text);
         }

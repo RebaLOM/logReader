@@ -504,7 +504,7 @@ namespace logReader.UI
                 $"Удалить параметр '{_rows[idx].Header}'?",
                 "Подтверждение",
                 MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+                MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (confirm != DialogResult.Yes) return;
 
             _rows.RemoveAt(idx);

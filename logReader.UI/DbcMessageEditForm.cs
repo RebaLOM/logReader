@@ -470,7 +470,7 @@ namespace logReader.UI
                 $"Удалить сигнал '{_signals[idx].Name}'?",
                 "Подтверждение",
                 MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+                MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (confirm != DialogResult.Yes) return;
 
             _signals.RemoveAt(idx);

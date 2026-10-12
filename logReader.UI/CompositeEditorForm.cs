@@ -157,7 +157,7 @@ namespace logReader.UI
             }
         }
 
-        private int SelectedIndex() => _grid.CurrentRow?.Index ?? -1;
+        private int SelectedIndex() => _grid.CurrentRow is { Selected: true } row ? row.Index : -1;
 
         private bool IsDuplicate(CompositeSignal candidate, int exceptIndex)
             => _signals.Where((_, i) => i != exceptIndex).Any(s =>
@@ -214,7 +214,8 @@ namespace logReader.UI
                 $"Удалить параметр '{sig.Param}' (блок {sig.Block})?",
                 "Подтверждение",
                 MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2);
             if (confirm != DialogResult.Yes) return;
 
             _signals.RemoveAt(idx);

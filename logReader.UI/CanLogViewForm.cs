@@ -45,8 +45,9 @@ namespace logReader.UI
             try
             {
                 var token = _loading.Token;
-                var counts = await Task.Run(() => logReader.Processing.UnknownDevicesScanner.CollectLogIds(_sourcePath, null, token), token);
-                if (IsDisposed) return;
+                var warnings = new List<string>();
+                var counts = await Task.Run(() => logReader.Processing.UnknownDevicesScanner.CollectLogIds(_sourcePath, warnings.Add, token), token);
+                if (IsDisposed || token.IsCancellationRequested) return;
 
                 if (counts.Count == 0 && Directory.Exists(_sourcePath)
                     && !logReader.Processing.LogFolderScanner.EnumerateSupportedLogFiles(_sourcePath).Any())
@@ -62,6 +63,9 @@ namespace logReader.UI
                                  .ToList();
                 textBoxSearch.Enabled = true;
                 ApplyFilter();
+                if (warnings.Count > 0)
+                    MessageBox.Show(this, string.Join(Environment.NewLine, warnings),
+                        "Часть логов не прочитана", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (OperationCanceledException)
             {
@@ -86,8 +90,8 @@ namespace logReader.UI
                 ? _packets
                 : _packets.Where(p => p.ID.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            int totalPackets = _packets.Sum(p => p.Count);
-            int filteredPackets = _filtered.Sum(p => p.Count);
+            long totalPackets = _packets.Sum(p => (long)p.Count);
+            long filteredPackets = _filtered.Sum(p => (long)p.Count);
             labelCount.Text = string.IsNullOrEmpty(query)
                 ? $"Уникальных ID: {_packets.Count}   Всего посылок: {totalPackets:N0}"
                 : $"Найдено ID: {_filtered.Count} из {_packets.Count}   Посылок: {filteredPackets:N0} из {totalPackets:N0}";
@@ -111,6 +115,7 @@ namespace logReader.UI
         {
             if (disposing)
             {
+                if (!IsDisposed) _loading.Cancel();
                 _loading.Dispose();
                 components?.Dispose();
             }

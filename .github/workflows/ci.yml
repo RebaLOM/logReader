@@ -56,3 +56,14 @@ jobs:
 
       - name: Run tests
         run: dotnet test logReader.Tests/logReader.Tests.csproj -c Release
+
+      - name: Run classic WinForms regression tests
+        run: dotnet test logReader.UI.Tests/logReader.UI.Tests.csproj -c Release --no-build
+
+      - name: Publish classic UI build
+        run: dotnet publish logReader.UI/logReader.UI.csproj -c Release -r win-x64 --self-contained false -o artifacts/LOGER
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LOGER-classic-ui-win-x64
+          path: artifacts/LOGER

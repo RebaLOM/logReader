@@ -537,6 +537,17 @@ namespace logReader.UI
 
         private void buttonOutput_Click(object sender, EventArgs e)
         {
+            if (Directory.Exists(textBoxCanLog.Text.Trim()))
+            {
+                using var folder = new FolderBrowserDialog
+                {
+                    Description = "Папка для результатов обработки", UseDescriptionForTitle = true,
+                    ShowNewFolderButton = true
+                };
+                if (Directory.Exists(textBoxOutput.Text.Trim())) folder.SelectedPath = textBoxOutput.Text.Trim();
+                if (folder.ShowDialog(this) == DialogResult.OK) textBoxOutput.Text = folder.SelectedPath;
+                return;
+            }
             using SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
             sfd.DefaultExt = LogProcessingService.GetOutputExtension(_saveOptions.OutputFormat).TrimStart('.');
@@ -654,6 +665,7 @@ namespace logReader.UI
 
         private async void buttonDevicesParams_Click(object sender, EventArgs e)
         {
+            if (IsBusy || _closeWhenIdle) return;
             if (!IsDevicesFileSelectedAndExists())
             {
                 Log("Ошибка: сначала укажите файл посылок (.xlsx, .dbc или .dbf).");
@@ -686,7 +698,7 @@ namespace logReader.UI
             string canLogPath = textBoxCanLog.Text.Trim();
             LogDeviceScanResult? scan = await RunBusyAsync("Сверка с логом...", (context, token) =>
                 UnknownDevicesScanner.ScanLogDevices(canLogPath, devices, context.Log, token));
-            if (scan == null) return;
+            if (scan == null || _closeWhenIdle || IsDisposed) return;
 
             var missingInDevices = scan.MissingInDevices;
             // Источники составных параметров не считаем отсутствующими устройствами.
@@ -721,12 +733,14 @@ namespace logReader.UI
         private async Task<T?> RunBusyAsync<T>(string stage, Func<ProcessingContext, CancellationToken, T?> work)
             where T : class
         {
+            if (IsBusy || _closeWhenIdle || IsDisposed) return null;
             using var cts = new CancellationTokenSource();
             _operation = cts;
             SetBusy(true, stage);
             var progress = new Progress<ProcessingProgress>(p =>
             {
-                progressBarProcess.Value = (int)Math.Round(p.Fraction * progressBarProcess.Maximum);
+                if (!ReferenceEquals(_operation, cts) || IsDisposed || Disposing) return;
+                progressBarProcess.Value = (int)Math.Round(Math.Clamp(p.Fraction, 0, 1) * progressBarProcess.Maximum);
                 if (!string.IsNullOrEmpty(p.Stage))
                     labelProgress.Text = p.Stage;
             });
@@ -749,8 +763,8 @@ namespace logReader.UI
             finally
             {
                 _operation = null;
-                SetBusy(false, "");
-                if (_closeWhenIdle)
+                if (!IsDisposed && !Disposing) SetBusy(false, "");
+                if (_closeWhenIdle && IsHandleCreated && !IsDisposed)
                     BeginInvoke(Close);
             }
         }
@@ -786,11 +800,17 @@ namespace logReader.UI
         {
             if (!IsBusy) return;
 
+            e.Cancel = true;
             var answer = MessageBox.Show(this,
                 "Обработка ещё выполняется. Прервать её и закрыть программу?",
                 "LOGER", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            e.Cancel = true;
             if (answer != DialogResult.Yes) return;
+            // Work can finish while the confirmation's modal loop is running.
+            if (!IsBusy)
+            {
+                e.Cancel = false;
+                return;
+            }
 
             // Закрываемся после отмены: фоновая операция успеет удалить временные файлы.
             _closeWhenIdle = true;
@@ -799,6 +819,8 @@ namespace logReader.UI
 
         private async void buttonProcess_Click(object sender, EventArgs e)
         {
+            if (IsBusy || _closeWhenIdle) return;
+            buttonOpenOutput.Visible = false;
             textBoxLog.Clear();
 
             string canInput = textBoxCanLog.Text.Trim();
