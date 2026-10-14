@@ -69,6 +69,8 @@ namespace logReader.Processing
         public OutputFilter Filter { get; init; } = OutputFilter.All;
         public CompositeRuntime? Composites { get; init; }
         public bool IncludeDeviceIdHeaderRow { get; init; }
+        public bool IncludeDtc { get; init; }
+        public double DtcTimeoutMs { get; init; } = 2000;
         public DstConnectOptions DstConnect { get; init; } = new();
 
         public bool HasComposites => Composites != null && !Composites.IsEmpty;

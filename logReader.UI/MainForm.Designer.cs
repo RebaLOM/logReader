@@ -29,6 +29,7 @@ namespace logReader.UI
             textBoxOutput = new TextBox();
             buttonCANlog = new Button();
             buttonViewLog = new Button();
+            buttonDtcDiagnostics = new Button();
             buttonDevices = new Button();
             buttonComposites = new Button();
             buttonCompositesCreateOrAdd = new Button();
@@ -76,6 +77,7 @@ namespace logReader.UI
             contentSplit.Panel1.Controls.Add(buttonComposites);
             contentSplit.Panel1.Controls.Add(buttonDevices);
             contentSplit.Panel1.Controls.Add(buttonViewLog);
+            contentSplit.Panel1.Controls.Add(buttonDtcDiagnostics);
             contentSplit.Panel1.Controls.Add(buttonCANlog);
             contentSplit.Panel1.Controls.Add(textBoxOutput);
             contentSplit.Panel1.Controls.Add(textBoxComposites);
@@ -210,6 +212,17 @@ namespace logReader.UI
             buttonViewLog.Text = "Посылки";
             buttonViewLog.UseVisualStyleBackColor = true;
             buttonViewLog.Click += buttonViewLog_Click;
+            //
+            // buttonDtcDiagnostics
+            //
+            buttonDtcDiagnostics.Location = new Point(199, 56);
+            buttonDtcDiagnostics.Name = "buttonDtcDiagnostics";
+            buttonDtcDiagnostics.Size = new Size(156, 23);
+            buttonDtcDiagnostics.TabIndex = 22;
+            buttonDtcDiagnostics.Text = "Диагностика DTC…";
+            buttonDtcDiagnostics.AccessibleName = "Диагностика DTC";
+            buttonDtcDiagnostics.UseVisualStyleBackColor = true;
+            buttonDtcDiagnostics.Click += buttonDtcDiagnostics_Click;
             // 
             // buttonDevices
             // 
@@ -389,6 +402,7 @@ namespace logReader.UI
         private TextBox textBoxOutput;
         private Button buttonCANlog;
         private Button buttonViewLog;
+        private Button buttonDtcDiagnostics;
         private Button buttonDevices;
         private Button buttonComposites;
         private Button buttonCompositesCreateOrAdd;

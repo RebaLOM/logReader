@@ -10,6 +10,8 @@ namespace logReader.UI
         private readonly NumericUpDown _numBlockPeriod;
         private readonly NumericUpDown _numBlockStart;
         private readonly CheckBox _chkIncludeDeviceIdRow;
+        private readonly CheckBox _chkIncludeDtc;
+        private readonly NumericUpDown _numDtcTimeout;
         private bool _suppressFormatsEvents;
 
         internal OutputFormat SelectedOutputFormat { get; private set; }
@@ -17,6 +19,8 @@ namespace logReader.UI
         internal LogFormatKind SelectedFolderFormats { get; private set; } = LogFormatKind.All;
         internal DstConnectOptions SelectedDstConnectOptions { get; private set; } = new();
         internal bool IncludeDeviceIdHeaderRow { get; private set; }
+        internal bool IncludeDtc { get; private set; }
+        internal double DtcTimeoutMs { get; private set; } = 2000;
 
         internal SaveOptionsForm(
             OutputFormat currentFormat,
@@ -24,17 +28,21 @@ namespace logReader.UI
             DstConnectOptions currentDstOptions,
             string? logFolderPath,
             LogFormatKind currentFolderFormats,
-            bool includeDeviceIdHeaderRow = false)
+            bool includeDeviceIdHeaderRow = false,
+            bool includeDtc = false,
+            double dtcTimeoutMs = 2000)
         {
             SelectedDstConnectOptions = CloneDstOptions(currentDstOptions);
             IncludeDeviceIdHeaderRow = includeDeviceIdHeaderRow;
+            IncludeDtc = includeDtc;
+            DtcTimeoutMs = double.IsFinite(dtcTimeoutMs) && dtcTimeoutMs > 0 ? dtcTimeoutMs : 2000;
             Text = "Параметры сохранения";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(680, 472);
+            ClientSize = new Size(680, 560);
 
             var labelFormat = new Label
             {
@@ -121,13 +129,13 @@ namespace logReader.UI
             {
                 Text = "Режим сохранения при обработке папки:",
                 AutoSize = true,
-                Location = new Point(16, 206)
+                Location = new Point(16, 294)
             };
 
             _comboBatchMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(16, 231),
+                Location = new Point(16, 319),
                 Size = new Size(645, 23)
             };
             _comboBatchMode.Items.Add("Отдельный файл на каждый входной лог");
@@ -138,12 +146,12 @@ namespace logReader.UI
             {
                 Text = "Форматы в папке:",
                 AutoSize = true,
-                Location = new Point(16, 270)
+                Location = new Point(16, 358)
             };
 
             _formatsList = new CheckedListBox
             {
-                Location = new Point(16, 294),
+                Location = new Point(16, 382),
                 Size = new Size(645, 100),
                 CheckOnClick = true
             };
@@ -152,7 +160,7 @@ namespace logReader.UI
             _formatsHint = new Label
             {
                 AutoSize = false,
-                Location = new Point(16, 398),
+                Location = new Point(16, 486),
                 Size = new Size(645, 18),
                 ForeColor = Color.DimGray,
                 Text = ""
@@ -162,7 +170,7 @@ namespace logReader.UI
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Location = new Point(505, 432),
+                Location = new Point(505, 520),
                 Size = new Size(75, 26)
             };
             buttonOk.Click += buttonOk_Click;
@@ -176,7 +184,7 @@ namespace logReader.UI
             {
                 Text = "Отмена",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(586, 432),
+                Location = new Point(586, 520),
                 Size = new Size(75, 26)
             };
 
@@ -185,6 +193,39 @@ namespace logReader.UI
             Controls.Add(_dstPanel);
             Controls.Add(_chkIncludeDeviceIdRow);
             Controls.Add(labelIdRowHint);
+            _chkIncludeDtc = new CheckBox
+            {
+                Name = "includeDtc",
+                AccessibleName = "Добавлять DTC в результат обработки",
+                Text = "Добавлять DTC в результат обработки",
+                AutoSize = true,
+                Location = new Point(16, 206),
+                Checked = includeDtc
+            };
+            _numDtcTimeout = new NumericUpDown
+            {
+                Name = "dtcTimeoutSeconds",
+                AccessibleName = "Допустимый разрыв данных DTC, секунд",
+                Minimum = 0.001M,
+                Maximum = 3600,
+                DecimalPlaces = 3,
+                Increment = 0.1M,
+                Value = (decimal)Math.Clamp(DtcTimeoutMs / 1000, 0.001, 3600),
+                Location = new Point(238, 234),
+                Width = 100,
+                Enabled = includeDtc
+            };
+            _chkIncludeDtc.CheckedChanged += (_, _) => _numDtcTimeout.Enabled = _chkIncludeDtc.Checked;
+            Controls.Add(_chkIncludeDtc);
+            Controls.Add(new Label { Text = "Допустимый разрыв DTC, с:", AutoSize = true, Location = new Point(40, 237) });
+            Controls.Add(_numDtcTimeout);
+            Controls.Add(new Label
+            {
+                Text = "DTC1–DTC6: SPN / FMI; пусто — свободно, Н/Д — неизвестно",
+                AutoSize = true,
+                ForeColor = Color.DimGray,
+                Location = new Point(40, 262)
+            });
             Controls.Add(labelBatch);
             Controls.Add(_comboBatchMode);
             Controls.Add(labelFormats);
@@ -417,6 +458,8 @@ namespace logReader.UI
             };
 
             IncludeDeviceIdHeaderRow = _chkIncludeDeviceIdRow.Checked;
+            IncludeDtc = _chkIncludeDtc.Checked;
+            DtcTimeoutMs = (double)_numDtcTimeout.Value * 1000;
             SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
         }
     }

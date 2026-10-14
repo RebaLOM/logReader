@@ -64,12 +64,30 @@ namespace logReader.Processing
         private readonly OutputFilter _filter;
 
         public TimeAxisKind TimeKind { get; }
+        internal List<(double Time, DtcSnapshot Snapshot)>? DtcRows { get; }
+        private DtcOutputTimeline? _dtcTimeline;
+        private readonly double? _dtcTimeoutMs;
 
-        public TimeSeriesCollector(IEnumerable<Device> outputDevices, OutputFilter filter, TimeAxisKind timeKind)
+        public TimeSeriesCollector(IEnumerable<Device> outputDevices, OutputFilter filter, TimeAxisKind timeKind, double? dtcTimeoutMs = null)
         {
             _order = outputDevices.ToList();
             _filter = filter;
             TimeKind = timeKind;
+            _dtcTimeoutMs = dtcTimeoutMs;
+            if (dtcTimeoutMs.HasValue) DtcRows = new();
+        }
+
+        internal void BeginDtcFile()
+            => _dtcTimeline = _dtcTimeoutMs.HasValue ? new DtcOutputTimeline(_dtcTimeoutMs.Value) : null;
+
+        internal void ObserveDtc(string id, ReadOnlySpan<int> payload, double time)
+        {
+            if (DtcRows == null) return;
+            _dtcTimeline ??= new DtcOutputTimeline(_dtcTimeoutMs!.Value);
+            int previous = _dtcTimeline.Rows.Count;
+            _dtcTimeline.Observe(id, payload, time, TimeKind);
+            for (int i = previous; i < _dtcTimeline.Rows.Count; i++) DtcRows.Add(_dtcTimeline.Rows[i]);
+            _dtcTimeline.Rows.Clear();
         }
 
         // Ошибка поля хранится как NaN с особым битовым шаблоном: обычный NaN означает «нет значения».
@@ -78,9 +96,9 @@ namespace logReader.Processing
         internal static bool IsError(double value)
             => BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(ErrorMarker);
 
-        public bool HasData => _series.Values.Any(s => s.Times.Count > 0);
+        public bool HasData => _series.Values.Any(s => s.Times.Count > 0) || DtcRows?.Count > 0;
 
-        public int MaxRows => _series.Count == 0 ? 0 : _series.Values.Max(s => s.Times.Count);
+        public int MaxRows => Math.Max(_series.Count == 0 ? 0 : _series.Values.Max(s => s.Times.Count), DtcRows?.Count ?? 0);
 
         public void Record(Device device, double time)
         {
@@ -133,16 +151,16 @@ namespace logReader.Processing
             ProcessingContext context)
         {
             var columns = data.Columns();
-            if (columns.Count == 0)
+            if (columns.Count == 0 && data.DtcRows is not { Count: > 0 })
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            int maxRows = columns.Max(c => c.Series.Times.Count);
+            int maxRows = data.MaxRows;
             try
             {
                 if (settings.Format == OutputFormat.Xlsx)
-                    WriteExcel(columns, data.TimeKind, outputPath, sheetName, settings.IncludeDeviceIdHeaderRow, context);
+                    WriteExcel(columns, data.TimeKind, outputPath, sheetName, settings.IncludeDeviceIdHeaderRow, context, data.DtcRows);
                 else
-                    WriteCsv(columns, data.TimeKind, outputPath, settings.IncludeDeviceIdHeaderRow, context);
+                    WriteCsv(columns, data.TimeKind, outputPath, settings.IncludeDeviceIdHeaderRow, context, data.DtcRows);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -159,11 +177,12 @@ namespace logReader.Processing
             string outputPath,
             string sheetName,
             bool includeDeviceIdRow,
-            ProcessingContext context)
+            ProcessingContext context,
+            List<(double Time, DtcSnapshot Snapshot)>? dtcRows)
         {
             int headerRows = ExcelLayoutBuilder.HeaderRowCount(includeDeviceIdRow);
             int dataCapacity = Math.Max(1, ExcelLayoutBuilder.RowsPerSheet - headerRows);
-            int maxRows = columns.Max(c => c.Series.Times.Count);
+            int maxRows = Math.Max(columns.Count == 0 ? 0 : columns.Max(c => c.Series.Times.Count), dtcRows?.Count ?? 0);
             int sheetCount = Math.Max(1, (maxRows + dataCapacity - 1) / dataCapacity);
             var groups = columns.Select(c => c.Group).ToList();
             string? timeFormat = TimeAxisFormat.ExcelNumberFormat(timeKind);
@@ -177,6 +196,8 @@ namespace logReader.Processing
 
                 var ws = workbook.Worksheets.Add(ExcelLayoutBuilder.SheetNameForPart(sheetName, part + 1));
                 int firstDataRow = ExcelLayoutBuilder.BuildTimeSeriesHeaders(ws, groups, includeDeviceIdRow);
+                if (dtcRows != null)
+                    DtcOutput.WriteHeaders(ws, 1 + groups.Sum(g => 1 + g.ParamIndexes.Length), includeDeviceIdRow, true);
 
                 int col = 1;
                 foreach (var (group, series) in columns)
@@ -197,6 +218,18 @@ namespace logReader.Processing
 
                     col += 1 + group.ParamIndexes.Length;
                 }
+                if (dtcRows != null)
+                {
+                    for (int r = dataStart; r < dataEnd && r < dtcRows.Count; r++)
+                    {
+                        int excelRow = firstDataRow + r - dataStart;
+                        ws.Cell(excelRow, col).Value = dtcRows[r].Time;
+                        DtcOutput.WriteFields(ws, excelRow, col + 1, dtcRows[r].Snapshot);
+                    }
+                    if (timeFormat != null && dataEnd > dataStart && dataStart < dtcRows.Count)
+                        ws.Range(firstDataRow, col, firstDataRow + Math.Min(dataEnd, dtcRows.Count) - dataStart - 1, col)
+                            .Style.NumberFormat.Format = timeFormat;
+                }
             }
 
             if (sheetCount > 1)
@@ -215,7 +248,8 @@ namespace logReader.Processing
             TimeAxisKind timeKind,
             string outputPath,
             bool includeDeviceIdRow,
-            ProcessingContext context)
+            ProcessingContext context,
+            List<(double Time, DtcSnapshot Snapshot)>? dtcRows)
         {
             SafeFileWriter.Write(outputPath, tmp =>
             {
@@ -230,6 +264,7 @@ namespace logReader.Processing
                         for (int i = 0; i < group.ParamIndexes.Length; i++)
                             idRow.Add("");
                     }
+                    if (dtcRows != null) idRow.AddRange(new[] { "DTC" }.Concat(Enumerable.Repeat("", DtcOutput.Headers.Length)));
                     CsvOutput.WriteRow(writer, idRow);
                 }
 
@@ -239,9 +274,14 @@ namespace logReader.Processing
                     headerRow.Add("Время");
                     headerRow.AddRange(group.Headers.Select(CsvOutput.Text));
                 }
+                if (dtcRows != null)
+                {
+                    headerRow.Add("Время DTC");
+                    headerRow.AddRange(DtcOutput.Headers);
+                }
                 CsvOutput.WriteRow(writer, headerRow);
 
-                int maxRows = columns.Max(c => c.Series.Times.Count);
+                int maxRows = Math.Max(columns.Count == 0 ? 0 : columns.Max(c => c.Series.Times.Count), dtcRows?.Count ?? 0);
                 var row = new List<string>();
                 for (int r = 0; r < maxRows; r++)
                 {
@@ -260,6 +300,15 @@ namespace logReader.Processing
                             for (int i = 0; i <= group.ParamIndexes.Length; i++)
                                 row.Add("");
                         }
+                    }
+                    if (dtcRows != null)
+                    {
+                        if (r < dtcRows.Count)
+                        {
+                            row.Add(TimeAxisFormat.Format(dtcRows[r].Time, timeKind));
+                            row.AddRange(DtcOutput.Fields(dtcRows[r].Snapshot));
+                        }
+                        else row.AddRange(Enumerable.Repeat("", 1 + DtcOutput.Headers.Length));
                     }
                     CsvOutput.WriteRow(writer, row);
                 }

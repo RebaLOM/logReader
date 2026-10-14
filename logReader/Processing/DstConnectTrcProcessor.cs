@@ -30,6 +30,7 @@ namespace logReader.Processing
 
             // Все кадры нужны заранее для детектора блоков; байты — в одном буфере, ID — без дублей строк.
             var frames = new List<Frame>();
+            var corruptDtc = new List<(int NextFrame, double TimeMs, string Id)>();
             var data = new List<int>();
             var idPool = new Dictionary<string, string>(StringComparer.Ordinal);
             Span<int> byteSpan = stackalloc int[Device.MaxDataLength];
@@ -39,7 +40,11 @@ namespace logReader.Processing
                 {
                     if (!TrcLogParser.TryParseTrcFrameLine(line, out int messageIndex, out decimal timeMsRaw,
                             out _, out string id, out _, byteSpan, out int parsedByteCount))
+                    {
+                        if (settings.IncludeDtc && DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id))
+                            corruptDtc.Add((frames.Count, (double)timeMsRaw, id));
                         continue;
+                    }
 
                     if (!idPool.TryGetValue(id, out string? pooled))
                     {
@@ -83,7 +88,7 @@ namespace logReader.Processing
 
             var outputDevices = CompositeOutput.WithComposites(devices, composites);
             var columns = DstConnectCsvWriter.BuildColumns(outputDevices, filter);
-            if (columns.Count == 0)
+            if (columns.Count == 0 && !settings.IncludeDtc)
                 return context.Fail("Нет активных параметров для вывода.");
 
             var columnsByDevice = columns
@@ -93,9 +98,20 @@ namespace logReader.Processing
             foreach (var d in devices)
                 deviceById[d.ID] = d;
 
-            var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count);
+            var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count, settings.IncludeDtc);
+            var dtcDecoder = settings.IncludeDtc ? new LocarusDtcDecoder(settings.DtcTimeoutMs) : null;
+            var dtcStates = settings.IncludeDtc ? new Dictionary<DstConnectSnapshotRow, DtcSnapshot>() : null;
             int[] payload = new int[Device.MaxDataLength];
             var decodeContext = context.Slice(0.5, 0.4);
+            int corruptIndex = 0;
+            while (corruptIndex < corruptDtc.Count && corruptDtc[corruptIndex].NextFrame < firstFrame) corruptIndex++;
+
+            void CaptureDtcRows(int from)
+            {
+                if (dtcDecoder == null) return;
+                for (int r = from; r < tracker.Rows.Count; r++)
+                    dtcStates![tracker.Rows[r]] = dtcDecoder.SnapshotAt(tracker.Rows[r].StepMs);
+            }
 
             for (int f = firstFrame; f < frames.Count; f++)
             {
@@ -106,10 +122,21 @@ namespace logReader.Processing
                 }
 
                 var frame = frames[f];
+                int previousRows = tracker.Rows.Count;
                 tracker.OnFrameStart(frame.MessageIndex, frame.TimeMs, frame.Id);
+                CaptureDtcRows(previousRows);
+
+                // Corrupt diagnostic headers invalidate assembly without changing
+                // the valid CAN frames used by the existing block detector.
+                while (corruptIndex < corruptDtc.Count && corruptDtc[corruptIndex].NextFrame <= f)
+                {
+                    var corrupt = corruptDtc[corruptIndex++];
+                    dtcDecoder!.OnFrame(corrupt.Id, ReadOnlySpan<int>.Empty, corrupt.TimeMs);
+                }
 
                 data.CopyTo(frame.DataOffset, payload, 0, frame.DataLength);
                 var bytes = payload.AsSpan(0, frame.DataLength);
+                dtcDecoder?.OnFrame(frame.Id, bytes, frame.TimeMs);
 
                 if (deviceById.TryGetValue(frame.Id, out Device? device) && filter.IsDeviceEnabled(frame.Id))
                 {
@@ -133,17 +160,19 @@ namespace logReader.Processing
                 }
             }
 
+            int rowsBeforeFinish = tracker.Rows.Count;
             tracker.Finish(frames[^1].TimeMs);
+            CaptureDtcRows(rowsBeforeFinish);
 
             if (tracker.Rows.Count == 0)
                 return context.Fail("Нет данных для CSV ДСТ — проверьте файл посылок.");
 
             var outputColumns = DstConnectCsvWriter.FilterColumnsWithData(columns, tracker.Rows);
-            if (outputColumns.Count == 0)
+            if (outputColumns.Count == 0 && !settings.IncludeDtc)
                 return context.Fail("Нет колонок для CSV ДСТ — в логе нет посылок из файла устройств.");
 
             return DstConnectCsvWriter.Write(
-                outputPath, startTime, outputColumns, tracker.Rows, settings.IncludeDeviceIdHeaderRow, context.Slice(0.9, 0.1));
+                outputPath, startTime, outputColumns, tracker.Rows, settings.IncludeDeviceIdHeaderRow, context.Slice(0.9, 0.1), dtcStates);
         }
 
         private static void PushValues(

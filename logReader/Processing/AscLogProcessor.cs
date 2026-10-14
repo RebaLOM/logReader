@@ -11,7 +11,7 @@ namespace logReader.Processing
         {
             var composites = settings.Composites;
             var filter = settings.Filter;
-            if (devices.Count == 0 && !settings.HasComposites) return context.Fail("Ошибка: устройства не загружены.");
+            if (devices.Count == 0 && !settings.HasComposites && !settings.IncludeDtc) return context.Fail("Ошибка: устройства не загружены.");
             if (!File.Exists(ascPath)) return context.Fail($"Ошибка: файл не найден: {ascPath}");
 
             // Устройства кешируются в UI — сброс перед каждым прогоном.
@@ -30,17 +30,32 @@ namespace logReader.Processing
                 deviceByID[d.ID] = d;
 
             var collector = new TimeSeriesCollector(
-                CompositeOutput.WithComposites(devices, composites), filter, TimeAxisKind.TimeOfDay);
+                CompositeOutput.WithComposites(devices, composites), filter, TimeAxisKind.TimeOfDay,
+                settings.IncludeDtc ? settings.DtcTimeoutMs : null);
 
             try
             {
                 Span<int> bytes = stackalloc int[Device.MaxDataLength];
                 long previousTicks = 0;
+                long dtcPreviousTicks = 0;
 
                 foreach (var line in LogFileReader.ReadLines(ascPath, encoding, context.Slice(0, 0.8)))
                 {
+                    bool diagnosticOnly = false;
                     if (!AscLogParser.TryParseFrameLine(line, format, out long offsetTicks, out string id, bytes, out int parsedByteCount))
-                        continue;
+                    {
+                        if (!settings.IncludeDtc || !DtcFrameBoundary.TryAsc(line, format, out offsetTicks, out id)) continue;
+                        diagnosticOnly = true;
+                        parsedByteCount = 0;
+                    }
+
+                    if (settings.IncludeDtc)
+                    {
+                        long dtcOffset = format.RelativeTimestamps ? dtcPreviousTicks + offsetTicks : offsetTicks;
+                        dtcPreviousTicks = dtcOffset;
+                        collector.ObserveDtc(id, bytes[..parsedByteCount], (baseTicks + dtcOffset) / (double)TimeSpan.TicksPerDay);
+                    }
+                    if (diagnosticOnly) continue;
 
                     // «timestamps relative» — смещение от предыдущего кадра, а не от начала записи.
                     long offset = format.RelativeTimestamps ? previousTicks + offsetTicks : offsetTicks;

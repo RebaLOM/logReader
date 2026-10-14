@@ -19,7 +19,7 @@ namespace logReader.Processing
             ProcessingContext context)
         {
             var composites = settings.Composites;
-            if (devices.Count == 0 && !settings.HasComposites)
+            if (devices.Count == 0 && !settings.HasComposites && !settings.IncludeDtc)
                 return context.Fail("Ошибка: устройства не загружены.");
             if (csvPaths.Count == 0)
                 return context.Fail("Ошибка: не указаны файлы CSV.");
@@ -64,10 +64,10 @@ namespace logReader.Processing
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
             var activeBlocks = CanLogProcessor.ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
             var outputColumns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
-            if (outputColumns.Count == 0)
+            if (outputColumns.Count == 0 && !settings.IncludeDtc)
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            using var writer = new StepOutputWriter(outputPath, settings.Format, outputColumns, settings.IncludeDeviceIdHeaderRow);
+            using var writer = new StepOutputWriter(outputPath, settings.Format, outputColumns, settings.IncludeDeviceIdHeaderRow, settings.IncludeDtc);
             int step = 0;
             Span<int> msgBytes = stackalloc int[8];
 
@@ -83,6 +83,7 @@ namespace logReader.Processing
                     composites?.Reset();
 
                     var timeTracker = new MatrixCsvTimeTracker();
+                    var dtc = settings.IncludeDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
                     bool headerSkipped = false;
                     var fileContext = context.Slice((double)f / inputs.Count, 1.0 / inputs.Count, Path.GetFileName(csvPath));
 
@@ -109,7 +110,13 @@ namespace logReader.Processing
                             if (column.ColumnIndex >= parts.Length) continue;
                             string cell = parts[column.ColumnIndex];
                             if (MatrixCsvLogParser.IsCellEmpty(cell)) continue;
-                            if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes)) continue;
+                            if (!MatrixCsvLogParser.TryParsePayloadHex(cell, msgBytes))
+                            {
+                                dtc?.Add(column.Id, ReadOnlySpan<int>.Empty);
+                                continue;
+                            }
+
+                            dtc?.Add(column.Id, msgBytes);
 
                             if (deviceByID.TryGetValue(column.Id, out Device? dev))
                             {
@@ -123,7 +130,7 @@ namespace logReader.Processing
                         foreach (var block in activeBlocks)
                             block.Decode();
 
-                        writer.WriteRow(step, timeText);
+                        writer.WriteRow(step, timeText, dtc?.Finish(absoluteTime.TotalMilliseconds));
                     }
                 }
 

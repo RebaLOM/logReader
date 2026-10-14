@@ -51,7 +51,8 @@ namespace logReader.Processing
             IReadOnlyList<Column> columns,
             IReadOnlyList<DstConnectSnapshotRow> rows,
             bool includeDeviceIdHeaderRow,
-            ProcessingContext context)
+            ProcessingContext context,
+            IReadOnlyDictionary<DstConnectSnapshotRow, DtcSnapshot>? dtcStates = null)
         {
             try
             {
@@ -69,11 +70,13 @@ namespace logReader.Processing
                             idRow.Add(ReferenceEquals(col.Device, lastDevice) ? "" : CsvOutput.Text(col.Device.ID));
                             lastDevice = col.Device;
                         }
+                        if (dtcStates != null) idRow.AddRange(Enumerable.Repeat("", DtcOutput.Headers.Length));
                         CsvOutput.WriteRow(writer, idRow);
                     }
 
                     var headerRow = new List<string> { "Time", "Step" };
                     headerRow.AddRange(columns.Select(c => CsvOutput.Text(c.Header)));
+                    if (dtcStates != null) headerRow.AddRange(DtcOutput.Headers);
                     CsvOutput.WriteRow(writer, headerRow);
 
                     var line = new List<string>(columns.Count + 2);
@@ -85,6 +88,8 @@ namespace logReader.Processing
                         line.Add(FormatStep(row.StepMs));
                         foreach (var col in columns)
                             line.Add(FormatValue(row.Values[col.Index]));
+                        if (dtcStates != null)
+                            line.AddRange(DtcOutput.Fields(dtcStates.TryGetValue(row, out var dtc) ? dtc : null));
                         CsvOutput.WriteRow(writer, line);
                     }
                 });

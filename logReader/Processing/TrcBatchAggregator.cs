@@ -35,7 +35,8 @@ namespace logReader.Processing
                 inputs = inputs.OrderBy(i => i.StartTime).ToList();
 
             aggregate = new TimeSeriesCollector(CompositeOutput.WithComposites(devices, composites), filter,
-                absolute ? TimeAxisKind.DateTime : TimeAxisKind.Milliseconds);
+                absolute ? TimeAxisKind.DateTime : TimeAxisKind.Milliseconds,
+                settings.IncludeDtc ? settings.DtcTimeoutMs : null);
 
             var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in devices)
@@ -56,31 +57,42 @@ namespace logReader.Processing
                     // Устройства кешируются в UI — сброс перед каждым файлом пакета.
                     DeviceFiles.ResetState(devices);
                     composites?.Reset();
+                    aggregate.BeginDtcFile();
 
                     foreach (var line in LogFileReader.ReadLines(input.Path, input.Encoding, fileContext))
                     {
                         string id;
                         int parsedByteCount;
                         double timeVal;
+                        bool diagnosticOnly = false;
 
                         if (isCanfox)
                         {
                             if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out DateOnly date, out double dayFraction, out id, bytes, out parsedByteCount))
-                                continue;
+                            {
+                                if (!settings.IncludeDtc || !DtcFrameBoundary.TryCanfox(line, out date, out dayFraction, out id)) continue;
+                                diagnosticOnly = true;
+                                parsedByteCount = 0;
+                            }
                             timeVal = date.ToDateTime(TimeOnly.MinValue).ToOADate() + dayFraction;
                         }
                         else
                         {
                             if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
-                                continue;
+                            {
+                                if (!settings.IncludeDtc || !DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id)) continue;
+                                diagnosticOnly = true;
+                                parsedByteCount = 0;
+                            }
                             double timeMs = (double)timeMsRaw;
-                            lastTimeMs = Math.Max(lastTimeMs, timeMs);
+                            if (!diagnosticOnly) lastTimeMs = Math.Max(lastTimeMs, timeMs);
                             timeVal = absolute
                                 ? TimeAxisFormat.ToOADate(input.StartTime!.Value.AddMilliseconds(timeMs))
                                 : sequentialOffsetMs + timeMs;
                         }
 
-                        Record(id, timeVal, bytes[..parsedByteCount], deviceById, composites, filter, aggregate);
+                        if (diagnosticOnly) aggregate.ObserveDtc(id, ReadOnlySpan<int>.Empty, timeVal);
+                        else Record(id, timeVal, bytes[..parsedByteCount], deviceById, composites, filter, aggregate);
                     }
 
                     sequentialOffsetMs += lastTimeMs;
@@ -172,22 +184,45 @@ namespace logReader.Processing
                     // Устройства кешируются в UI — сброс перед каждым файлом пакета.
                     DeviceFiles.ResetState(devices);
                     composites?.Reset();
+                    var dtcTimeline = settings.IncludeDtc ? new DtcOutputTimeline(settings.DtcTimeoutMs) : null;
+                    var dtcDates = new HashSet<DateOnly>();
 
                     foreach (var line in LogFileReader.ReadLines(trcPath, encoding, fileContext))
                     {
+                        bool diagnosticOnly = false;
                         if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out string id, out _, bytes, out int parsedByteCount))
-                            continue;
+                        {
+                            if (!settings.IncludeDtc || !DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id)) continue;
+                            diagnosticOnly = true;
+                            parsedByteCount = 0;
+                        }
 
                         DateTime frameTime = startTime.Value.AddMilliseconds((double)timeMsRaw);
                         DateOnly date = DateOnly.FromDateTime(frameTime);
 
                         if (!aggregatesByDate.TryGetValue(date, out var agg))
                         {
-                            agg = new TimeSeriesCollector(outputDevices, filter, TimeAxisKind.DateTime);
+                            agg = new TimeSeriesCollector(outputDevices, filter, TimeAxisKind.DateTime,
+                                settings.IncludeDtc ? settings.DtcTimeoutMs : null);
                             aggregatesByDate[date] = agg;
                         }
 
-                        Record(id, TimeAxisFormat.ToOADate(frameTime), bytes[..parsedByteCount], deviceById, composites, filter, agg);
+                        double outputTime = TimeAxisFormat.ToOADate(frameTime);
+                        if (dtcTimeline != null)
+                        {
+                            int priorRows = dtcTimeline.Rows.Count;
+                            dtcTimeline.Observe(id, bytes[..parsedByteCount], outputTime, TimeAxisKind.DateTime);
+                            if (priorRows == dtcTimeline.Rows.Count && dtcDates.Add(date))
+                                agg.DtcRows!.Add((outputTime, dtcTimeline.CurrentAt(outputTime, TimeAxisKind.DateTime)));
+                            else
+                            {
+                                dtcDates.Add(date);
+                                for (int i = priorRows; i < dtcTimeline.Rows.Count; i++) agg.DtcRows!.Add(dtcTimeline.Rows[i]);
+                            }
+                            dtcTimeline.Rows.Clear();
+                        }
+
+                        if (!diagnosticOnly) Record(id, outputTime, bytes[..parsedByteCount], deviceById, composites, filter, agg, observeDtc: false);
                     }
 
                     usedFiles++;
@@ -211,8 +246,10 @@ namespace logReader.Processing
             Dictionary<string, Device> deviceById,
             CompositeRuntime? composites,
             OutputFilter filter,
-            TimeSeriesCollector collector)
+            TimeSeriesCollector collector,
+            bool observeDtc = true)
         {
+            if (observeDtc) collector.ObserveDtc(id, bytes, time);
             composites?.OnMessage(id, bytes, bytes.Length);
             CompositeOutput.EmitTriggered(composites, id, time, collector, filter);
 

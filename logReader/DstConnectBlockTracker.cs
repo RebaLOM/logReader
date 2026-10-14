@@ -32,7 +32,7 @@ namespace logReader
         private int _framesInCurrentBlock;
         private int _currentBlockSlot = -1;
 
-        public DstConnectBlockTracker(DstConnectOptions options, TrcBlockDetectionResult detection, int columnCount)
+        public DstConnectBlockTracker(DstConnectOptions options, TrcBlockDetectionResult detection, int columnCount, bool emitEmptyBlocks = false)
         {
             _options = options;
             _detection = detection;
@@ -40,6 +40,7 @@ namespace logReader
             _currentBlock = new double[columnCount];
             _currentBlockSet = new bool[columnCount];
             Array.Fill(_globalState, double.NaN);
+            _hasGlobalState = emitEmptyBlocks;
         }
 
         public IReadOnlyList<DstConnectSnapshotRow> Rows => _rows;
