@@ -10,6 +10,8 @@ namespace logReader.UI
         private readonly NumericUpDown _numBlockPeriod;
         private readonly NumericUpDown _numBlockStart;
         private readonly CheckBox _chkIncludeDeviceIdRow;
+        private readonly CheckBox _chkIncludeDtc;
+        private readonly NumericUpDown _numDtcTimeout;
         private bool _suppressFormatsEvents;
 
         internal OutputFormat SelectedOutputFormat { get; private set; }
@@ -17,6 +19,8 @@ namespace logReader.UI
         internal LogFormatKind SelectedFolderFormats { get; private set; } = LogFormatKind.All;
         internal DstConnectOptions SelectedDstConnectOptions { get; private set; } = new();
         internal bool IncludeDeviceIdHeaderRow { get; private set; }
+        internal bool IncludeDtc { get; private set; }
+        internal double DtcTimeoutMs { get; private set; } = 2000;
 
         internal SaveOptionsForm(
             OutputFormat currentFormat,
@@ -24,17 +28,22 @@ namespace logReader.UI
             DstConnectOptions currentDstOptions,
             string? logFolderPath,
             LogFormatKind currentFolderFormats,
-            bool includeDeviceIdHeaderRow = false)
+            bool includeDeviceIdHeaderRow = false,
+            bool includeDtc = false,
+            double dtcTimeoutMs = 2000)
         {
             SelectedDstConnectOptions = CloneDstOptions(currentDstOptions);
             IncludeDeviceIdHeaderRow = includeDeviceIdHeaderRow;
+            IncludeDtc = includeDtc;
+            DtcTimeoutMs = double.IsFinite(dtcTimeoutMs) && dtcTimeoutMs > 0 ? dtcTimeoutMs : 2000;
             Text = "Параметры сохранения";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false;
-            MaximizeBox = false;
+            MaximizeBox = true;
             ShowInTaskbar = false;
-            ClientSize = new Size(900, 720);
+            ClientSize = new Size(1000, 940);
+            MinimumSize = new Size(780, 560);
 
             _comboOutputFormat = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Top };
             _comboOutputFormat.Items.AddRange(new object[] { "XLSX", "CSV", "CSV ДСТ Коннект" });
@@ -100,6 +109,43 @@ namespace logReader.UI
             _dstPanel.Dock = DockStyle.Top;
             _dstPanel.Margin = new Padding(0, 0, 12, 14);
 
+            _chkIncludeDtc = new CheckBox
+            {
+                Name = "includeDtc", AccessibleName = "Добавлять DTC в результат обработки",
+                Text = "Добавлять DTC в результат обработки", AutoSize = true,
+                Dock = DockStyle.Top, Checked = includeDtc
+            };
+            _numDtcTimeout = new NumericUpDown
+            {
+                Name = "dtcTimeoutSeconds", AccessibleName = "Допустимый разрыв данных DTC, секунд",
+                Minimum = 0.001M, Maximum = 3600, DecimalPlaces = 3, Increment = 0.1M,
+                Value = (decimal)Math.Clamp(DtcTimeoutMs / 1000, 0.001, 3600),
+                Width = 100, Enabled = includeDtc, Margin = new Padding(8, 3, 0, 3)
+            };
+            _chkIncludeDtc.CheckedChanged += (_, _) => _numDtcTimeout.Enabled = _chkIncludeDtc.Checked;
+            var dtcTimeoutLine = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top, AutoSize = true, WrapContents = true,
+                Padding = new Padding(0, 10, 0, 0)
+            };
+            dtcTimeoutLine.Controls.Add(new Label
+            {
+                Text = "Допустимый разрыв данных, с:", AutoSize = true,
+                Margin = new Padding(0, 6, 0, 3)
+            });
+            dtcTimeoutLine.Controls.Add(_numDtcTimeout);
+            var dtcHint = new Label
+            {
+                Text = "DTC1–DTC6: SPN / FMI. Пусто — нет подтверждённого значения.",
+                Dock = DockStyle.Top, Height = 40, Tag = "muted", Padding = new Padding(0, 8, 0, 0)
+            };
+            var dtcContent = new Panel { Dock = DockStyle.Fill };
+            dtcContent.Controls.Add(dtcHint);
+            dtcContent.Controls.Add(dtcTimeoutLine);
+            dtcContent.Controls.Add(_chkIncludeDtc);
+            var dtcSection = DialogLayout.Section("Диагностика DTC в результате", dtcContent);
+            dtcSection.Height = 196;
+
             _formatsList = new ThemedCheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, IntegralHeight = false };
             _formatsList.ItemCheck += formatsList_ItemCheck;
             _formatsHint = new Label { Dock = DockStyle.Bottom, Height = 24, Tag = "muted", TextAlign = ContentAlignment.MiddleLeft };
@@ -108,16 +154,19 @@ namespace logReader.UI
             formatsContent.Controls.Add(_formatsHint);
             var body = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
+                Name = "saveOptionsBody", Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                ColumnCount = 1, RowCount = 4, Margin = Padding.Empty,
                 Padding = new Padding(24, 0, 12, 0), Tag = "background"
             };
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             body.RowStyles.Add(new RowStyle(SizeType.Absolute, 194));
-            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 140));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 196));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
             body.Controls.Add(topCards, 0, 0);
             body.Controls.Add(_dstPanel, 0, 1);
-            body.Controls.Add(DialogLayout.Section("Форматы в папке", formatsContent, compact: true), 0, 2);
+            body.Controls.Add(dtcSection, 0, 2);
+            body.Controls.Add(DialogLayout.Section("Форматы в папке", formatsContent, compact: true), 0, 3);
 
             var buttonOk = new Button { Text = "Применить параметры", DialogResult = DialogResult.OK, Tag = "primary", AutoSize = true, MinimumSize = new Size(170, 34) };
             buttonOk.Click += buttonOk_Click;
@@ -133,7 +182,30 @@ namespace logReader.UI
             };
             footer.Controls.Add(buttonOk);
             footer.Controls.Add(buttonCancel);
-            Controls.Add(body);
+            var scroll = new Panel { Name = "saveOptionsScroll", Dock = DockStyle.Fill, AutoScroll = true, Tag = "background" };
+            scroll.Controls.Add(body);
+            bool layingOutBody = false;
+            scroll.Layout += (_, _) =>
+            {
+                if (layingOutBody) return;
+                layingOutBody = true;
+                try
+                {
+                    body.RowStyles[1].Height = _comboOutputFormat.SelectedIndex == 2
+                        ? LogicalToDeviceUnits(140) : 0;
+                    if (_comboOutputFormat.SelectedIndex == 2) _dstPanel.Height = LogicalToDeviceUnits(126);
+                    int height = body.Padding.Vertical + (int)Math.Ceiling(body.RowStyles.Cast<RowStyle>().Sum(row => row.Height));
+                    // Let the scroll panel move this fixed-size child. AutoSize
+                    // constraints and a right anchor can cancel native scrolling
+                    // when nested controls receive focus or ScrollControlIntoView.
+                    int width = scroll.Width - (height > scroll.Height ? SystemInformation.VerticalScrollBarWidth : 0);
+                    body.Size = new Size(Math.Max(1, width), height);
+                    scroll.AutoScrollMinSize = new Size(0, height);
+                }
+                finally { layingOutBody = false; }
+            };
+            _comboOutputFormat.SelectedIndexChanged += (_, _) => scroll.PerformLayout();
+            Controls.Add(scroll);
             Controls.Add(DialogLayout.Header(this, "Экспорт / Настройки", "Параметры результата"));
             Controls.Add(footer);
             AcceptButton = buttonOk;
@@ -360,6 +432,8 @@ namespace logReader.UI
             };
 
             IncludeDeviceIdHeaderRow = _chkIncludeDeviceIdRow.Checked;
+            IncludeDtc = _chkIncludeDtc.Checked;
+            DtcTimeoutMs = (double)_numDtcTimeout.Value * 1000;
             SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
         }
     }

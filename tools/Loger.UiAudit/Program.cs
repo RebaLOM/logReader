@@ -705,7 +705,18 @@ internal static class Program
         Field<TextBox>(main, "textBoxDevices").Text = description;
         Field<TextBox>(main, "textBoxOutput").Text = output; Pump();
     }
-    private static Form Form(string name, params object?[] args) => (Form)Activator.CreateInstance(_ui.GetType("logReader.UI." + name, true)!, Members, null, args, null)!;
+    private static Form Form(string name, params object?[] args)
+    {
+        Type type = _ui.GetType("logReader.UI." + name, true)!;
+        var constructor = type.GetConstructors(Members).OrderBy(c => c.GetParameters().Length).First(c =>
+        {
+            var parameters = c.GetParameters();
+            return parameters.Length >= args.Length && parameters.Skip(args.Length).All(p => p.HasDefaultValue)
+                && parameters.Take(args.Length).Select((p, i) => args[i] == null || p.ParameterType.IsInstanceOfType(args[i])).All(matches => matches);
+        });
+        object?[] padded = args.Concat(constructor.GetParameters().Skip(args.Length).Select(p => p.DefaultValue)).ToArray();
+        return (Form)constructor.Invoke(padded);
+    }
     private static object? Static(string type, string method, params object?[] args)
     {
         var member = _core.GetType("logReader." + type, true)!.GetMethods(BindingFlags.Static | BindingFlags.Public)

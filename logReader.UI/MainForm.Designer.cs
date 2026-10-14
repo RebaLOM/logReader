@@ -48,6 +48,7 @@ namespace logReader.UI
             labelProgress.Visible = false;
             buttonCANlog = WorkspaceButton("Выбрать источник…", "buttonCANlog", buttonCANlog_Click);
             buttonViewLog = WorkspaceButton("Просмотр пакетов", "buttonViewLog", buttonViewLog_Click);
+            buttonDtcDiagnostics = WorkspaceButton("Диагностика DTC…", "buttonDtcDiagnostics", buttonDtcDiagnostics_Click);
             buttonDevices = WorkspaceButton("Выбрать файл…", "buttonDevices", buttonDevices_Click);
             buttonDevicesParams = WorkspaceButton("Устройства и параметры", "buttonDevicesParams", buttonDevicesParams_Click);
             buttonDevicesCreateOrAdd = WorkspaceButton("Создать...", "buttonDevicesCreateOrAdd", buttonDevicesCreateOrAdd_Click);
@@ -102,6 +103,7 @@ namespace logReader.UI
         private TextBox textBoxOutput = null!;
         private Button buttonCANlog = null!;
         private Button buttonViewLog = null!;
+        private Button buttonDtcDiagnostics = null!;
         private Button buttonDevices = null!;
         private Button buttonComposites = null!;
         private Button buttonCompositesCreateOrAdd = null!;

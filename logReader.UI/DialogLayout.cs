@@ -2,6 +2,26 @@ namespace logReader.UI
 {
     internal static class DialogLayout
     {
+        // DPI scaling and persisted/native sizes must not put a window outside
+        // the monitor's usable area. Content-specific scrolling stays with each form.
+        public static void FitToWorkingArea(Form form)
+            => FitToWorkingArea(form, Screen.FromControl(form).WorkingArea);
+
+        internal static void FitToWorkingArea(Form form, Rectangle workingArea)
+        {
+            int margin = Math.Max(8, (int)Math.Round(12 * form.DeviceDpi / 96d));
+            var available = Rectangle.Inflate(workingArea, -margin, -margin);
+            if (available.Width <= 0 || available.Height <= 0) return;
+            form.MinimumSize = new Size(Math.Min(form.MinimumSize.Width, available.Width),
+                Math.Min(form.MinimumSize.Height, available.Height));
+            int width = Math.Min(form.Width, available.Width);
+            int height = Math.Min(form.Height, available.Height);
+            if (form.WindowState != FormWindowState.Normal) return;
+            form.Bounds = new Rectangle(
+                Math.Clamp(form.Left, available.Left, available.Right - width),
+                Math.Clamp(form.Top, available.Top, available.Bottom - height), width, height);
+        }
+
         public static Panel Header(Form owner, string category, string title, Label? description = null)
         {
             var header = new Panel { Dock = DockStyle.Top, Height = description == null ? 92 : 112, Padding = new Padding(24, 12, 24, 10), Tag = "background" };

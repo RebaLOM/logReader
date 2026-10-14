@@ -33,9 +33,11 @@ namespace logReader.Processing
             var collector = new TimeSeriesCollector(
                 CompositeOutput.WithComposites(devices, composites),
                 filter,
-                isCanfox ? TimeAxisKind.TimeOfDay : TimeAxisKind.Milliseconds);
+                isCanfox ? TimeAxisKind.TimeOfDay : TimeAxisKind.Milliseconds,
+                settings.IncludeDtc ? settings.DtcTimeoutMs : null);
 
             Span<int> bytes = stackalloc int[Device.MaxDataLength];
+            DateOnly? dtcFirstDate = null;
             try
             {
                 foreach (var line in LogFileReader.ReadLines(trcPath, encoding, context.Slice(0, 0.8)))
@@ -43,19 +45,34 @@ namespace logReader.Processing
                     string id;
                     int parsedByteCount;
                     double timeVal;
+                    double dtcTimeVal;
+                    bool diagnosticOnly = false;
 
                     if (isCanfox)
                     {
-                        if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out timeVal, out id, bytes, out parsedByteCount))
-                            continue;
+                        if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out DateOnly date, out timeVal, out id, bytes, out parsedByteCount))
+                        {
+                            if (!settings.IncludeDtc || !DtcFrameBoundary.TryCanfox(line, out date, out timeVal, out id)) continue;
+                            diagnosticOnly = true;
+                            parsedByteCount = 0;
+                        }
+                        dtcFirstDate ??= date;
+                        dtcTimeVal = timeVal + (date.DayNumber - dtcFirstDate.Value.DayNumber);
                     }
                     else
                     {
                         if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
-                            continue;
+                        {
+                            if (!settings.IncludeDtc || !DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id)) continue;
+                            diagnosticOnly = true;
+                            parsedByteCount = 0;
+                        }
                         timeVal = (double)timeMsRaw;
+                        dtcTimeVal = timeVal;
                     }
 
+                    collector.ObserveDtc(id, bytes[..parsedByteCount], dtcTimeVal);
+                    if (diagnosticOnly) continue;
                     composites?.OnMessage(id, bytes, parsedByteCount);
                     CompositeOutput.EmitTriggered(composites, id, timeVal, collector, filter);
 

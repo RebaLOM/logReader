@@ -280,7 +280,7 @@ public partial class MainForm
         _sourceInfo.Dock = DockStyle.Top; _sourceInfo.AutoSize = false; _sourceInfo.Height = 20;
         _sourceInfo.Margin = new Padding(0, 0, 0, 4);
         source.Controls.Add(_sourceName); source.Controls.Add(_sourceInfo);
-        source.Controls.Add(textBoxCanLog); source.Controls.Add(WorkspaceActions(buttonCANlog, buttonViewLog));
+        source.Controls.Add(textBoxCanLog); source.Controls.Add(WorkspaceActions(buttonCANlog, buttonViewLog, buttonDtcDiagnostics));
         var hint = WorkspaceLabel("Перетащите файл или папку в поле источника.", tag: "muted");
         hint.Margin = new Padding(0, 8, 0, 0); source.Controls.Add(hint);
         stack.Controls.Add(WorkspaceCard("Источник данных", "01  /  ВХОДНЫЕ ДАННЫЕ", source));
@@ -536,7 +536,7 @@ public partial class MainForm
         foreach (Control control in new Control[]
         {
             textBoxCanLog, textBoxDevices, textBoxComposites, textBoxOutput,
-            buttonCANlog, buttonViewLog, buttonDevices, buttonDevicesCreateOrAdd,
+            buttonCANlog, buttonViewLog, buttonDtcDiagnostics, buttonDevices, buttonDevicesCreateOrAdd,
             buttonDevicesParams, buttonComposites, buttonCompositesCreateOrAdd,
             buttonOutput, buttonSaveOptions, buttonProcess, buttonOpenOutput, buttonTrcToAsc
         }) control.Enabled = !busy;

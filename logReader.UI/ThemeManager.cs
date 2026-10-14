@@ -89,7 +89,10 @@ namespace logReader.UI
             var state = States.GetOrCreateValue(form);
             if (state.Attached) return;
             state.Attached = true;
+            AppIcon.Apply(form);
             form.HandleCreated += (_, _) => ApplyTitleBar(form);
+            form.Shown += (_, _) => DialogLayout.FitToWorkingArea(form);
+            form.DpiChanged += (_, _) => DialogLayout.FitToWorkingArea(form);
             Apply(form);
         }
 
@@ -372,12 +375,26 @@ namespace logReader.UI
         {
             if (!form.IsHandleCreated || !OperatingSystem.IsWindows()) return;
             int dark = Mode == ThemeMode.Dark ? 1 : 0;
-            try { DwmSetWindowAttribute(form.Handle, 20, ref dark, sizeof(int)); }
+            try
+            {
+                DwmSetWindowAttribute(form.Handle, 20, ref dark, sizeof(int));
+                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+                {
+                    int caption = ColorTranslator.ToWin32(Current.Background);
+                    int text = ColorTranslator.ToWin32(Current.Text);
+                    DwmSetWindowAttribute(form.Handle, 35, ref caption, sizeof(int));
+                    DwmSetWindowAttribute(form.Handle, 36, ref text, sizeof(int));
+                }
+                RedrawWindow(form.Handle, IntPtr.Zero, IntPtr.Zero, 0x0501); // Invalidate and repaint the non-client frame.
+            }
             catch (DllNotFoundException) { }
             catch (EntryPointNotFoundException) { }
         }
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+
+        [DllImport("user32.dll")]
+        private static extern bool RedrawWindow(IntPtr window, IntPtr updateRect, IntPtr updateRegion, uint flags);
     }
 }

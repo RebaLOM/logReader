@@ -13,7 +13,7 @@ namespace logReader.Processing
             ProcessingContext context)
         {
             var composites = settings.Composites;
-            if (devices.Count == 0 && !settings.HasComposites) return context.Fail("Ошибка: устройства не загружены.");
+            if (devices.Count == 0 && !settings.HasComposites && !settings.IncludeDtc) return context.Fail("Ошибка: устройства не загружены.");
             if (!File.Exists(csvPath)) return context.Fail($"Ошибка: файл лога не найден: {csvPath}");
 
             // Устройства кешируются в UI — без сброса второй прогон унаследует прошлые байты.
@@ -38,10 +38,13 @@ namespace logReader.Processing
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
             var activeBlocks = ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
             var columns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
-            if (columns.Count == 0)
+            if (columns.Count == 0 && !settings.IncludeDtc)
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            using var writer = new StepOutputWriter(outputPath, settings.Format, columns, settings.IncludeDeviceIdHeaderRow);
+            using var writer = new StepOutputWriter(outputPath, settings.Format, columns, settings.IncludeDeviceIdHeaderRow, settings.IncludeDtc);
+            var dtc = settings.IncludeDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
+            var dtcTime = settings.IncludeDtc ? new MatrixCsvTimeTracker() : null;
+            double currentTimeMs = 0;
 
             int currentStep = 0;
             string currentTime = "";
@@ -52,7 +55,7 @@ namespace logReader.Processing
             {
                 foreach (var block in activeBlocks)
                     block.Decode();
-                writer.WriteRow(currentStep, currentTime);
+                writer.WriteRow(currentStep, currentTime, dtc?.Finish(currentTimeMs));
             }
 
             try
@@ -73,13 +76,20 @@ namespace logReader.Processing
 
                         currentStep = newStep;
                         currentTime = parts.Length > 1 ? parts[1] : "";
+                        if (dtcTime != null)
+                            currentTimeMs = dtcTime.TryAdvance(currentTime, out var absoluteTime) ? absoluteTime.TotalMilliseconds : double.NaN;
                         firstStep = false;
                     }
 
-                    if (parts.Length < StepCsvLogParser.FirstByteColumn + 8 || !StepCsvLogParser.IsAccepted(parts[3]))
+                    if (parts.Length < 4 || !StepCsvLogParser.IsAccepted(parts[3]))
                         continue;
                     if (!CanId.TryNormalize(parts[2], out string id))
                         continue;
+                    if (parts.Length < StepCsvLogParser.FirstByteColumn + 8)
+                    {
+                        dtc?.Add(id, ReadOnlySpan<int>.Empty);
+                        continue;
+                    }
 
                     bool valid = true;
                     for (int i = 0; i < 8; i++)
@@ -87,7 +97,13 @@ namespace logReader.Processing
                         if (!StepCsvLogParser.TryParseByte(parts[StepCsvLogParser.FirstByteColumn + i], out int v)) { valid = false; break; }
                         msgBytes[i] = v;
                     }
-                    if (!valid) continue;
+                    if (!valid)
+                    {
+                        dtc?.Add(id, ReadOnlySpan<int>.Empty);
+                        continue;
+                    }
+
+                    dtc?.Add(id, msgBytes);
 
                     if (deviceByID.TryGetValue(id, out Device? dev))
                     {

@@ -10,6 +10,7 @@ namespace logReader.Processing
         private readonly string _outputPath;
         private readonly IReadOnlyList<OutputColumnGroup> _columns;
         private readonly bool _includeDeviceIdRow;
+        private readonly bool _includeDtc;
         private readonly List<string> _row = new();
         private string? _csvTempPath;
         private StreamWriter? _csv;
@@ -22,11 +23,12 @@ namespace logReader.Processing
         public long RowsWritten { get; private set; }
         public int SheetCount { get; private set; }
 
-        public StepOutputWriter(string outputPath, OutputFormat format, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow)
+        public StepOutputWriter(string outputPath, OutputFormat format, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow, bool includeDtc = false)
         {
             _outputPath = outputPath;
             _columns = columns;
             _includeDeviceIdRow = includeDeviceIdRow;
+            _includeDtc = includeDtc;
 
             if (format == OutputFormat.Xlsx)
             {
@@ -40,7 +42,7 @@ namespace logReader.Processing
             WriteCsvHeaders(includeDeviceIdRow);
         }
 
-        public void WriteRow(int step, string time)
+        public void WriteRow(int step, string time, DtcSnapshot? dtc = null)
         {
             if (_sheet != null)
             {
@@ -53,6 +55,7 @@ namespace logReader.Processing
                 foreach (var group in _columns)
                     foreach (int idx in group.ParamIndexes)
                         ExcelLayoutBuilder.SetCellValue(_sheet.Cell(_excelRow, col++), group.Device, idx);
+                if (_includeDtc) DtcOutput.WriteFields(_sheet, _excelRow, col, dtc);
                 _excelRow++;
             }
             else
@@ -64,6 +67,7 @@ namespace logReader.Processing
                 foreach (var group in _columns)
                     foreach (int idx in group.ParamIndexes)
                         _row.Add(group.Device.FormatValue(idx));
+                if (_includeDtc) _row.AddRange(DtcOutput.Fields(dtc));
                 CsvOutput.WriteRow(_csv!, _row);
             }
 
@@ -104,6 +108,8 @@ namespace logReader.Processing
             string name = ExcelLayoutBuilder.SheetNameForPart(_sheetBaseName, _sheetPart);
             _sheet = _workbook!.Worksheets.Add(name);
             _excelRow = ExcelLayoutBuilder.BuildStepLogHeaders(_sheet, _columns, _includeDeviceIdRow);
+            if (_includeDtc)
+                DtcOutput.WriteHeaders(_sheet, 3 + _columns.Sum(c => c.ParamIndexes.Length), _includeDeviceIdRow, false);
             SheetCount = _sheetPart;
             _sheetPart++;
         }
@@ -120,12 +126,14 @@ namespace logReader.Processing
                     for (int i = 1; i < group.ParamIndexes.Length; i++)
                         idRow.Add("");
                 }
+                if (_includeDtc) idRow.AddRange(Enumerable.Repeat("", DtcOutput.Headers.Length));
                 CsvOutput.WriteRow(_csv!, idRow);
             }
 
             var headerRow = new List<string> { "Шаг", "Время" };
             foreach (var group in _columns)
                 headerRow.AddRange(group.Headers.Select(CsvOutput.Text));
+            if (_includeDtc) headerRow.AddRange(DtcOutput.Headers);
             CsvOutput.WriteRow(_csv!, headerRow);
         }
     }

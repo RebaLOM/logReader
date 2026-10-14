@@ -32,7 +32,7 @@ namespace logReader
         private int _framesInCurrentBlock;
         private int _currentBlockSlot = -1;
 
-        public DstConnectBlockTracker(DstConnectOptions options, TrcBlockDetectionResult detection, int columnCount)
+        public DstConnectBlockTracker(DstConnectOptions options, TrcBlockDetectionResult detection, int columnCount, bool emitEmptyBlocks = false)
         {
             _options = options;
             _detection = detection;
@@ -40,6 +40,7 @@ namespace logReader
             _currentBlock = new double[columnCount];
             _currentBlockSet = new bool[columnCount];
             Array.Fill(_globalState, double.NaN);
+            _hasGlobalState = emitEmptyBlocks;
         }
 
         public IReadOnlyList<DstConnectSnapshotRow> Rows => _rows;
@@ -135,21 +136,21 @@ namespace logReader
                 ? _previousTimeMs
                 : fallbackTimeMs ?? _lastBlockStartTimeMs;
 
-            // Запасная сетка: Step = конец слота периода (20, 40, …), а не время последнего кадра.
+            // Use the slot assigned when this block opened, including early
+            // frames admitted by jitter. Its last frame may precede the nominal
+            // slot start; rounding that frame down would duplicate the previous
+            // row's Step and silently drop this block at EOF.
             if (_detection.UsedGapFallback && _detection.BlockPeriodMs > 0)
-                return SnapToPeriodEnd(raw, _detection.BlockOriginTimeMs, _detection.BlockPeriodMs);
+            {
+                int slot = TrcBlockDetector.ComputeSlot(
+                    _lastBlockStartTimeMs,
+                    _detection.BlockOriginTimeMs,
+                    _detection.BlockPeriodMs,
+                    GetJitterToleranceMs());
+                return _detection.BlockOriginTimeMs + (Math.Max(0, slot) + 1) * _detection.BlockPeriodMs;
+            }
 
             return raw;
-        }
-
-        private static double SnapToPeriodEnd(double timeMs, double originTimeMs, double periodMs)
-        {
-            double offset = timeMs - originTimeMs;
-            if (offset < 0)
-                return originTimeMs + periodMs;
-
-            int slot = (int)Math.Floor(offset / periodMs);
-            return originTimeMs + (slot + 1) * periodMs;
         }
 
         private double GetJitterToleranceMs()

@@ -14,6 +14,7 @@ namespace logReader.Processing
 
         public static IEnumerable<string> ReadLines(string path, Encoding encoding, ProcessingContext? context = null)
         {
+            context?.ThrowIfCancellationRequested();
             using var stream = OpenShared(path);
             using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true);
             double length = Math.Max(1, stream.Length);
@@ -28,6 +29,7 @@ namespace logReader.Processing
                 }
                 yield return line;
             }
+            context?.ThrowIfCancellationRequested();
             context?.ReportProgress(1);
         }
     }

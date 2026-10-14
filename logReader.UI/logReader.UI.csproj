@@ -7,16 +7,18 @@
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<ApplicationIcon>Resources\logger.ico</ApplicationIcon>
-		<Win32Icon>Resources\logger.ico</Win32Icon>
+		<ApplicationIcon>Resources\loger2.ico</ApplicationIcon>
+		<Win32Icon>Resources\loger2.ico</Win32Icon>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<EmbeddedResource Include="Resources\logger.ico" />
+		<EmbeddedResource Include="Resources\loger2.ico" LogicalName="logReader.UI.Resources.loger2.ico" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\logReader\logReader.csproj" />
+		<InternalsVisibleTo Include="logReader.UI.Tests" />
 	</ItemGroup>
 
 	<ItemGroup>

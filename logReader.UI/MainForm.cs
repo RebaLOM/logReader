@@ -25,6 +25,8 @@ namespace logReader.UI
             public LogFormatKind FolderFormatFilter { get; set; } = LogFormatKind.All;
             public DstConnectOptions DstConnect { get; set; } = new();
             public bool IncludeDeviceIdHeaderRow { get; set; }
+            public bool IncludeDtc { get; set; }
+            public double DtcTimeoutMs { get; set; } = 2000;
         }
 
         private readonly SaveOptions _saveOptions = new();
@@ -95,7 +97,9 @@ namespace logReader.UI
                 _saveOptions.DstConnect,
                 folderPath,
                 _saveOptions.FolderFormatFilter,
-                _saveOptions.IncludeDeviceIdHeaderRow);
+                _saveOptions.IncludeDeviceIdHeaderRow,
+                _saveOptions.IncludeDtc,
+                _saveOptions.DtcTimeoutMs);
             if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
@@ -104,6 +108,8 @@ namespace logReader.UI
             _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
             _saveOptions.DstConnect = dlg.SelectedDstConnectOptions;
             _saveOptions.IncludeDeviceIdHeaderRow = dlg.IncludeDeviceIdHeaderRow;
+            _saveOptions.IncludeDtc = dlg.IncludeDtc;
+            _saveOptions.DtcTimeoutMs = dlg.DtcTimeoutMs;
             buttonOpenOutput.Visible = false;
             RefreshWorkspaceSummary();
 
@@ -279,6 +285,21 @@ namespace logReader.UI
 
             using var viewForm = new CanLogViewForm(path);
             viewForm.ShowDialog(this);
+        }
+
+        private void buttonDtcDiagnostics_Click(object? sender, EventArgs e)
+        {
+            if (IsBusy || _closeWhenIdle) return;
+            string path = textBoxCanLog.Text.Trim();
+            if (string.IsNullOrWhiteSpace(path) || (!File.Exists(path) && !Directory.Exists(path)))
+            {
+                Log("Ошибка: для диагностики DTC укажите существующий файл или папку логов.");
+                return;
+            }
+
+            using var dialog = new DtcDiagnosticsForm(path, _saveOptions.DtcTimeoutMs);
+            dialog.ShowDialog(this);
+            _saveOptions.DtcTimeoutMs = dialog.TimeoutMs;
         }
 
         private void buttonDevices_Click(object? sender, EventArgs e)
@@ -983,6 +1004,8 @@ namespace logReader.UI
             Filter = OutputFilter.From(_deviceEnabled, _paramEnabled),
             Composites = EnsureCompositesLoaded(),
             IncludeDeviceIdHeaderRow = _saveOptions.IncludeDeviceIdHeaderRow,
+            IncludeDtc = _saveOptions.IncludeDtc,
+            DtcTimeoutMs = _saveOptions.DtcTimeoutMs,
             DstConnect = _saveOptions.DstConnect,
         };
 

@@ -66,8 +66,10 @@ namespace logReader.UI
             if (grid.Columns["Color"] is DataGridViewColumn colorCol)
             {
                 colorCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colorCol.Width = 32;
-                colorCol.MinimumWidth = 32;
+                int colorWidth = Math.Max(grid.LogicalToDeviceUnits(42),
+                    TextRenderer.MeasureText(colorCol.HeaderText, grid.ColumnHeadersDefaultCellStyle.Font ?? grid.Font).Width + grid.LogicalToDeviceUnits(12));
+                colorCol.Width = colorWidth;
+                colorCol.MinimumWidth = colorWidth;
                 colorCol.Resizable = DataGridViewTriState.False;
             }
 
@@ -87,11 +89,12 @@ namespace logReader.UI
             var colorCol = new DataGridViewTextBoxColumn
             {
                 Name = "Color",
-                HeaderText = "Color",
+                HeaderText = "Цвет",
+                ToolTipText = "Цвет сигнала на схеме CAN-посылки",
                 ReadOnly = true,
                 SortMode = DataGridViewColumnSortMode.NotSortable,
-                Width = 32,
-                MinimumWidth = 32,
+                Width = 42,
+                MinimumWidth = 42,
                 Resizable = DataGridViewTriState.False
             };
             grid.Columns.Insert(0, colorCol);
