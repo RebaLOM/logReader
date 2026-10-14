@@ -61,6 +61,17 @@ internal sealed class LocarusDtcDecoder
         return _current with { TimeMs = timeMs };
     }
 
+    // Output rows may be stamped slightly ahead of their last wire frame when
+    // DST's period grid admits early frames within its jitter tolerance. Reading
+    // that row must not move the live decoder clock or discard pending parts.
+    public DtcSnapshot ProjectSnapshotAt(double timeMs)
+    {
+        if (!double.IsFinite(timeMs) || (!double.IsNaN(_lastTime) && timeMs < _lastTime)
+            || (!double.IsNaN(_snapshotTime) && timeMs - _snapshotTime > _timeoutMs))
+            return DtcSnapshot.Unknown(timeMs);
+        return _current with { TimeMs = timeMs };
+    }
+
     // Matrix rows and legacy steps are logical snapshots. Empty rows may carry
     // the preceding confirmed state until its TTL, but new fragments must not
     // complete a pending cycle belonging to a different row.

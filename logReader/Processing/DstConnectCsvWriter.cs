@@ -83,7 +83,7 @@ namespace logReader.Processing
                     foreach (var row in rows.OrderBy(r => r.StepMs))
                     {
                         line.Clear();
-                        // Time — часы:минуты:секунды без замены точки; Step/значения — ru-RU.
+                        // Time — H:mm:ss.fff (точка в дробной части часов); Step/значения — ru-RU.
                         line.Add(FormatClockTime(startTime, row.StepMs));
                         line.Add(FormatStep(row.StepMs));
                         foreach (var col in columns)
@@ -109,7 +109,7 @@ namespace logReader.Processing
                 return "";
 
             var t = startTime.Value.AddMilliseconds(stepMs);
-            return t.ToString("H:mm:ss", CultureInfo.InvariantCulture);
+            return t.ToString("H:mm:ss.fff", CultureInfo.InvariantCulture);
         }
 
         private static string FormatStep(double stepMs)

@@ -4,6 +4,21 @@ namespace logReader.Tests;
 
 public class TrcBatchTests
 {
+    [Fact]
+    public void Plain_dst_header_preserves_dates_when_splitting_across_midnight()
+    {
+        using var dir = new TempDir();
+        var (input, output, devices, dbc) = Setup(dir);
+        File.WriteAllText(Path.Combine(input, "dst.trc"),
+            "ООО \"ДСТ-УРАЛ\"\nВремя начала записи: 16.10.2025 23:59:59.990\n"
+            + "0 5.0 Rx 0CFF0008 8 01 00 00 00 00 00 00 00\n"
+            + "1 20.0 Rx 0CFF0008 8 02 00 00 00 00 00 00 00\n");
+        var day1 = RunBatch(input, output, devices, dbc, BatchOutputMode.SplitTrcByDate, "result_2025-10-16.csv");
+        var day2 = File.ReadAllLines(Path.Combine(output, "result_2025-10-17.csv"));
+        Assert.Equal("2025-10-16 23:59:59.995;1", day1[1]);
+        Assert.Equal("2025-10-17 00:00:00.010;2", day2[1]);
+    }
+
     private static string Trc(string? startTime, params (double Ms, int Value)[] frames)
     {
         var lines = new List<string>();

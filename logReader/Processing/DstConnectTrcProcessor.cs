@@ -110,7 +110,7 @@ namespace logReader.Processing
             {
                 if (dtcDecoder == null) return;
                 for (int r = from; r < tracker.Rows.Count; r++)
-                    dtcStates![tracker.Rows[r]] = dtcDecoder.SnapshotAt(tracker.Rows[r].StepMs);
+                    dtcStates![tracker.Rows[r]] = dtcDecoder.ProjectSnapshotAt(tracker.Rows[r].StepMs);
             }
 
             for (int f = firstFrame; f < frames.Count; f++)

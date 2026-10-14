@@ -22,6 +22,13 @@ namespace logReader.Processing
             _ => value.ToString(CultureInfo.InvariantCulture)
         };
 
+        // CSV под Excel (ru-RU): мс с точкой читаются как дата; часы:минуты оставляем с «.».
+        public static string FormatCsv(double value, TimeAxisKind kind) => kind switch
+        {
+            TimeAxisKind.Milliseconds => CsvNumberFormat.Format(value),
+            _ => Format(value, kind)
+        };
+
         public static string? ExcelNumberFormat(TimeAxisKind kind) => kind switch
         {
             TimeAxisKind.TimeOfDay => "[h]:mm:ss.000",
@@ -291,7 +298,7 @@ namespace logReader.Processing
                     {
                         if (r < series.Times.Count)
                         {
-                            row.Add(TimeAxisFormat.Format(series.Times[r], timeKind));
+                            row.Add(TimeAxisFormat.FormatCsv(series.Times[r], timeKind));
                             foreach (double v in series.Rows[r])
                                 row.Add(FormatValue(v));
                         }
@@ -305,7 +312,7 @@ namespace logReader.Processing
                     {
                         if (r < dtcRows.Count)
                         {
-                            row.Add(TimeAxisFormat.Format(dtcRows[r].Time, timeKind));
+                            row.Add(TimeAxisFormat.FormatCsv(dtcRows[r].Time, timeKind));
                             row.AddRange(DtcOutput.Fields(dtcRows[r].Snapshot));
                         }
                         else row.AddRange(Enumerable.Repeat("", 1 + DtcOutput.Headers.Length));

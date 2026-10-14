@@ -474,6 +474,20 @@ public class DtcOutputTests
     }
 
     [Fact]
+    public void Fractional_dtc_milliseconds_use_the_same_csv_locale_as_numeric_parameters()
+    {
+        using var dir = new TempDir();
+        string input = dir.Write("log.trc", CycleTrc(100, 27.486) +
+            TrcFrame(4, 41.125, "0CFF0008", [17, 0, 0, 0, 0, 0, 0, 0]));
+        string output = dir.File("out.csv");
+        Assert.True(new LogProcessingService().ProcessSingleFile(input, output, Devices(dir), Settings(), new ProcessingContext()).Success);
+        var rows = File.ReadAllLines(output).Select(line => line.Split(';')).ToArray();
+        Assert.Equal("41,125", rows[1][0]);
+        Assert.Equal("27,486", rows[1][2]);
+        Assert.Contains(rows.Skip(1), row => row[2] == "29,486" && row[3] == "SPN 100 / FMI 0");
+    }
+
+    [Fact]
     public void Cancellation_with_dtc_preserves_previous_output()
     {
         using var dir = new TempDir();

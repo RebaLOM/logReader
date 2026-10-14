@@ -14,6 +14,9 @@ namespace logReader
         // строк занимает больше времени, чем вся обработка лога.
         public const int AutoFitSampleRows = 300;
 
+        // AutoFit по «Шаг»/коротким числам даёт узкий столбец — фиксируем минимум.
+        public const double MinStepColumnWidth = 12;
+
         // Имя листа Excel ≤ 31 символ; продолжения — base_2, base_3, …
         public static string SheetNameForPart(string baseName, int partIndex1Based)
         {
@@ -119,6 +122,14 @@ namespace logReader
         {
             int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
             ws.Columns().AdjustToContents(1, Math.Min(lastRow, AutoFitSampleRows));
+        }
+
+        // Step-таблица: после AutoFit подтянуть «Шаг», если получился слишком узкий.
+        public static void EnsureStepColumnMinWidth(IXLWorksheet ws)
+        {
+            var col = ws.Column(1);
+            if (col.Width < MinStepColumnWidth)
+                col.Width = MinStepColumnWidth;
         }
 
         public static void SetCellValue(IXLCell cell, Device device, int paramIndex)
