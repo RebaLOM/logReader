@@ -212,7 +212,7 @@ public partial class MainForm
         var wordmark = WorkspaceLabel("LOGER");
         wordmark.Font = WorkspaceFont(20F, FontStyle.Bold);
         wordmark.Location = new Point(43, -1);
-        var version = WorkspaceLabel("2.0  /  CAN WORKSPACE", tag: "muted");
+        var version = WorkspaceLabel("CAN WORKSPACE", tag: "muted");
         version.Font = WorkspaceFont(7.5F, FontStyle.Bold);
         version.Location = new Point(0, 49);
         brand.Controls.AddRange(new Control[] { mark, wordmark, version });
