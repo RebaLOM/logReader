@@ -158,16 +158,18 @@ namespace logReader.Processing
             ProcessingContext context)
         {
             var columns = data.Columns();
-            if (columns.Count == 0 && data.DtcRows is not { Count: > 0 })
+            var dtcRows = settings.IncludeDtc || (settings.AutoIncludeDtc && data.DtcRows?.Any(r => DtcOutput.HasCodes(r.Snapshot)) == true)
+                ? data.DtcRows : null;
+            if (columns.Count == 0 && dtcRows is not { Count: > 0 })
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            int maxRows = data.MaxRows;
+            int maxRows = Math.Max(columns.Count == 0 ? 0 : columns.Max(c => c.Series.Times.Count), dtcRows?.Count ?? 0);
             try
             {
                 if (settings.Format == OutputFormat.Xlsx)
-                    WriteExcel(columns, data.TimeKind, outputPath, sheetName, settings.IncludeDeviceIdHeaderRow, context, data.DtcRows);
+                    WriteExcel(columns, data.TimeKind, outputPath, sheetName, settings.IncludeDeviceIdHeaderRow, context, dtcRows, settings.DtcDisplayFormat);
                 else
-                    WriteCsv(columns, data.TimeKind, outputPath, settings.IncludeDeviceIdHeaderRow, context, data.DtcRows);
+                    WriteCsv(columns, data.TimeKind, outputPath, settings.IncludeDeviceIdHeaderRow, context, dtcRows, settings.DtcDisplayFormat);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -185,7 +187,8 @@ namespace logReader.Processing
             string sheetName,
             bool includeDeviceIdRow,
             ProcessingContext context,
-            List<(double Time, DtcSnapshot Snapshot)>? dtcRows)
+            List<(double Time, DtcSnapshot Snapshot)>? dtcRows,
+            DtcDisplayFormat dtcDisplayFormat)
         {
             int headerRows = ExcelLayoutBuilder.HeaderRowCount(includeDeviceIdRow);
             int dataCapacity = Math.Max(1, ExcelLayoutBuilder.RowsPerSheet - headerRows);
@@ -231,7 +234,7 @@ namespace logReader.Processing
                     {
                         int excelRow = firstDataRow + r - dataStart;
                         ws.Cell(excelRow, col).Value = dtcRows[r].Time;
-                        DtcOutput.WriteFields(ws, excelRow, col + 1, dtcRows[r].Snapshot);
+                        DtcOutput.WriteFields(ws, excelRow, col + 1, dtcRows[r].Snapshot, dtcDisplayFormat);
                     }
                     if (timeFormat != null && dataEnd > dataStart && dataStart < dtcRows.Count)
                         ws.Range(firstDataRow, col, firstDataRow + Math.Min(dataEnd, dtcRows.Count) - dataStart - 1, col)
@@ -256,7 +259,8 @@ namespace logReader.Processing
             string outputPath,
             bool includeDeviceIdRow,
             ProcessingContext context,
-            List<(double Time, DtcSnapshot Snapshot)>? dtcRows)
+            List<(double Time, DtcSnapshot Snapshot)>? dtcRows,
+            DtcDisplayFormat dtcDisplayFormat)
         {
             SafeFileWriter.Write(outputPath, tmp =>
             {
@@ -313,7 +317,7 @@ namespace logReader.Processing
                         if (r < dtcRows.Count)
                         {
                             row.Add(TimeAxisFormat.FormatCsv(dtcRows[r].Time, timeKind));
-                            row.AddRange(DtcOutput.Fields(dtcRows[r].Snapshot));
+                            row.AddRange(DtcOutput.Fields(dtcRows[r].Snapshot, dtcDisplayFormat));
                         }
                         else row.AddRange(Enumerable.Repeat("", 1 + DtcOutput.Headers.Length));
                     }

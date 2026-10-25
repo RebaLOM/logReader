@@ -13,7 +13,7 @@ namespace logReader.Processing
             ProcessingContext context)
         {
             var composites = settings.Composites;
-            if (devices.Count == 0 && !settings.HasComposites && !settings.IncludeDtc) return context.Fail("Ошибка: устройства не загружены.");
+            if (devices.Count == 0 && !settings.HasComposites && !settings.CollectDtc) return context.Fail("Ошибка: устройства не загружены.");
             if (!File.Exists(csvPath)) return context.Fail($"Ошибка: файл лога не найден: {csvPath}");
 
             // Устройства кешируются в UI — без сброса второй прогон унаследует прошлые байты.
@@ -38,12 +38,13 @@ namespace logReader.Processing
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
             var activeBlocks = ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
             var columns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
-            if (columns.Count == 0 && !settings.IncludeDtc)
+            if (columns.Count == 0 && !settings.CollectDtc)
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            using var writer = new StepOutputWriter(outputPath, settings.Format, columns, settings.IncludeDeviceIdHeaderRow, settings.IncludeDtc);
-            var dtc = settings.IncludeDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
-            var dtcTime = settings.IncludeDtc ? new MatrixCsvTimeTracker() : null;
+            using var writer = new StepOutputWriter(outputPath, settings.Format, columns, settings.IncludeDeviceIdHeaderRow,
+                settings.IncludeDtc, settings.AutoIncludeDtc, settings.DtcDisplayFormat, context);
+            var dtc = settings.CollectDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
+            var dtcTime = settings.CollectDtc ? new MatrixCsvTimeTracker() : null;
             double currentTimeMs = 0;
 
             int currentStep = 0;
@@ -116,6 +117,8 @@ namespace logReader.Processing
                 if (!firstStep)
                     FlushStep();
 
+                if (columns.Count == 0 && !writer.HasDtcColumns)
+                    return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
                 writer.Complete();
                 if (writer.SheetCount > 1)
                     context.Log($"XLSX: данные разбиты на {writer.SheetCount} лист(а/ов) (лимит {ExcelLayoutBuilder.RowsPerSheet:N0} строк на лист).");

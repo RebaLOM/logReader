@@ -25,11 +25,12 @@ namespace logReader.UI
             public LogFormatKind FolderFormatFilter { get; set; } = LogFormatKind.All;
             public DstConnectOptions DstConnect { get; set; } = new();
             public bool IncludeDeviceIdHeaderRow { get; set; }
-            public bool IncludeDtc { get; set; }
             public double DtcTimeoutMs { get; set; } = 2000;
         }
 
         private readonly SaveOptions _saveOptions = new();
+        private readonly DisplaySettingsStore _displaySettingsStore;
+        private DisplaySettings _displaySettings;
 
         /// <summary>Высота нижней панели журнала (px); сохраняется при перетаскивании разделителя.</summary>
         private int _logPanelHeight = 100;
@@ -38,8 +39,14 @@ namespace logReader.UI
         private CancellationTokenSource? _operation;
         private bool _closeWhenIdle;
 
-        public MainForm()
+        public MainForm() : this(new DisplaySettingsStore())
         {
+        }
+
+        internal MainForm(DisplaySettingsStore displaySettingsStore)
+        {
+            _displaySettingsStore = displaySettingsStore ?? throw new ArgumentNullException(nameof(displaySettingsStore));
+            _displaySettings = _displaySettingsStore.Load();
             InitializeComponent();
             WireContentSplitLayout();
             UpdateDevicesCreateAddButtonState();
@@ -98,9 +105,17 @@ namespace logReader.UI
                 folderPath,
                 _saveOptions.FolderFormatFilter,
                 _saveOptions.IncludeDeviceIdHeaderRow,
-                _saveOptions.IncludeDtc,
-                _saveOptions.DtcTimeoutMs);
+                _displaySettings.DtcInclusion,
+                _saveOptions.DtcTimeoutMs) { Icon = Icon };
             if (dlg.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            ApplySaveOptions(dlg);
+        }
+
+        private void ApplySaveOptions(SaveOptionsForm dlg)
+        {
+            if (!ApplyDisplaySettings(_displaySettings with { DtcInclusion = dlg.DtcInclusion }))
                 return;
 
             _saveOptions.OutputFormat = dlg.SelectedOutputFormat;
@@ -108,7 +123,6 @@ namespace logReader.UI
             _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
             _saveOptions.DstConnect = dlg.SelectedDstConnectOptions;
             _saveOptions.IncludeDeviceIdHeaderRow = dlg.IncludeDeviceIdHeaderRow;
-            _saveOptions.IncludeDtc = dlg.IncludeDtc;
             _saveOptions.DtcTimeoutMs = dlg.DtcTimeoutMs;
 
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
@@ -119,6 +133,32 @@ namespace logReader.UI
                 return;
 
             textBoxOutput.Text = EnsureOutputPathMatchesFormat(textBoxOutput.Text, _saveOptions.OutputFormat);
+        }
+
+        private void buttonDisplaySettings_Click(object sender, EventArgs e)
+        {
+            if (IsBusy || _closeWhenIdle) return;
+            using var dialog = new DisplaySettingsForm(_displaySettings) { Icon = Icon };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+                ApplyDisplaySettings(dialog.SelectedSettings);
+        }
+
+        private bool ApplyDisplaySettings(DisplaySettings settings)
+        {
+            try
+            {
+                var normalized = settings.Normalized();
+                _displaySettingsStore.Save(normalized);
+                _displaySettings = normalized;
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log("Не удалось сохранить настройки отображения: " + ex.Message);
+                MessageBox.Show(this, "Не удалось сохранить настройки отображения. " + ex.Message,
+                    "LOGER", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
         }
 
         private static bool IsDescriptionFile(string path)
@@ -293,7 +333,8 @@ namespace logReader.UI
                 return;
             }
 
-            using var dialog = new DtcDiagnosticsForm(path, _saveOptions.DtcTimeoutMs);
+            using var dialog = new DtcDiagnosticsForm(path, _saveOptions.DtcTimeoutMs,
+                displayFormat: _displaySettings.DtcFormat) { Icon = Icon };
             dialog.ShowDialog(this);
             _saveOptions.DtcTimeoutMs = dialog.TimeoutMs;
         }
@@ -1022,7 +1063,9 @@ namespace logReader.UI
             Filter = OutputFilter.From(_deviceEnabled, _paramEnabled),
             Composites = EnsureCompositesLoaded(),
             IncludeDeviceIdHeaderRow = _saveOptions.IncludeDeviceIdHeaderRow,
-            IncludeDtc = _saveOptions.IncludeDtc,
+            IncludeDtc = _displaySettings.DtcInclusion == DtcInclusionMode.Always,
+            AutoIncludeDtc = _displaySettings.DtcInclusion == DtcInclusionMode.Auto,
+            DtcDisplayFormat = _displaySettings.DtcFormat,
             DtcTimeoutMs = _saveOptions.DtcTimeoutMs,
             DstConnect = _saveOptions.DstConnect,
         };

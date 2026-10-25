@@ -41,6 +41,7 @@ namespace logReader.UI
             buttonDevicesParams = new Button();
             buttonDevicesCreateOrAdd = new Button();
             buttonSaveOptions = new Button();
+            buttonDisplaySettings = new Button();
             buttonCancel = new Button();
             progressBarProcess = new ProgressBar();
             labelProgress = new Label();
@@ -65,6 +66,7 @@ namespace logReader.UI
             contentSplit.Panel1.Controls.Add(progressBarProcess);
             contentSplit.Panel1.Controls.Add(buttonCancel);
             contentSplit.Panel1.Controls.Add(buttonSaveOptions);
+            contentSplit.Panel1.Controls.Add(buttonDisplaySettings);
             contentSplit.Panel1.Controls.Add(labelFilterStatus);
             contentSplit.Panel1.Controls.Add(buttonDevicesCreateOrAdd);
             contentSplit.Panel1.Controls.Add(buttonDevicesParams);
@@ -281,7 +283,7 @@ namespace logReader.UI
             buttonProcess.Location = new Point(12, 391);
             buttonProcess.Name = "buttonProcess";
             buttonProcess.Size = new Size(94, 23);
-            buttonProcess.TabIndex = 14;
+            buttonProcess.TabIndex = 15;
             buttonProcess.Text = "Обработать";
             buttonProcess.UseVisualStyleBackColor = true;
             buttonProcess.Click += buttonProcess_Click;
@@ -291,7 +293,7 @@ namespace logReader.UI
             buttonHelp.Location = new Point(112, 391);
             buttonHelp.Name = "buttonHelp";
             buttonHelp.Size = new Size(75, 23);
-            buttonHelp.TabIndex = 16;
+            buttonHelp.TabIndex = 17;
             buttonHelp.Text = "Помощь";
             buttonHelp.UseVisualStyleBackColor = true;
             buttonHelp.Click += buttonHelp_Click;
@@ -301,7 +303,7 @@ namespace logReader.UI
             buttonTrcToAsc.Location = new Point(200, 391);
             buttonTrcToAsc.Name = "buttonTrcToAsc";
             buttonTrcToAsc.Size = new Size(120, 23);
-            buttonTrcToAsc.TabIndex = 17;
+            buttonTrcToAsc.TabIndex = 18;
             buttonTrcToAsc.Text = "Смена формата";
             buttonTrcToAsc.UseVisualStyleBackColor = true;
             buttonTrcToAsc.Click += buttonFormatConvert_Click;
@@ -336,7 +338,18 @@ namespace logReader.UI
             buttonSaveOptions.Text = "Параметры сохранения";
             buttonSaveOptions.UseVisualStyleBackColor = true;
             buttonSaveOptions.Click += buttonSaveOptions_Click;
-            // 
+            //
+            // buttonDisplaySettings
+            //
+            buttonDisplaySettings.Location = new Point(204, 334);
+            buttonDisplaySettings.Name = "buttonDisplaySettings";
+            buttonDisplaySettings.Size = new Size(200, 23);
+            buttonDisplaySettings.TabIndex = 14;
+            buttonDisplaySettings.Text = "Настройки отображения…";
+            buttonDisplaySettings.AccessibleName = "Настройки отображения";
+            buttonDisplaySettings.UseVisualStyleBackColor = true;
+            buttonDisplaySettings.Click += buttonDisplaySettings_Click;
+            //
             // progressBarProcess
             // 
             progressBarProcess.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -352,7 +365,7 @@ namespace logReader.UI
             buttonCancel.Enabled = false;
             buttonCancel.Location = new Point(326, 391);
             buttonCancel.Name = "buttonCancel";
-            buttonCancel.TabIndex = 15;
+            buttonCancel.TabIndex = 16;
             buttonCancel.Size = new Size(90, 23);
             buttonCancel.Text = "Отмена";
             buttonCancel.UseVisualStyleBackColor = true;
@@ -415,6 +428,7 @@ namespace logReader.UI
         private Button buttonDevicesParams;
         private Button buttonDevicesCreateOrAdd;
         private Button buttonSaveOptions;
+        private Button buttonDisplaySettings;
         private Button buttonCancel;
         private ProgressBar progressBarProcess;
         private Label labelProgress;

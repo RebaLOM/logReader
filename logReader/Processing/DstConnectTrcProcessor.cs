@@ -41,7 +41,7 @@ namespace logReader.Processing
                     if (!TrcLogParser.TryParseTrcFrameLine(line, out int messageIndex, out decimal timeMsRaw,
                             out _, out string id, out _, byteSpan, out int parsedByteCount))
                     {
-                        if (settings.IncludeDtc && DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id))
+                        if (settings.CollectDtc && DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id))
                             corruptDtc.Add((frames.Count, (double)timeMsRaw, id));
                         continue;
                     }
@@ -76,6 +76,32 @@ namespace logReader.Processing
             }
 
             var activeFrames = new FrameView(frames, firstFrame);
+            // DST already buffers wire frames for block detection. Probe those
+            // buffers, rather than rereading the input or changing numeric rows
+            // by tentatively enabling empty blocks for automatic DTC output.
+            bool includeDtc = settings.IncludeDtc;
+            if (!includeDtc && settings.AutoIncludeDtc)
+            {
+                var probe = new LocarusDtcDecoder(settings.DtcTimeoutMs);
+                int boundary = 0;
+                while (boundary < corruptDtc.Count && corruptDtc[boundary].NextFrame < firstFrame) boundary++;
+                Span<int> probeBytes = stackalloc int[Device.MaxDataLength];
+                for (int f = firstFrame; f < frames.Count; f++)
+                {
+                    if ((f & 4095) == 0) context.ThrowIfCancellationRequested();
+                    while (boundary < corruptDtc.Count && corruptDtc[boundary].NextFrame <= f)
+                    {
+                        var corrupt = corruptDtc[boundary++];
+                        probe.OnFrame(corrupt.Id, ReadOnlySpan<int>.Empty, corrupt.TimeMs);
+                    }
+                    var frame = frames[f];
+                    for (int b = 0; b < frame.DataLength; b++)
+                        probeBytes[b] = data[frame.DataOffset + b];
+                    if (!DtcOutput.HasCodes(probe.OnFrame(frame.Id, probeBytes[..frame.DataLength], frame.TimeMs))) continue;
+                    includeDtc = true;
+                    break;
+                }
+            }
             // Покрытие блока считается по ID, которые реально есть в логе: иначе DBC «на всю машину»
             // опускает покрытие ниже порога и детектор по повтору якорной посылки не срабатывает.
             var targetIds = devices
@@ -88,7 +114,7 @@ namespace logReader.Processing
 
             var outputDevices = CompositeOutput.WithComposites(devices, composites);
             var columns = DstConnectCsvWriter.BuildColumns(outputDevices, filter);
-            if (columns.Count == 0 && !settings.IncludeDtc)
+            if (columns.Count == 0 && !includeDtc)
                 return context.Fail("Нет активных параметров для вывода.");
 
             var columnsByDevice = columns
@@ -98,9 +124,9 @@ namespace logReader.Processing
             foreach (var d in devices)
                 deviceById[d.ID] = d;
 
-            var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count, settings.IncludeDtc);
-            var dtcDecoder = settings.IncludeDtc ? new LocarusDtcDecoder(settings.DtcTimeoutMs) : null;
-            var dtcStates = settings.IncludeDtc ? new Dictionary<DstConnectSnapshotRow, DtcSnapshot>() : null;
+            var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count, includeDtc);
+            var dtcDecoder = includeDtc ? new LocarusDtcDecoder(settings.DtcTimeoutMs) : null;
+            var dtcStates = includeDtc ? new Dictionary<DstConnectSnapshotRow, DtcSnapshot>() : null;
             int[] payload = new int[Device.MaxDataLength];
             var decodeContext = context.Slice(0.5, 0.4);
             int corruptIndex = 0;
@@ -128,7 +154,7 @@ namespace logReader.Processing
 
                 // Corrupt diagnostic headers invalidate assembly without changing
                 // the valid CAN frames used by the existing block detector.
-                while (corruptIndex < corruptDtc.Count && corruptDtc[corruptIndex].NextFrame <= f)
+                while (includeDtc && corruptIndex < corruptDtc.Count && corruptDtc[corruptIndex].NextFrame <= f)
                 {
                     var corrupt = corruptDtc[corruptIndex++];
                     dtcDecoder!.OnFrame(corrupt.Id, ReadOnlySpan<int>.Empty, corrupt.TimeMs);
@@ -168,11 +194,11 @@ namespace logReader.Processing
                 return context.Fail("Нет данных для CSV ДСТ — проверьте файл посылок.");
 
             var outputColumns = DstConnectCsvWriter.FilterColumnsWithData(columns, tracker.Rows);
-            if (outputColumns.Count == 0 && !settings.IncludeDtc)
+            if (outputColumns.Count == 0 && dtcStates == null)
                 return context.Fail("Нет колонок для CSV ДСТ — в логе нет посылок из файла устройств.");
 
             return DstConnectCsvWriter.Write(
-                outputPath, startTime, outputColumns, tracker.Rows, settings.IncludeDeviceIdHeaderRow, context.Slice(0.9, 0.1), dtcStates);
+                outputPath, startTime, outputColumns, tracker.Rows, settings.IncludeDeviceIdHeaderRow, context.Slice(0.9, 0.1), dtcStates, settings.DtcDisplayFormat);
         }
 
         private static void PushValues(

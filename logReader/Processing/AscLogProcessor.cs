@@ -11,7 +11,7 @@ namespace logReader.Processing
         {
             var composites = settings.Composites;
             var filter = settings.Filter;
-            if (devices.Count == 0 && !settings.HasComposites && !settings.IncludeDtc) return context.Fail("Ошибка: устройства не загружены.");
+            if (devices.Count == 0 && !settings.HasComposites && !settings.CollectDtc) return context.Fail("Ошибка: устройства не загружены.");
             if (!File.Exists(ascPath)) return context.Fail($"Ошибка: файл не найден: {ascPath}");
 
             // Устройства кешируются в UI — сброс перед каждым прогоном.
@@ -31,7 +31,7 @@ namespace logReader.Processing
 
             var collector = new TimeSeriesCollector(
                 CompositeOutput.WithComposites(devices, composites), filter, TimeAxisKind.TimeOfDay,
-                settings.IncludeDtc ? settings.DtcTimeoutMs : null);
+                settings.CollectDtc ? settings.DtcTimeoutMs : null);
 
             try
             {
@@ -44,12 +44,12 @@ namespace logReader.Processing
                     bool diagnosticOnly = false;
                     if (!AscLogParser.TryParseFrameLine(line, format, out long offsetTicks, out string id, bytes, out int parsedByteCount))
                     {
-                        if (!settings.IncludeDtc || !DtcFrameBoundary.TryAsc(line, format, out offsetTicks, out id)) continue;
+                        if (!settings.CollectDtc || !DtcFrameBoundary.TryAsc(line, format, out offsetTicks, out id)) continue;
                         diagnosticOnly = true;
                         parsedByteCount = 0;
                     }
 
-                    if (settings.IncludeDtc)
+                    if (settings.CollectDtc)
                     {
                         long dtcOffset = format.RelativeTimestamps ? dtcPreviousTicks + offsetTicks : offsetTicks;
                         dtcPreviousTicks = dtcOffset;

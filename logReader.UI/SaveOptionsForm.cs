@@ -10,7 +10,7 @@ namespace logReader.UI
         private readonly NumericUpDown _numBlockPeriod;
         private readonly NumericUpDown _numBlockStart;
         private readonly CheckBox _chkIncludeDeviceIdRow;
-        private readonly CheckBox _chkIncludeDtc;
+        private readonly ComboBox _comboDtcInclusion;
         private readonly NumericUpDown _numDtcTimeout;
         private bool _suppressFormatsEvents;
 
@@ -19,7 +19,7 @@ namespace logReader.UI
         internal LogFormatKind SelectedFolderFormats { get; private set; } = LogFormatKind.All;
         internal DstConnectOptions SelectedDstConnectOptions { get; private set; } = new();
         internal bool IncludeDeviceIdHeaderRow { get; private set; }
-        internal bool IncludeDtc { get; private set; }
+        internal DtcInclusionMode DtcInclusion { get; private set; }
         internal double DtcTimeoutMs { get; private set; } = 2000;
 
         internal SaveOptionsForm(
@@ -29,12 +29,12 @@ namespace logReader.UI
             string? logFolderPath,
             LogFormatKind currentFolderFormats,
             bool includeDeviceIdHeaderRow = false,
-            bool includeDtc = false,
+            DtcInclusionMode dtcInclusion = DtcInclusionMode.Auto,
             double dtcTimeoutMs = 2000)
         {
             SelectedDstConnectOptions = CloneDstOptions(currentDstOptions);
             IncludeDeviceIdHeaderRow = includeDeviceIdHeaderRow;
-            IncludeDtc = includeDtc;
+            DtcInclusion = Enum.IsDefined(dtcInclusion) ? dtcInclusion : DtcInclusionMode.Auto;
             DtcTimeoutMs = double.IsFinite(dtcTimeoutMs) && dtcTimeoutMs > 0 ? dtcTimeoutMs : 2000;
             Text = "Параметры сохранения";
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -193,15 +193,22 @@ namespace logReader.UI
             Controls.Add(_dstPanel);
             Controls.Add(_chkIncludeDeviceIdRow);
             Controls.Add(labelIdRowHint);
-            _chkIncludeDtc = new CheckBox
+            Controls.Add(new Label
             {
-                Name = "includeDtc",
-                AccessibleName = "Добавлять DTC в результат обработки",
-                Text = "Добавлять DTC в результат обработки",
+                Text = "Добавление DTC:",
                 AutoSize = true,
-                Location = new Point(16, 206),
-                Checked = includeDtc
+                Location = new Point(16, 206)
+            });
+            _comboDtcInclusion = new ComboBox
+            {
+                Name = "dtcInclusionMode",
+                AccessibleName = "Добавление DTC",
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(238, 203),
+                Size = new Size(423, 23)
             };
+            _comboDtcInclusion.Items.AddRange(["Авто", "Всегда", "Не добавлять"]);
+            _comboDtcInclusion.SelectedIndex = (int)DtcInclusion;
             _numDtcTimeout = new NumericUpDown
             {
                 Name = "dtcTimeoutSeconds",
@@ -213,18 +220,21 @@ namespace logReader.UI
                 Value = (decimal)Math.Clamp(DtcTimeoutMs / 1000, 0.001, 3600),
                 Location = new Point(238, 234),
                 Width = 100,
-                Enabled = includeDtc
+                Enabled = DtcInclusion != DtcInclusionMode.Never
             };
-            _chkIncludeDtc.CheckedChanged += (_, _) => _numDtcTimeout.Enabled = _chkIncludeDtc.Checked;
-            Controls.Add(_chkIncludeDtc);
+            _comboDtcInclusion.SelectedIndexChanged += (_, _) =>
+                _numDtcTimeout.Enabled = _comboDtcInclusion.SelectedIndex != (int)DtcInclusionMode.Never;
+            Controls.Add(_comboDtcInclusion);
             Controls.Add(new Label { Text = "Допустимый разрыв DTC, с:", AutoSize = true, Location = new Point(40, 237) });
             Controls.Add(_numDtcTimeout);
             Controls.Add(new Label
             {
-                Text = "DTC1–DTC6: SPN / FMI; пусто — свободно, Н/Д — неизвестно",
-                AutoSize = true,
+                Text = "Авто — только при наличии ошибок; Всегда — даже без ошибок; Не добавлять — без колонок DTC. "
+                    + "Свободные и неизвестные ячейки остаются пустыми.",
+                AutoSize = false,
                 ForeColor = Color.DimGray,
-                Location = new Point(40, 262)
+                Location = new Point(40, 260),
+                Size = new Size(621, 30)
             });
             Controls.Add(labelBatch);
             Controls.Add(_comboBatchMode);
@@ -458,7 +468,7 @@ namespace logReader.UI
             };
 
             IncludeDeviceIdHeaderRow = _chkIncludeDeviceIdRow.Checked;
-            IncludeDtc = _chkIncludeDtc.Checked;
+            DtcInclusion = (DtcInclusionMode)_comboDtcInclusion.SelectedIndex;
             DtcTimeoutMs = (double)_numDtcTimeout.Value * 1000;
             SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
         }

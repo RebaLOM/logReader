@@ -105,7 +105,7 @@ public class DtcDstJitterTests
         var result = new DstConnectTrcProcessor().Process(input, [], output,
             new OutputSettings
             {
-                Format = OutputFormat.CsvDstConnect, IncludeDtc = true,
+                Format = OutputFormat.CsvDstConnect, IncludeDtc = true, DtcDisplayFormat = DtcDisplayFormat.Detailed,
                 DstConnect = new DstConnectOptions { BlockPeriodMs = 20 }
             }, new ProcessingContext());
         Assert.True(result.Success, result.Error);
@@ -145,7 +145,8 @@ public class DtcDstJitterTests
         var result = new DstConnectTrcProcessor().Process(input, devices, output,
             new OutputSettings
             {
-                Format = OutputFormat.CsvDstConnect, IncludeDtc = includeDtc,
+                Format = OutputFormat.CsvDstConnect, IncludeDtc = includeDtc, AutoIncludeDtc = false,
+                DtcDisplayFormat = DtcDisplayFormat.Detailed,
                 DstConnect = new DstConnectOptions { BlockPeriodMs = 20 }
             }, new ProcessingContext());
 

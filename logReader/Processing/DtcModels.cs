@@ -1,8 +1,19 @@
 namespace logReader.Processing;
 
+public enum DtcDisplayFormat
+{
+    Compact,
+    Detailed
+}
+
 internal readonly record struct DtcCode(int Spn, int Fmi)
 {
     public override string ToString() => $"SPN {Spn} / FMI {Fmi}";
+
+    public string ToDisplayString(DtcDisplayFormat format)
+        => format == DtcDisplayFormat.Detailed
+            ? FormattableString.Invariant($"SPN {Spn} / FMI {Fmi}")
+            : FormattableString.Invariant($"{Spn}.{Fmi}");
 }
 
 internal readonly record struct DtcSlot(DtcCode? Code, bool IsKnown)
@@ -11,6 +22,8 @@ internal readonly record struct DtcSlot(DtcCode? Code, bool IsKnown)
     public static DtcSlot Empty => new(null, true);
     public static DtcSlot Present(DtcCode code) => new(code, true);
     public string Text => !IsKnown ? "Н/Д" : Code?.ToString() ?? "";
+    public string ToDisplayString(DtcDisplayFormat format)
+        => !IsKnown ? "Н/Д" : Code?.ToDisplayString(format) ?? "";
 }
 
 internal sealed record DtcSnapshot(double TimeMs, IReadOnlyList<DtcSlot> Slots,

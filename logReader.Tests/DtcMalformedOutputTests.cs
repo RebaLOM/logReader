@@ -16,8 +16,8 @@ public sealed class DtcMalformedOutputTests
         string off = dir.File("off.csv"), on = dir.File("on.csv");
         var devices = DeviceFiles.LoadDevices(dir.Write("devices.dbc", TestData.TwoMessageDbc));
         var service = new LogProcessingService();
-        Assert.True(service.ProcessSingleFile(input, off, devices, new OutputSettings(), new ProcessingContext()).Success);
-        Assert.True(service.ProcessSingleFile(input, on, devices, new OutputSettings { IncludeDtc = true }, new ProcessingContext()).Success);
+        Assert.True(service.ProcessSingleFile(input, off, devices, new OutputSettings { AutoIncludeDtc = false }, new ProcessingContext()).Success);
+        Assert.True(service.ProcessSingleFile(input, on, devices, new OutputSettings { IncludeDtc = true, DtcDisplayFormat = DtcDisplayFormat.Detailed }, new ProcessingContext()).Success);
         string[][] rows = File.ReadAllLines(on).Select(l => l.Split(';')).ToArray();
         var codes = rows.Skip(1).Select(r => r[3]).Where(s => s.StartsWith("SPN ")).ToArray();
         Assert.NotEmpty(codes);
@@ -31,7 +31,8 @@ public sealed class DtcMalformedOutputTests
     {
         using var dir = new TempDir();
         string input = WriteInput(dir, "trc", false);
-        var settings = new OutputSettings { IncludeDtc = true, DstConnect = new DstConnectOptions { BlockPeriodMs = 100, BlockStartIndex = 1 } };
+        var settings = new OutputSettings { IncludeDtc = true, DtcDisplayFormat = DtcDisplayFormat.Detailed,
+            DstConnect = new DstConnectOptions { BlockPeriodMs = 100, BlockStartIndex = 1 } };
         Assert.True(TrcBatchAggregator.TryBuildMergedAggregate([input], [], settings, new ProcessingContext(), out var merged).Success);
         AssertCodes(merged!.DtcRows!.Select(r => r.Snapshot));
         Assert.True(TrcBatchAggregator.TryBuildAggregatesByDate([input], [], settings, new ProcessingContext(), out var dates).Success);
