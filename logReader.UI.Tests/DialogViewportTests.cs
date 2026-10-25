@@ -13,7 +13,7 @@ public sealed class DialogViewportTests
     public void Export_options_scroll_on_short_screens_but_keep_apply_and_cancel_visible(int width, int height) => Run(() =>
     {
         using var form = new SaveOptionsForm(OutputFormat.CsvDstConnect, BatchOutputMode.PerInputFile,
-            new DstConnectOptions(), Directory.GetCurrentDirectory(), LogFormatKind.All, includeDtc: true);
+            new DstConnectOptions(), Directory.GetCurrentDirectory(), LogFormatKind.All, dtcInclusion: DtcInclusionMode.Always);
         form.Show();
         DialogLayout.FitToWorkingArea(form, new Rectangle(0, 0, width, height));
         Pump(form);
@@ -24,7 +24,7 @@ public sealed class DialogViewportTests
         Assert.False(scroll.HorizontalScroll.Visible, "Settings must fit the viewport width without a second scrollbar.");
         AssertVisible(form, Assert.IsType<Button>(form.AcceptButton));
         AssertVisible(form, Assert.IsType<Button>(form.CancelButton));
-        foreach (string field in new[] { "_comboOutputFormat", "_numBlockPeriod", "_chkIncludeDtc", "_numDtcTimeout", "_formatsList" })
+        foreach (string field in new[] { "_comboOutputFormat", "_numBlockPeriod", "_comboDtcInclusion", "_numDtcTimeout", "_formatsList" })
         {
             var control = (Control)typeof(SaveOptionsForm).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(form)!;
             // WinForms keeps the focused editor visible during layout. Move the

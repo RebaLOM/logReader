@@ -104,6 +104,7 @@ void Run(string key, string input, string description, OutputFormat format, bool
         var settings = new OutputSettings { Format = format, DstConnect = format == OutputFormat.CsvDstConnect
             ? new DstConnectOptions { BlockPeriodMs = 200, BlockStartIndex = 1 } : new DstConnectOptions() };
         typeof(OutputSettings).GetProperty("IncludeDtc")?.SetValue(settings, includeDtc);
+        ConfigureLegacyDtc(settings);
         var result = (ProcessingResult)process.Invoke(service, new object[] { input, output, DeviceFiles.LoadDevices(description), settings, new ProcessingContext(messages.Add) })!;
         if (!result.Success) throw new InvalidOperationException(result.Error);
         string fingerprint;
@@ -185,8 +186,10 @@ void RunBatch(BatchOutputMode mode, string[] inputs, string description)
         string folder = Path.Combine(work, key);
         Directory.CreateDirectory(folder);
         var method = serviceType.GetMethod("ProcessFolderBatch")!;
+        var settings = new OutputSettings { IncludeDtc = true };
+        ConfigureLegacyDtc(settings);
         object result = method.Invoke(service, new object[] { inputs, folder, Path.GetFullPath(description), mode,
-            DeviceFiles.LoadDevices(description), new OutputSettings { IncludeDtc = true }, new ProcessingContext() })!;
+            DeviceFiles.LoadDevices(description), settings, new ProcessingContext() })!;
         var json = JsonSerializer.SerializeToElement(result, result.GetType());
         if (json.GetProperty("Failed").GetInt32() != 0 || json.GetProperty("Created").GetInt32() == 0)
             throw new InvalidOperationException("Batch failed or produced no output.");
@@ -199,5 +202,12 @@ void RunBatch(BatchOutputMode mode, string[] inputs, string description)
         Console.WriteLine($"PASS {key}: {files.Length} outputs");
     }
     catch (Exception ex) { failures++; checks.Add(new { Key = key, Status = "FAIL", Error = (ex.InnerException ?? ex).Message }); Console.WriteLine($"FAIL {key}: {(ex.InnerException ?? ex).Message}"); }
+}
+// Keep this historical on/off audit comparable with older core assemblies.
+static void ConfigureLegacyDtc(OutputSettings settings)
+{
+    typeof(OutputSettings).GetProperty("AutoIncludeDtc")?.SetValue(settings, false);
+    var format = typeof(OutputSettings).GetProperty("DtcDisplayFormat");
+    if (format != null) format.SetValue(settings, Enum.Parse(format.PropertyType, "Detailed"));
 }
 static string Hash(string path) { using var stream = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(stream)); }

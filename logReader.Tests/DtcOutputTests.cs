@@ -39,7 +39,8 @@ public class DtcOutputTests
         => DeviceFiles.LoadDevices(dir.Write("devices.dbc", TestData.TwoMessageDbc));
 
     private static OutputSettings Settings(OutputFormat format = OutputFormat.Csv, bool includeDtc = true, bool idRow = false)
-        => new() { Format = format, IncludeDtc = includeDtc, IncludeDeviceIdHeaderRow = idRow };
+        => new() { Format = format, IncludeDtc = includeDtc, AutoIncludeDtc = false,
+            DtcDisplayFormat = DtcDisplayFormat.Detailed, IncludeDeviceIdHeaderRow = idRow };
 
     private static int[][] PackSlots((int Spn, int Fmi)?[] codes, int count)
     {
@@ -445,7 +446,8 @@ public class DtcOutputTests
             TrcFrame(4, 20, "0CFF0008", [18, 0, 0, 0, 0, 0, 0, 0]) +
             TrcFrame(5, 3000, "0CFF0008", [19, 0, 0, 0, 0, 0, 0, 0]));
         string output = dir.File("dst.csv");
-        var settings = new OutputSettings { Format = OutputFormat.CsvDstConnect, IncludeDtc = true, DstConnect = new DstConnectOptions { BlockPeriodMs = 20 } };
+        var settings = new OutputSettings { Format = OutputFormat.CsvDstConnect, IncludeDtc = true,
+            DtcDisplayFormat = DtcDisplayFormat.Detailed, DstConnect = new DstConnectOptions { BlockPeriodMs = 20 } };
         var result = new DstConnectTrcProcessor().Process(input, Devices(dir), output, settings, new ProcessingContext());
         Assert.True(result.Success, result.Error);
         var rows = File.ReadAllLines(output).Select(l => l.Split(';')).ToArray();

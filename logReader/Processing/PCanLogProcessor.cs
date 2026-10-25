@@ -34,7 +34,7 @@ namespace logReader.Processing
                 CompositeOutput.WithComposites(devices, composites),
                 filter,
                 isCanfox ? TimeAxisKind.TimeOfDay : TimeAxisKind.Milliseconds,
-                settings.IncludeDtc ? settings.DtcTimeoutMs : null);
+                settings.CollectDtc ? settings.DtcTimeoutMs : null);
 
             Span<int> bytes = stackalloc int[Device.MaxDataLength];
             DateOnly? dtcFirstDate = null;
@@ -52,7 +52,7 @@ namespace logReader.Processing
                     {
                         if (!CanfoxLogParser.TryParseCanfoxFrameLine(line, out DateOnly date, out timeVal, out id, bytes, out parsedByteCount))
                         {
-                            if (!settings.IncludeDtc || !DtcFrameBoundary.TryCanfox(line, out date, out timeVal, out id)) continue;
+                            if (!settings.CollectDtc || !DtcFrameBoundary.TryCanfox(line, out date, out timeVal, out id)) continue;
                             diagnosticOnly = true;
                             parsedByteCount = 0;
                         }
@@ -63,7 +63,7 @@ namespace logReader.Processing
                     {
                         if (!TrcLogParser.TryParseTrcFrameLine(line, out decimal timeMsRaw, out _, out id, out _, bytes, out parsedByteCount))
                         {
-                            if (!settings.IncludeDtc || !DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id)) continue;
+                            if (!settings.CollectDtc || !DtcFrameBoundary.TryTrc(line, out _, out timeMsRaw, out id)) continue;
                             diagnosticOnly = true;
                             parsedByteCount = 0;
                         }

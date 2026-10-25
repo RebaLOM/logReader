@@ -52,7 +52,8 @@ namespace logReader.Processing
             IReadOnlyList<DstConnectSnapshotRow> rows,
             bool includeDeviceIdHeaderRow,
             ProcessingContext context,
-            IReadOnlyDictionary<DstConnectSnapshotRow, DtcSnapshot>? dtcStates = null)
+            IReadOnlyDictionary<DstConnectSnapshotRow, DtcSnapshot>? dtcStates = null,
+            DtcDisplayFormat dtcDisplayFormat = DtcDisplayFormat.Compact)
         {
             try
             {
@@ -89,7 +90,7 @@ namespace logReader.Processing
                         foreach (var col in columns)
                             line.Add(FormatValue(row.Values[col.Index]));
                         if (dtcStates != null)
-                            line.AddRange(DtcOutput.Fields(dtcStates.TryGetValue(row, out var dtc) ? dtc : null));
+                            line.AddRange(DtcOutput.Fields(dtcStates.TryGetValue(row, out var dtc) ? dtc : null, dtcDisplayFormat));
                         CsvOutput.WriteRow(writer, line);
                     }
                 });

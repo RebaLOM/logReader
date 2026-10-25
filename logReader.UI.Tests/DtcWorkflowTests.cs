@@ -7,29 +7,38 @@ namespace logReader.UI.Tests;
 public sealed class DtcWorkflowTests
 {
     [Fact]
-    public void Save_options_keep_Dtc_opt_in_and_round_trip_timeout() => Run(() =>
+    public void Save_options_offer_three_Dtc_modes_and_round_trip_timeout() => Run(() =>
     {
         using var defaults = new SaveOptionsForm(OutputFormat.Csv, BatchOutputMode.PerInputFile,
             new DstConnectOptions(), null, LogFormatKind.All);
-        Assert.False(defaults.IncludeDtc);
+        Assert.Equal(DtcInclusionMode.Auto, defaults.DtcInclusion);
         Assert.Equal(2000, defaults.DtcTimeoutMs);
-        var check = Field<CheckBox>(defaults, "_chkIncludeDtc");
+        var combo = Field<ComboBox>(defaults, "_comboDtcInclusion");
+        Assert.Equal(new[] { "Авто", "Всегда", "Не добавлять" }, combo.Items.Cast<string>().ToArray());
+        Assert.Equal(ComboBoxStyle.DropDownList, combo.DropDownStyle);
+        Assert.Equal(0, combo.SelectedIndex);
         var timeout = Field<NumericUpDown>(defaults, "_numDtcTimeout");
+        Assert.True(timeout.Enabled);
+        combo.SelectedIndex = 2;
         Assert.False(timeout.Enabled);
-        check.Checked = true;
+        combo.SelectedIndex = 1;
         Assert.True(timeout.Enabled);
         timeout.Value = 3.125M;
         Invoke(defaults, "buttonOk_Click", null, EventArgs.Empty);
-        Assert.True(defaults.IncludeDtc);
+        Assert.Equal(DtcInclusionMode.Always, defaults.DtcInclusion);
         Assert.Equal(3125, defaults.DtcTimeoutMs);
 
         using var restored = new SaveOptionsForm(OutputFormat.Csv, BatchOutputMode.PerInputFile,
-            new DstConnectOptions(), null, LogFormatKind.All, false, true, 3125);
-        Assert.True(Field<CheckBox>(restored, "_chkIncludeDtc").Checked);
+            new DstConnectOptions(), null, LogFormatKind.All, false, defaults.DtcInclusion, defaults.DtcTimeoutMs);
+        Assert.Equal(1, Field<ComboBox>(restored, "_comboDtcInclusion").SelectedIndex);
         Assert.Equal(3.125M, Field<NumericUpDown>(restored, "_numDtcTimeout").Value);
-        Field<CheckBox>(restored, "_chkIncludeDtc").Checked = false;
+        Field<ComboBox>(restored, "_comboDtcInclusion").SelectedIndex = 2;
         Invoke(restored, "buttonOk_Click", null, EventArgs.Empty);
-        Assert.False(restored.IncludeDtc);
+        Assert.Equal(DtcInclusionMode.Never, restored.DtcInclusion);
+        Field<ComboBox>(restored, "_comboDtcInclusion").SelectedIndex = 0;
+        Assert.True(Field<NumericUpDown>(restored, "_numDtcTimeout").Enabled);
+        Invoke(restored, "buttonOk_Click", null, EventArgs.Empty);
+        Assert.Equal(DtcInclusionMode.Auto, restored.DtcInclusion);
     });
 
     [Fact]
@@ -98,7 +107,7 @@ public sealed class DtcWorkflowTests
         Assert.True(timeline.VirtualMode);
         Assert.Equal(2, summary.RowCount);
         Assert.Equal(17500, timeline.RowCount);
-        Assert.Equal("SPN 32770 / FMI 0", timeline.Rows[0].Cells[4].Value);
+        Assert.Equal("32770.0", timeline.Rows[0].Cells[4].Value);
         Assert.Equal("", timeline.Rows[0].Cells[5].Value);
         Field<ComboBox>(form, "_fileFilter").SelectedIndex = 2;
         Assert.Equal(1, summary.RowCount);
@@ -113,6 +122,102 @@ public sealed class DtcWorkflowTests
         Assert.Equal(17500, timeline.RowCount);
         Field<TextBox>(form, "_search").Text = "32770 / 0";
         Assert.Equal(1, summary.RowCount);
+        Field<TextBox>(form, "_search").Text = "32770.0";
+        Assert.Equal(1, summary.RowCount);
+    });
+
+    [Fact]
+    public void Cancelled_save_options_do_not_apply_the_edited_mode() => Run(() =>
+    {
+        using var form = new SaveOptionsForm(OutputFormat.Csv, BatchOutputMode.PerInputFile,
+            new DstConnectOptions(), null, LogFormatKind.All);
+        form.Show();
+        Field<ComboBox>(form, "_comboDtcInclusion").SelectedIndex = 1;
+        ((Button)form.CancelButton!).PerformClick();
+        Assert.Equal(DialogResult.Cancel, form.DialogResult);
+        Assert.Equal(DtcInclusionMode.Auto, form.DtcInclusion);
+    });
+
+    [Theory]
+    [InlineData(DtcDisplayFormat.Compact, "32770.10")]
+    [InlineData(DtcDisplayFormat.Detailed, "SPN 32770 / FMI 10")]
+    public void Diagnostic_tables_use_selected_format_and_keep_unknown_and_empty_slots_distinct(
+        DtcDisplayFormat format, string expected) => Run(() =>
+    {
+        var code = new DtcCode(32770, 10);
+        DtcSlot[] slots = [DtcSlot.Present(code), DtcSlot.Empty, DtcSlot.Unknown,
+            DtcSlot.Empty, DtcSlot.Empty, DtcSlot.Empty];
+        var result = new DtcAnalysisResult(
+            [new("fixture.trc", "1", new DtcSnapshot(1, slots, 1, false, "raw frame"))],
+            [new("fixture.trc", code, "1", "1", null, "Конец файла")],
+            [new("fixture.trc", code, "1", "1", 1, "Присутствует")], []);
+        using var form = new DtcDiagnosticsForm("fixture.trc", analyze: (_, _, _) => result,
+            displayFormat: format);
+        form.Show();
+        Until(() => Field<CancellationTokenSource?>(form, "_operation") == null
+            && Field<DtcAnalysisResult?>(form, "_result") != null);
+        Assert.Equal(expected, Field<DataGridView>(form, "_summaryGrid").Rows[0].Cells[1].Value);
+        Assert.Equal(expected, Field<DataGridView>(form, "_episodeGrid").Rows[0].Cells[1].Value);
+        var snapshots = Field<DataGridView>(form, "_snapshotGrid");
+        Assert.Equal(expected, snapshots.Rows[0].Cells[4].Value);
+        Assert.Equal("", snapshots.Rows[0].Cells[5].Value);
+        Assert.Equal("Н/Д", snapshots.Rows[0].Cells[6].Value);
+        Field<TextBox>(form, "_search").Text = "32770.10";
+        Assert.Equal(1, Field<DataGridView>(form, "_summaryGrid").RowCount);
+        Field<TextBox>(form, "_search").Text = "SPN 32770 / FMI 10";
+        Assert.Equal(1, Field<DataGridView>(form, "_summaryGrid").RowCount);
+    });
+
+    [Theory]
+    [InlineData(0, true, false)]
+    [InlineData(1, false, true)]
+    [InlineData(2, false, false)]
+    public void Main_restores_output_mode_and_display_format_independently(
+        int mode, bool expectedAuto, bool expectedAlways) => Run(() =>
+    {
+        string root = Path.Combine(Path.GetTempPath(), "loger-display-main-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new DisplaySettingsStore(Path.Combine(root, "settings.json"));
+            using (var form = new MainForm(store))
+            {
+                var defaults = (OutputSettings)Invoke(form, "BuildOutputSettings", OutputFormat.Csv)!;
+                Assert.True(defaults.AutoIncludeDtc);
+                Assert.False(defaults.IncludeDtc);
+                Assert.Equal(DtcDisplayFormat.Compact, defaults.DtcDisplayFormat);
+                var button = Field<Button>(form, "buttonDisplaySettings");
+                Assert.Equal("Настройки отображения", button.AccessibleName);
+                Invoke(form, "SetBusy", true, "test");
+                Assert.False(button.Enabled);
+                Invoke(form, "SetBusy", false, "");
+                Assert.True(button.Enabled);
+                Invoke(form, "ApplyDisplaySettings", new DisplaySettings
+                {
+                    DtcFormat = DtcDisplayFormat.Detailed
+                });
+                using var options = new SaveOptionsForm(OutputFormat.Csv, BatchOutputMode.PerInputFile,
+                    new DstConnectOptions(), null, LogFormatKind.All);
+                Field<ComboBox>(options, "_comboDtcInclusion").SelectedIndex = mode;
+                Invoke(options, "buttonOk_Click", null, EventArgs.Empty);
+                Invoke(form, "ApplySaveOptions", options);
+                var next = (OutputSettings)Invoke(form, "BuildOutputSettings", OutputFormat.Xlsx)!;
+                Assert.Equal(expectedAuto, next.AutoIncludeDtc);
+                Assert.Equal(expectedAlways, next.IncludeDtc);
+                Assert.Equal(DtcDisplayFormat.Detailed, next.DtcDisplayFormat);
+                Assert.Equal((DtcInclusionMode)mode, store.Load().DtcInclusion);
+                Assert.True(defaults.AutoIncludeDtc);
+                Assert.Equal(DtcDisplayFormat.Compact, defaults.DtcDisplayFormat);
+            }
+            using var restored = new MainForm(store);
+            var settings = (OutputSettings)Invoke(restored, "BuildOutputSettings", OutputFormat.Csv)!;
+            Assert.Equal(expectedAuto, settings.AutoIncludeDtc);
+            Assert.Equal(expectedAlways, settings.IncludeDtc);
+            Assert.Equal(DtcDisplayFormat.Detailed, settings.DtcDisplayFormat);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
     });
 
     [Theory]

@@ -41,11 +41,53 @@ public sealed class Loger2DtcLayoutTests
     });
 
     [Theory]
-    [InlineData("Dark", OutputFormat.Csv)]
-    [InlineData("Light", OutputFormat.Csv)]
-    [InlineData("Dark", OutputFormat.CsvDstConnect)]
-    [InlineData("Light", OutputFormat.CsvDstConnect)]
-    public void Save_options_Dtc_controls_fit_alongside_existing_export_options(string theme, OutputFormat format) => Run(() =>
+    [InlineData("Dark")]
+    [InlineData("Light")]
+    public void Display_settings_action_stays_reachable_in_export_inspector(string theme) => Run(() =>
+    {
+        ThemeMode previous = ThemeManager.Mode;
+        try
+        {
+            ThemeManager.SetMode(Enum.Parse<ThemeMode>(theme), persist: false);
+            using var form = new MainForm { ShowInTaskbar = false };
+            form.Show();
+            var display = Field<Button>(form, "buttonDisplaySettings");
+            var save = Field<Button>(form, "buttonSaveOptions");
+            Assert.Contains(Ancestors(display), ancestor => ancestor.Name == "exportInspector");
+            Assert.Equal("Настройки отображения", display.AccessibleName);
+            Assert.Equal(ThemeManager.Current.Text, display.ForeColor);
+            var viewport = Assert.IsType<Panel>(Find(form, "exportSettings"));
+
+            foreach (Size size in new[] { form.Size, form.MinimumSize })
+            {
+                form.Size = size;
+                Layout(form);
+                viewport.ScrollControlIntoView(display);
+                Layout(form);
+                AssertVisibleBounds(display);
+                AssertVisibleBounds(save);
+                AssertSeparate(display, save);
+            }
+
+            Invoke(form, "SetBusy", true, "Проверка настроек");
+            Assert.False(display.Enabled);
+            Assert.False(save.Enabled);
+            Invoke(form, "SetBusy", false, "");
+            Assert.True(display.Enabled);
+            Assert.True(save.Enabled);
+            Capture(form, $"display-settings-action-{theme.ToLowerInvariant()}");
+        }
+        finally { ThemeManager.SetMode(previous, persist: false); }
+    });
+
+    [Theory]
+    [InlineData("Dark", OutputFormat.Csv, 0)]
+    [InlineData("Light", OutputFormat.Csv, 1)]
+    [InlineData("Dark", OutputFormat.CsvDstConnect, 0)]
+    [InlineData("Light", OutputFormat.CsvDstConnect, 1)]
+    [InlineData("Dark", OutputFormat.Csv, 2)]
+    [InlineData("Light", OutputFormat.CsvDstConnect, 2)]
+    public void Save_options_Dtc_controls_fit_alongside_existing_export_options(string theme, OutputFormat format, int mode) => Run(() =>
     {
         ThemeMode previous = ThemeManager.Mode;
         try
@@ -53,13 +95,13 @@ public sealed class Loger2DtcLayoutTests
             ThemeManager.SetMode(Enum.Parse<ThemeMode>(theme), persist: false);
             using var folder = new TestLogFolder();
             using var form = new SaveOptionsForm(format, BatchOutputMode.PerInputFile,
-                new DstConnectOptions(), folder.Path, LogFormatKind.All, includeDtc: true);
+                new DstConnectOptions(), folder.Path, LogFormatKind.All, dtcInclusion: (DtcInclusionMode)mode);
             form.Show();
             Layout(form);
             var controls = new List<Control>
             {
                 Field<ComboBox>(form, "_comboOutputFormat"), Field<ComboBox>(form, "_comboBatchMode"),
-                Field<CheckBox>(form, "_chkIncludeDeviceIdRow"), Field<CheckBox>(form, "_chkIncludeDtc"),
+                Field<CheckBox>(form, "_chkIncludeDeviceIdRow"), Field<ComboBox>(form, "_comboDtcInclusion"),
                 Field<NumericUpDown>(form, "_numDtcTimeout"), Field<CheckedListBox>(form, "_formatsList"),
                 Assert.IsType<Button>(form.AcceptButton), Assert.IsType<Button>(form.CancelButton)
             };
@@ -69,7 +111,8 @@ public sealed class Loger2DtcLayoutTests
                 controls.Add(Field<NumericUpDown>(form, "_numBlockPeriod"));
                 controls.Add(Field<NumericUpDown>(form, "_numBlockStart"));
             }
-            Control dtcSection = Field<CheckBox>(form, "_chkIncludeDtc").Parent!.Parent!;
+            Control dtcSection = Ancestors(Field<ComboBox>(form, "_comboDtcInclusion"))
+                .OfType<Panel>().First(panel => Equals(panel.Tag, "surface"));
             controls.AddRange(Descendants(dtcSection).OfType<Label>());
             foreach (Control control in controls) AssertVisibleBounds(control);
             AssertSeparate(controls.ToArray());
@@ -77,11 +120,12 @@ public sealed class Loger2DtcLayoutTests
             Assert.True(formats.Enabled);
             Assert.Equal(2, formats.Items.Count); // All formats plus the fixture's TRC format.
             Assert.True(formats.ClientSize.Height >= 2 * formats.ItemHeight);
-            Capture(form, $"save-options-{format}-{theme.ToLowerInvariant()}");
+            Capture(form, $"save-options-{format}-{theme.ToLowerInvariant()}-{mode}");
             Assert.Equal(ThemeManager.Current.Background, form.BackColor);
             Assert.Equal(ThemeManager.Current.Surface, Field<NumericUpDown>(form, "_numDtcTimeout").BackColor);
-            Assert.Equal(ThemeManager.Current.Text, Field<CheckBox>(form, "_chkIncludeDtc").ForeColor);
-            Assert.True(Field<NumericUpDown>(form, "_numDtcTimeout").Enabled);
+            Assert.Equal(ThemeManager.Current.Text, Field<ComboBox>(form, "_comboDtcInclusion").ForeColor);
+            Assert.Equal(mode, Field<ComboBox>(form, "_comboDtcInclusion").SelectedIndex);
+            Assert.Equal(mode != (int)DtcInclusionMode.Never, Field<NumericUpDown>(form, "_numDtcTimeout").Enabled);
 
             // Export uses empty cells for unknown slots; its help must not promise Н/Д.
             string help = string.Join(" ", Descendants(form).OfType<Label>().Select(label => label.Text));
@@ -159,7 +203,7 @@ public sealed class Loger2DtcLayoutTests
                 Assert.Equal(ThemeManager.Current.Background, diagnostics.BackColor);
                 Assert.Equal(ThemeManager.Current.Background, options.BackColor);
                 AssertGridTheme(Field<DataGridView>(diagnostics, "_summaryGrid"));
-                Assert.Equal(ThemeManager.Current.Text, Field<CheckBox>(options, "_chkIncludeDtc").ForeColor);
+                Assert.Equal(ThemeManager.Current.Text, Field<ComboBox>(options, "_comboDtcInclusion").ForeColor);
                 Assert.Equal(ThemeManager.Current.SurfaceAlt, Field<TextBox>(diagnostics, "_rawData").BackColor);
                 Capture(main, $"main-{theme.ToString().ToLowerInvariant()}");
             }
@@ -190,7 +234,7 @@ public sealed class Loger2DtcLayoutTests
         Assert.Equal("Неполный", grid.Rows[0].Cells[3].Value);
         Assert.All(grid.Rows[0].Cells.Cast<DataGridViewCell>().Skip(4), cell => Assert.Equal("Н/Д", cell.Value));
         Assert.Equal("1", grid.Rows[1].Cells[2].Value);
-        Assert.Equal("SPN 32770 / FMI 0", grid.Rows[1].Cells[4].Value);
+        Assert.Equal("32770.0", grid.Rows[1].Cells[4].Value);
         Assert.Equal("Н/Д", grid.Rows[1].Cells[5].Value);
         Assert.Equal("", grid.Rows[1].Cells[6].Value);
         Assert.Equal("0", grid.Rows[2].Cells[2].Value);
@@ -203,11 +247,15 @@ public sealed class Loger2DtcLayoutTests
     });
 
     [Theory]
-    [InlineData(1680, 880, 1f)]
-    [InlineData(1318, 700, 1f)]
-    [InlineData(1318, 700, 1.25f)]
-    [InlineData(1318, 700, 1.5f)]
-    public void Diagnostics_tables_keep_all_columns_and_wrapped_values_visible(int width, int height, float textScale) => Run(() =>
+    [InlineData(1680, 880, 1f, DtcDisplayFormat.Compact)]
+    [InlineData(1318, 700, 1f, DtcDisplayFormat.Compact)]
+    [InlineData(1318, 700, 1.25f, DtcDisplayFormat.Compact)]
+    [InlineData(1318, 700, 1.5f, DtcDisplayFormat.Compact)]
+    [InlineData(1680, 880, 1f, DtcDisplayFormat.Detailed)]
+    [InlineData(1318, 700, 1f, DtcDisplayFormat.Detailed)]
+    [InlineData(1318, 700, 1.25f, DtcDisplayFormat.Detailed)]
+    [InlineData(1318, 700, 1.5f, DtcDisplayFormat.Detailed)]
+    public void Diagnostics_tables_keep_all_columns_and_wrapped_values_visible(int width, int height, float textScale, DtcDisplayFormat format) => Run(() =>
     {
         const string file = "Очень_длинное_имя_файла_для_проверки_всех_шести_диагностических_позиций_2025-10-16.trc";
         const string time = "2025-10-16 06:45:14.274";
@@ -217,7 +265,7 @@ public sealed class Loger2DtcLayoutTests
             [new(file, time, new DtcSnapshot(1, slots, 6, true, "18FE2503 / 18FE2603 / 18FE2703"))],
             [new(file, code, time, time, time, "Отсутствие в полном снимке")],
             [new(file, code, time, time, 1, "Отсутствует в полном снимке")], []);
-        using var form = new DtcDiagnosticsForm(file, analyze: (_, _, _) => result) { ShowInTaskbar = false };
+        using var form = new DtcDiagnosticsForm(file, analyze: (_, _, _) => result, displayFormat: format) { ShowInTaskbar = false };
         form.Show();
         Until(() => Field<DtcAnalysisResult?>(form, "_result") != null);
         form.Size = new Size(width, height);
@@ -255,10 +303,10 @@ public sealed class Loger2DtcLayoutTests
             Assert.True(textWidth <= snapshots.Columns[0].Width - snapshots.DefaultCellStyle.Padding.Horizontal,
                 $"A file name line is cut off: {line}.");
         }
-        Assert.Equal("SPN 524287 / FMI 31", snapshots.Rows[0].Cells[9].Value);
+        Assert.Equal(code.ToDisplayString(format), snapshots.Rows[0].Cells[9].Value);
         Assert.Contains("18FE2703", Field<TextBox>(form, "_rawData").Text);
         AssertVisibleBounds(Field<TextBox>(form, "_rawData"));
-        Capture(form, $"diagnostics-six-slots-{width}-{textScale.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        Capture(form, $"diagnostics-six-slots-{width}-{textScale.ToString(System.Globalization.CultureInfo.InvariantCulture)}-{format}");
 
         // At the deliberately smaller minimum, horizontal scrolling preserves
         // the minimum readable widths instead of hiding the rightmost fields.

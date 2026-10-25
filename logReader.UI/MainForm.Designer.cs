@@ -56,6 +56,7 @@ namespace logReader.UI
             buttonCompositesCreateOrAdd = WorkspaceButton("Создать .xlsx", "buttonCompositesCreateOrAdd", buttonCompositesCreateOrAdd_Click);
             buttonOutput = WorkspaceButton("Выбрать путь…", "buttonOutput", buttonOutput_Click);
             buttonSaveOptions = WorkspaceButton("Параметры экспорта", "buttonSaveOptions", buttonSaveOptions_Click);
+            buttonDisplaySettings = WorkspaceButton("Настройки отображения…", "buttonDisplaySettings", buttonDisplaySettings_Click);
             buttonOpenOutput = WorkspaceButton("Открыть результат ↗", "buttonOpenOutput", buttonOpenOutput_Click);
             buttonProcess = WorkspaceButton("Обработать", "buttonProcess", buttonProcess_Click, "primary");
             buttonProcess.Dock = DockStyle.Top;
@@ -116,6 +117,7 @@ namespace logReader.UI
         private Button buttonDevicesParams = null!;
         private Button buttonDevicesCreateOrAdd = null!;
         private Button buttonSaveOptions = null!;
+        private Button buttonDisplaySettings = null!;
         private Button buttonCancel = null!;
         private ProgressBar progressBarProcess = null!;
         private Label labelProgress = null!;

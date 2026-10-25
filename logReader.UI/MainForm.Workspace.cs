@@ -341,6 +341,7 @@ public partial class MainForm
         labelResult.Margin = new Padding(0, 12, 0, 4); stack.Controls.Add(labelResult);
         stack.Controls.Add(textBoxOutput); stack.Controls.Add(WorkspaceActions(buttonOutput));
         stack.Controls.Add(WorkspaceActions(buttonSaveOptions));
+        stack.Controls.Add(WorkspaceActions(buttonDisplaySettings));
         var readyTitle = WorkspaceLabel("ГОТОВНОСТЬ СЕАНСА", tag: "muted");
         readyTitle.Font = WorkspaceFont(8F, FontStyle.Bold); readyTitle.Margin = new Padding(0, 16, 0, 10);
         stack.Controls.Add(readyTitle);
@@ -538,7 +539,7 @@ public partial class MainForm
             textBoxCanLog, textBoxDevices, textBoxComposites, textBoxOutput,
             buttonCANlog, buttonViewLog, buttonDtcDiagnostics, buttonDevices, buttonDevicesCreateOrAdd,
             buttonDevicesParams, buttonComposites, buttonCompositesCreateOrAdd,
-            buttonOutput, buttonSaveOptions, buttonProcess, buttonOpenOutput, buttonTrcToAsc
+            buttonOutput, buttonSaveOptions, buttonDisplaySettings, buttonProcess, buttonOpenOutput, buttonTrcToAsc
         }) control.Enabled = !busy;
         _workspaceState.Text = busy ? "●  Выполняется операция" : "○  Настройка сеанса";
         _workspaceState.ForeColor = busy ? ThemeManager.Current.Text : ThemeManager.Current.Muted;

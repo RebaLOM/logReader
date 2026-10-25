@@ -7,6 +7,7 @@ internal sealed class DtcDiagnosticsForm : Form
     private readonly string _sourcePath;
     private readonly bool _sourceIsFolder;
     private readonly Func<string, double, ProcessingContext, DtcAnalysisResult> _analyze;
+    private readonly DtcDisplayFormat _displayFormat;
     private readonly NumericUpDown _timeout;
     private readonly Button _analyzeButton;
     private readonly Button _cancelButton;
@@ -34,8 +35,10 @@ internal sealed class DtcDiagnosticsForm : Form
     internal double TimeoutMs => (double)_timeout.Value * 1000;
 
     internal DtcDiagnosticsForm(string sourcePath, double timeoutMs = 2000,
-        Func<string, double, ProcessingContext, DtcAnalysisResult>? analyze = null)
+        Func<string, double, ProcessingContext, DtcAnalysisResult>? analyze = null,
+        DtcDisplayFormat displayFormat = DtcDisplayFormat.Compact)
     {
+        _displayFormat = Enum.IsDefined(displayFormat) ? displayFormat : DtcDisplayFormat.Compact;
         _sourcePath = sourcePath;
         _sourceIsFolder = Directory.Exists(sourcePath);
         _analyze = analyze ?? ((path, timeout, context) => DtcAnalysisService.Analyze(path, timeout, context));
@@ -100,14 +103,14 @@ internal sealed class DtcDiagnosticsForm : Form
         split.Panel1MinSize = 110;
         split.Panel2MinSize = 170;
         split.SplitterDistance = 220;
-        _summaryGrid = CreateGrid("dtcSummary", ["Файл", "SPN", "FMI", "Первое подтверждение", "Последнее подтверждение", "Интервалы", "Последний снимок"]);
+        _summaryGrid = CreateGrid("dtcSummary", ["Файл", "Код DTC", "Первое подтверждение", "Последнее подтверждение", "Интервалы", "Последний снимок"]);
         _summaryGrid.CellValueNeeded += SummaryCellValueNeeded;
         _summaryGrid.CurrentCellChanged += (_, _) => { if (!_updating) UpdateDetails(); };
         split.Panel1.Controls.Add(_summaryGrid);
 
         var tabs = _detailsTabs = new ThemedTabControl { Dock = DockStyle.Fill };
         var episodesTab = new TabPage("История выбранного кода");
-        _episodeGrid = CreateGrid("dtcEpisodes", ["Файл", "SPN", "FMI", "Первое подтверждение", "Последнее подтверждение", "Первое отсутствие", "Окончание интервала"]);
+        _episodeGrid = CreateGrid("dtcEpisodes", ["Файл", "Код DTC", "Первое подтверждение", "Последнее подтверждение", "Первое отсутствие", "Окончание интервала"]);
         _episodeGrid.CellValueNeeded += EpisodeCellValueNeeded;
         episodesTab.Controls.Add(_episodeGrid);
         var statesTab = new TabPage("Снимки и исходные данные");
@@ -174,7 +177,7 @@ internal sealed class DtcDiagnosticsForm : Form
         BalanceTables();
     }
 
-    private static DataGridView CreateGrid(string name, string[] headers)
+    private DataGridView CreateGrid(string name, string[] headers)
     {
         var grid = new DataGridView
         {
@@ -299,17 +302,16 @@ internal sealed class DtcDiagnosticsForm : Form
         _split.SplitterDistance = Math.Clamp(preferred, minimumTop, maximumTop);
     }
 
-    private static (int Minimum, int Weight) ColumnLayout(string header) => header switch
+    private (int Minimum, int Weight) ColumnLayout(string header) => header switch
     {
         "Файл" => (120, 190),
-        "SPN" => (64, 74),
-        "FMI" => (48, 52),
+        "Код DTC" => _displayFormat == DtcDisplayFormat.Compact ? (90, 110) : (120, 150),
         "Интервалы" => (80, 88),
         "Время" or "Первое подтверждение" or "Последнее подтверждение" or "Первое отсутствие" => (150, 175),
         "Последний снимок" or "Окончание интервала" => (180, 245),
         "Количество ошибок" => (78, 88),
         "Полнота списка" => (95, 110),
-        _ => (90, 136) // One protocol slot; SPN and FMI wrap at compact screen widths.
+        _ => _displayFormat == DtcDisplayFormat.Compact ? (80, 110) : (90, 136)
     };
 
     private async Task AnalyzeAsync()
@@ -422,7 +424,8 @@ internal sealed class DtcDiagnosticsForm : Form
         try
         {
             _summaries = _result.Summaries.Where(s => (file == null || SameFile(s.SourceFile, file))
-                && terms.All(term => s.Code.ToString().Contains(term, StringComparison.OrdinalIgnoreCase))).ToArray();
+                && terms.All(term => s.Code.ToDisplayString(DtcDisplayFormat.Compact).Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || s.Code.ToDisplayString(DtcDisplayFormat.Detailed).Contains(term, StringComparison.OrdinalIgnoreCase))).ToArray();
             SetRowCount(_summaryGrid, _summaries.Length);
             _summaryGrid.Invalidate();
         }
@@ -503,8 +506,8 @@ internal sealed class DtcDiagnosticsForm : Form
         var row = _summaries[e.RowIndex];
         e.Value = e.ColumnIndex switch
         {
-            0 => FileLabel(row.SourceFile), 1 => row.Code.Spn, 2 => row.Code.Fmi,
-            3 => row.FirstSeen, 4 => row.LastSeen, 5 => row.IntervalCount, 6 => row.State, _ => null
+            0 => FileLabel(row.SourceFile), 1 => row.Code.ToDisplayString(_displayFormat),
+            2 => row.FirstSeen, 3 => row.LastSeen, 4 => row.IntervalCount, 5 => row.State, _ => null
         };
     }
 
@@ -514,8 +517,8 @@ internal sealed class DtcDiagnosticsForm : Form
         var row = _episodes[e.RowIndex];
         e.Value = e.ColumnIndex switch
         {
-            0 => FileLabel(row.SourceFile), 1 => row.Code.Spn, 2 => row.Code.Fmi,
-            3 => row.FirstSeen, 4 => row.LastSeen, 5 => row.FirstAbsent ?? "", 6 => row.EndReason, _ => null
+            0 => FileLabel(row.SourceFile), 1 => row.Code.ToDisplayString(_displayFormat),
+            2 => row.FirstSeen, 3 => row.LastSeen, 4 => row.FirstAbsent ?? "", 5 => row.EndReason, _ => null
         };
     }
 
@@ -528,7 +531,7 @@ internal sealed class DtcDiagnosticsForm : Form
             0 => FileLabel(row.SourceFile), 1 => row.TimeText,
             2 => row.Snapshot.ReportedCount?.ToString(CultureInfo.InvariantCulture) ?? "Н/Д",
             3 => CompletenessText(row.Snapshot),
-            >= 4 and < 10 => row.Snapshot.Slots[e.ColumnIndex - 4].Text,
+            >= 4 and < 10 => row.Snapshot.Slots[e.ColumnIndex - 4].ToDisplayString(_displayFormat),
             _ => null
         };
     }

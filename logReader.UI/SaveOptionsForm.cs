@@ -10,7 +10,7 @@ namespace logReader.UI
         private readonly NumericUpDown _numBlockPeriod;
         private readonly NumericUpDown _numBlockStart;
         private readonly CheckBox _chkIncludeDeviceIdRow;
-        private readonly CheckBox _chkIncludeDtc;
+        private readonly ComboBox _comboDtcInclusion;
         private readonly NumericUpDown _numDtcTimeout;
         private bool _suppressFormatsEvents;
 
@@ -19,7 +19,7 @@ namespace logReader.UI
         internal LogFormatKind SelectedFolderFormats { get; private set; } = LogFormatKind.All;
         internal DstConnectOptions SelectedDstConnectOptions { get; private set; } = new();
         internal bool IncludeDeviceIdHeaderRow { get; private set; }
-        internal bool IncludeDtc { get; private set; }
+        internal DtcInclusionMode DtcInclusion { get; private set; }
         internal double DtcTimeoutMs { get; private set; } = 2000;
 
         internal SaveOptionsForm(
@@ -29,12 +29,12 @@ namespace logReader.UI
             string? logFolderPath,
             LogFormatKind currentFolderFormats,
             bool includeDeviceIdHeaderRow = false,
-            bool includeDtc = false,
+            DtcInclusionMode dtcInclusion = DtcInclusionMode.Auto,
             double dtcTimeoutMs = 2000)
         {
             SelectedDstConnectOptions = CloneDstOptions(currentDstOptions);
             IncludeDeviceIdHeaderRow = includeDeviceIdHeaderRow;
-            IncludeDtc = includeDtc;
+            DtcInclusion = Enum.IsDefined(dtcInclusion) ? dtcInclusion : DtcInclusionMode.Auto;
             DtcTimeoutMs = double.IsFinite(dtcTimeoutMs) && dtcTimeoutMs > 0 ? dtcTimeoutMs : 2000;
             Text = "Параметры сохранения";
             FormBorderStyle = FormBorderStyle.Sizable;
@@ -109,20 +109,33 @@ namespace logReader.UI
             _dstPanel.Dock = DockStyle.Top;
             _dstPanel.Margin = new Padding(0, 0, 12, 14);
 
-            _chkIncludeDtc = new CheckBox
+            _comboDtcInclusion = new ComboBox
             {
-                Name = "includeDtc", AccessibleName = "Добавлять DTC в результат обработки",
-                Text = "Добавлять DTC в результат обработки", AutoSize = true,
-                Dock = DockStyle.Top, Checked = includeDtc
+                Name = "dtcInclusionMode", AccessibleName = "Добавление DTC",
+                DropDownStyle = ComboBoxStyle.DropDownList, Width = 260,
+                Margin = new Padding(8, 3, 0, 3)
             };
+            _comboDtcInclusion.Items.AddRange(["Авто", "Всегда", "Не добавлять"]);
+            _comboDtcInclusion.SelectedIndex = (int)DtcInclusion;
+            var dtcInclusionLine = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top, AutoSize = true, WrapContents = true
+            };
+            dtcInclusionLine.Controls.Add(new Label
+            {
+                Text = "Добавление DTC:", AutoSize = true,
+                Margin = new Padding(0, 6, 0, 3)
+            });
+            dtcInclusionLine.Controls.Add(_comboDtcInclusion);
             _numDtcTimeout = new NumericUpDown
             {
                 Name = "dtcTimeoutSeconds", AccessibleName = "Допустимый разрыв данных DTC, секунд",
                 Minimum = 0.001M, Maximum = 3600, DecimalPlaces = 3, Increment = 0.1M,
                 Value = (decimal)Math.Clamp(DtcTimeoutMs / 1000, 0.001, 3600),
-                Width = 100, Enabled = includeDtc, Margin = new Padding(8, 3, 0, 3)
+                Width = 100, Enabled = DtcInclusion != DtcInclusionMode.Never, Margin = new Padding(8, 3, 0, 3)
             };
-            _chkIncludeDtc.CheckedChanged += (_, _) => _numDtcTimeout.Enabled = _chkIncludeDtc.Checked;
+            _comboDtcInclusion.SelectedIndexChanged += (_, _) =>
+                _numDtcTimeout.Enabled = _comboDtcInclusion.SelectedIndex != (int)DtcInclusionMode.Never;
             var dtcTimeoutLine = new FlowLayoutPanel
             {
                 Dock = DockStyle.Top, AutoSize = true, WrapContents = true,
@@ -136,15 +149,16 @@ namespace logReader.UI
             dtcTimeoutLine.Controls.Add(_numDtcTimeout);
             var dtcHint = new Label
             {
-                Text = "DTC1–DTC6: SPN / FMI. Пусто — нет подтверждённого значения.",
-                Dock = DockStyle.Top, Height = 40, Tag = "muted", Padding = new Padding(0, 8, 0, 0)
+                Text = "DTC1–DTC6. Авто — только при наличии ошибок; Всегда — даже без ошибок; Не добавлять — без колонок DTC. "
+                    + "Свободные и неизвестные ячейки остаются пустыми.",
+                Dock = DockStyle.Top, Height = 48, Tag = "muted", Padding = new Padding(0, 8, 0, 0)
             };
             var dtcContent = new Panel { Dock = DockStyle.Fill };
             dtcContent.Controls.Add(dtcHint);
             dtcContent.Controls.Add(dtcTimeoutLine);
-            dtcContent.Controls.Add(_chkIncludeDtc);
+            dtcContent.Controls.Add(dtcInclusionLine);
             var dtcSection = DialogLayout.Section("Диагностика DTC в результате", dtcContent);
-            dtcSection.Height = 196;
+            dtcSection.Height = 220;
 
             _formatsList = new ThemedCheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, IntegralHeight = false };
             _formatsList.ItemCheck += formatsList_ItemCheck;
@@ -161,7 +175,7 @@ namespace logReader.UI
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             body.RowStyles.Add(new RowStyle(SizeType.Absolute, 194));
             body.RowStyles.Add(new RowStyle(SizeType.Absolute, 140));
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 196));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
             body.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
             body.Controls.Add(topCards, 0, 0);
             body.Controls.Add(_dstPanel, 0, 1);
@@ -432,7 +446,7 @@ namespace logReader.UI
             };
 
             IncludeDeviceIdHeaderRow = _chkIncludeDeviceIdRow.Checked;
-            IncludeDtc = _chkIncludeDtc.Checked;
+            DtcInclusion = (DtcInclusionMode)_comboDtcInclusion.SelectedIndex;
             DtcTimeoutMs = (double)_numDtcTimeout.Value * 1000;
             SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
         }

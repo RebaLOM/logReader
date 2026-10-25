@@ -40,7 +40,8 @@ Add-Type -ReferencedAssemblies @(
     (Join-Path $wpf 'UIAutomationClient.dll'),
     (Join-Path $wpf 'UIAutomationTypes.dll'),
     (Join-Path $wpf 'WindowsBase.dll'),
-    'System.Drawing.dll'
+    'System.Drawing.dll',
+    'System.Windows.Forms.dll'
 ) -TypeDefinition @'
 using System;
 using System.Drawing;
@@ -66,6 +67,7 @@ public static class DtcUiNative
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
     [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr hwnd);
     [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr hwnd);
@@ -219,17 +221,20 @@ public static class DtcUiNative
     }
     public static void SelectCell(AutomationElement grid, int row, int column)
     {
-        AutomationElement cell = ((GridPattern)grid.GetCurrentPattern(GridPattern.Pattern)).GetItem(row, column);
-        object pattern;
-        if (cell.TryGetCurrentPattern(ScrollItemPattern.Pattern, out pattern)) ((ScrollItemPattern)pattern).ScrollIntoView();
-        System.Windows.Rect bounds = cell.Current.BoundingRectangle;
+        if (row < 0 || row >= Rows(grid) || column < 0) throw new ArgumentOutOfRangeException();
         IntPtr hwnd = (IntPtr)grid.Current.NativeWindowHandle;
-        Point point = new Point((int)(bounds.Left + bounds.Width / 2), (int)(bounds.Top + bounds.Height / 2));
-        ScreenToClient(hwnd, ref point);
         SetForegroundWindow(GetAncestor(hwnd, 2));
-        IntPtr location = (IntPtr)((point.Y << 16) | (point.X & 0xFFFF));
-        SendMessage(hwnd, 0x0201, (IntPtr)1, location);
-        SendMessage(hwnd, 0x0202, IntPtr.Zero, location);
+        grid.SetFocus();
+        uint gridProcess, foregroundProcess;
+        GetWindowThreadProcessId(hwnd, out gridProcess);
+        GetWindowThreadProcessId(GetForegroundWindow(), out foregroundProcess);
+        if (gridProcess == 0 || gridProcess != foregroundProcess)
+            throw new InvalidOperationException("Test application did not receive keyboard focus.");
+        // Offscreen virtual cells do not reliably expose clickable bounds or
+        // selection patterns. Keyboard navigation sets the real CurrentCell.
+        System.Windows.Forms.SendKeys.SendWait("^{HOME}");
+        if (row > 0) System.Windows.Forms.SendKeys.SendWait("{DOWN " + row + "}");
+        if (column > 0) System.Windows.Forms.SendKeys.SendWait("{RIGHT " + column + "}");
     }
     public static int SelectFile(AutomationElement combo, string file)
     {
@@ -241,6 +246,10 @@ public static class DtcUiNative
         IntPtr command = (IntPtr)((1 << 16) | (GetDlgCtrlID(hwnd) & 0xFFFF));
         SendMessage(GetParent(hwnd), 0x0111, command, hwnd);
         return index;
+    }
+    public static int SelectedComboIndex(AutomationElement combo)
+    {
+        return (int)SendMessage((IntPtr)combo.Current.NativeWindowHandle, 0x0147, IntPtr.Zero, IntPtr.Zero);
     }
     public static void Close(AutomationElement window)
     {
@@ -324,13 +333,23 @@ try {
     Check 'Save-options button accessible' ($null -ne $saveOptionsButton) ([pscustomobject]@{ Name = $saveOptionsButton.Current.Name; Handle = $saveOptionsButton.Current.NativeWindowHandle })
     [DtcUiNative]::Click($saveOptionsButton)
     $options = Wait-Condition { [DtcUiNative]::Window($process.Id, 'Параметры сохранения') } 'save options'
-    $include = [DtcUiNative]::Find($options, 'includeDtc', 'Добавлять DTC в результат обработки')
-    Check 'DTC output disabled by default' (![DtcUiNative]::Checked($include)) 'Unchecked'
+    $inclusion = [DtcUiNative]::Find($options, 'dtcInclusionMode', 'Добавление DTC')
+    Check 'Automatic DTC output selected in save options by default' ([DtcUiNative]::SelectedComboIndex($inclusion) -eq 0) 'Авто'
     $timeout = [DtcUiNative]::Find($options, 'dtcTimeoutSeconds', 'Допустимый разрыв данных DTC, секунд')
     $defaultSeconds = [DtcUiNative]::Number($timeout)
     Check 'DTC timeout defaults to two seconds' ($defaultSeconds -eq 2) $defaultSeconds
     [DtcUiNative]::Capture($options, (Join-Path $output 'save-options-default.png'))
     [DtcUiNative]::Click([DtcUiNative]::Find($options, '', 'Отмена'))
+    $displayButton = [DtcUiNative]::Find($main, 'buttonDisplaySettings', 'Настройки отображения')
+    Check 'Display-settings button accessible' ($null -ne $displayButton) $displayButton.Current.Name
+    [DtcUiNative]::Click($displayButton)
+    $display = Wait-Condition { [DtcUiNative]::Window($process.Id, 'Настройки отображения') } 'display settings'
+    $automatic = [DtcUiNative]::Find($display, 'autoIncludeDtc', 'Автоматически добавлять DTC при наличии ошибок')
+    Check 'Display settings only control the code format' ($null -eq $automatic) 'DTC inclusion is in save options'
+    $displayFormat = [DtcUiNative]::Find($display, 'dtcDisplayFormat', 'Формат отображения DTC')
+    Check 'Compact DTC format selected by default' ([DtcUiNative]::SelectedComboIndex($displayFormat) -eq 0) '12345.0'
+    [DtcUiNative]::Capture($display, (Join-Path $output 'display-settings-default.png'))
+    [DtcUiNative]::Click([DtcUiNative]::Find($display, 'displaySettingsCancel', 'Отмена'))
     [DtcUiNative]::SetText([DtcUiNative]::Find($main, 'textBoxCanLog', ''), $sourcePath)
     [DtcUiNative]::Click($dtcButton)
     $diagnostics = Wait-Condition { [DtcUiNative]::Window($process.Id, 'Диагностика DTC — LOGER') } 'DTC diagnostics window'
@@ -350,12 +369,11 @@ try {
     for ($row = 0; $row -lt [Math]::Min($summaryCount, 100); $row++) {
         $summaryData += [pscustomobject]@{
             SourceFile = [DtcUiNative]::Cell($summary, $row, 0)
-            Spn = [DtcUiNative]::Cell($summary, $row, 1)
-            Fmi = [DtcUiNative]::Cell($summary, $row, 2)
-            FirstSeen = [DtcUiNative]::Cell($summary, $row, 3)
-            LastSeen = [DtcUiNative]::Cell($summary, $row, 4)
-            IntervalCount = [DtcUiNative]::Cell($summary, $row, 5)
-            State = [DtcUiNative]::Cell($summary, $row, 6)
+            Code = [DtcUiNative]::Cell($summary, $row, 1)
+            FirstSeen = [DtcUiNative]::Cell($summary, $row, 2)
+            LastSeen = [DtcUiNative]::Cell($summary, $row, 3)
+            IntervalCount = [DtcUiNative]::Cell($summary, $row, 4)
+            State = [DtcUiNative]::Cell($summary, $row, 5)
         }
     }
     [DtcUiNative]::Capture($diagnostics, (Join-Path $output 'diagnostics-summary.png'))
@@ -396,7 +414,8 @@ try {
             $matched = $false
             for ($row = 0; $row -lt $rows -and !$matched; $row++) {
                 for ($column = 4; $column -lt 10; $column++) {
-                    if ([DtcUiNative]::Cell($states, $row, $column).Contains('SPN ' + $SearchSpn + ' /')) {
+                    $codeText = [DtcUiNative]::Cell($states, $row, $column)
+                    if ($codeText.StartsWith($SearchSpn + '.') -or $codeText.Contains('SPN ' + $SearchSpn + ' /')) {
                         $selectedRow = $row
                         $matched = $true
                         break

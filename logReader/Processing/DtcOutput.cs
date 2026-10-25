@@ -8,12 +8,15 @@ internal static class DtcOutput
     internal static readonly string[] Headers =
         ["DTC1", "DTC2", "DTC3", "DTC4", "DTC5", "DTC6"];
 
-    internal static IEnumerable<string> Fields(DtcSnapshot? snapshot)
+    internal static bool HasCodes(DtcSnapshot? snapshot)
+        => snapshot?.Slots.Any(slot => slot.IsKnown && slot.Code.HasValue) == true;
+
+    internal static IEnumerable<string> Fields(DtcSnapshot? snapshot, DtcDisplayFormat format = DtcDisplayFormat.Compact)
     {
         snapshot ??= DtcSnapshot.Unknown(0);
         for (int i = 0; i < 6; i++)
             yield return i < snapshot.Slots.Count && snapshot.Slots[i].IsKnown
-                ? snapshot.Slots[i].Code?.ToString() ?? "" : "";
+                ? snapshot.Slots[i].Code?.ToDisplayString(format) ?? "" : "";
     }
 
     internal static void WriteHeaders(IXLWorksheet sheet, int startColumn, bool includeDeviceId, bool timeColumn)
@@ -35,12 +38,14 @@ internal static class DtcOutput
         }
     }
 
-    internal static void WriteFields(IXLWorksheet sheet, int row, int startColumn, DtcSnapshot? snapshot)
+    internal static void WriteFields(IXLWorksheet sheet, int row, int startColumn, DtcSnapshot? snapshot, DtcDisplayFormat format = DtcDisplayFormat.Compact)
     {
-        foreach (string text in Fields(snapshot))
+        foreach (string text in Fields(snapshot, format))
         {
             // Explicit string assignment keeps SPN/FMI out of Excel's numeric/date conversion.
-            sheet.Cell(row, startColumn++).Value = text;
+            var cell = sheet.Cell(row, startColumn++);
+            cell.Style.NumberFormat.Format = "@";
+            cell.Value = text;
         }
     }
 

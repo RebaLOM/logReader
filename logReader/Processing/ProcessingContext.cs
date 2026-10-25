@@ -70,9 +70,12 @@ namespace logReader.Processing
         public CompositeRuntime? Composites { get; init; }
         public bool IncludeDeviceIdHeaderRow { get; init; }
         public bool IncludeDtc { get; init; }
+        public bool AutoIncludeDtc { get; init; } = true;
+        public DtcDisplayFormat DtcDisplayFormat { get; init; } = DtcDisplayFormat.Compact;
         public double DtcTimeoutMs { get; init; } = 2000;
         public DstConnectOptions DstConnect { get; init; } = new();
 
         public bool HasComposites => Composites != null && !Composites.IsEmpty;
+        internal bool CollectDtc => IncludeDtc || AutoIncludeDtc;
     }
 }

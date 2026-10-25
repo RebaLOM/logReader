@@ -40,6 +40,7 @@ public sealed class AppIconTests
         [
             () => new MainForm(),
             () => new HelpForm(),
+            () => new DisplaySettingsForm(new DisplaySettings()),
             () => new CanLogViewForm("fixture.trc"),
             () => new DtcDiagnosticsForm("fixture.trc", analyze: (_, _, _) => new([], [], [], [])),
             () => new SaveOptionsForm(OutputFormat.Csv, BatchOutputMode.PerInputFile,

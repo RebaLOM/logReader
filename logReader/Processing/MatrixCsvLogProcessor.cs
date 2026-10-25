@@ -19,7 +19,7 @@ namespace logReader.Processing
             ProcessingContext context)
         {
             var composites = settings.Composites;
-            if (devices.Count == 0 && !settings.HasComposites && !settings.IncludeDtc)
+            if (devices.Count == 0 && !settings.HasComposites && !settings.CollectDtc)
                 return context.Fail("Ошибка: устройства не загружены.");
             if (csvPaths.Count == 0)
                 return context.Fail("Ошибка: не указаны файлы CSV.");
@@ -64,10 +64,11 @@ namespace logReader.Processing
             var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
             var activeBlocks = CanLogProcessor.ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
             var outputColumns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
-            if (outputColumns.Count == 0 && !settings.IncludeDtc)
+            if (outputColumns.Count == 0 && !settings.CollectDtc)
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
-            using var writer = new StepOutputWriter(outputPath, settings.Format, outputColumns, settings.IncludeDeviceIdHeaderRow, settings.IncludeDtc);
+            using var writer = new StepOutputWriter(outputPath, settings.Format, outputColumns, settings.IncludeDeviceIdHeaderRow,
+                settings.IncludeDtc, settings.AutoIncludeDtc, settings.DtcDisplayFormat, context);
             int step = 0;
             Span<int> msgBytes = stackalloc int[8];
 
@@ -83,7 +84,7 @@ namespace logReader.Processing
                     composites?.Reset();
 
                     var timeTracker = new MatrixCsvTimeTracker();
-                    var dtc = settings.IncludeDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
+                    var dtc = settings.CollectDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
                     bool headerSkipped = false;
                     var fileContext = context.Slice((double)f / inputs.Count, 1.0 / inputs.Count, Path.GetFileName(csvPath));
 
@@ -136,6 +137,9 @@ namespace logReader.Processing
 
                 if (step == 0)
                     return context.Fail("Ошибка: в файлах нет строк данных.");
+
+                if (outputColumns.Count == 0 && !writer.HasDtcColumns)
+                    return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
                 writer.Complete();
                 if (writer.SheetCount > 1)
