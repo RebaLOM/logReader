@@ -17,7 +17,7 @@ namespace logReader.UI
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = WorkspaceFont(9F);
-            ClientSize = new Size(1240, 820);
+            ClientSize = new Size(1240, 960);
             MinimumSize = new Size(1040, 740);
             StartPosition = FormStartPosition.CenterScreen;
             Name = "MainForm";

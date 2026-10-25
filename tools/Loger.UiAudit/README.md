@@ -1,5 +1,21 @@
 # LOGER native UI audit
 
+For the focused LOGER 2 scrollbar/initial-window check, use:
+
+```powershell
+dotnet tools/Loger.UiAudit/bin/Release/net10.0-windows/Loger.UiAudit.dll --assembly artifacts/dark-scrollbars-review/app/LOGER.dll --output artifacts/dark-scrollbars-review/native --theme Dark --scrollbars-only
+```
+
+This mode captures shown native windows with `PrintWindow` and locates scrollbar
+tracks through `GetScrollBarInfo`. It measures actual dark/light pixels for panels,
+text fields, grids, list boxes, trees and list views, including a horizontal panel
+scrollbar. It verifies Dark → Light → Dark on the same native handles, recreated
+and late-created text handles, the taller main window without initial content
+scrollbars on a full-HD monitor, and the minimum-size window. Use a new output
+directory per run. No user data or preferences are written. A full-HD work area
+is required for the default-window assertion; smaller screens are covered by
+the UI viewport tests. Exit code is nonzero on failed capture or color/layout checks.
+
 `Invoke-UiaSmoke.ps1` also accepts `-RealSource`, `-RealDescription` and
 `-ExpectedCsvSha256`. This mode uses supplied read-only TRC/DBC/DBF fixtures,
 compares actual UI output to a direct-core CSV hash, repeats the export, waits

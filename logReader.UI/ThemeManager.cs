@@ -31,7 +31,11 @@ namespace logReader.UI
         private static readonly ConditionalWeakTable<Control, ControlState> States = new();
         private static bool _initialized;
         private static string _preferencesPath = "";
-        private sealed class ControlState { public bool Attached; public bool Hooked; public bool Captured; public bool Muted; }
+        private sealed class ControlState
+        {
+            public bool Attached, Hooked, Captured, Muted, NativeHooked, NativeDark;
+            public IntPtr NativeHandle;
+        }
         private sealed record Preferences(string Theme);
 
         public static ThemeMode Mode { get; private set; } = ThemeMode.Dark;
@@ -60,6 +64,7 @@ namespace logReader.UI
             { System.Diagnostics.Debug.WriteLine("Theme preference could not be read: " + ex.Message); }
             if (Enum.TryParse<ThemeMode>(Environment.GetEnvironmentVariable("LOGER_THEME"), true, out var forced) && Enum.IsDefined(forced))
                 Mode = forced;
+            ApplyNativeColorMode();
         }
 
         public static void SetMode(ThemeMode mode, bool persist = true)
@@ -67,6 +72,7 @@ namespace logReader.UI
             Initialize();
             if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
             Mode = mode;
+            ApplyNativeColorMode();
             if (persist)
             {
                 try
@@ -94,6 +100,52 @@ namespace logReader.UI
             form.Shown += (_, _) => DialogLayout.FitToWorkingArea(form);
             form.DpiChanged += (_, _) => DialogLayout.FitToWorkingArea(form);
             Apply(form);
+        }
+
+        private static void ApplyNativeColorMode()
+        {
+            // The palette does not affect system-managed scrollbar tracks and thumbs.
+            Application.SetColorMode(Mode == ThemeMode.Dark ? SystemColorMode.Dark : SystemColorMode.Classic);
+        }
+
+        private static void ApplyNativeScrollbarTheme(Control control, ControlState state, bool force = false)
+        {
+            if (control.IsDisposed || !control.IsHandleCreated) return;
+            bool dark = Mode == ThemeMode.Dark && !SystemInformation.HighContrast;
+            IntPtr handle = control.Handle;
+            if (!force && state.NativeHandle == handle && state.NativeDark == dark) return;
+            state.NativeHandle = handle;
+            state.NativeDark = dark;
+            // WinForms 10 sets this scope when a handle is created, but does not clear
+            // its lifetime association when the app returns to Classic/Light mode.
+            // Reset with null (empty strings disable theming) and keep live handles/state.
+            SetWindowTheme(handle, dark ? "DarkMode_Explorer" : null, null);
+            if (control is ListView)
+            {
+                IntPtr header = SendMessage(handle, 0x101F, IntPtr.Zero, IntPtr.Zero); // LVM_GETHEADER
+                if (header != IntPtr.Zero)
+                    SetWindowTheme(header, dark ? "DarkMode_ItemsView" : null, null);
+            }
+            RedrawWindow(handle, IntPtr.Zero, IntPtr.Zero, 0x0501);
+        }
+
+        private static void StyleNativeScrollbars(Control control, ControlState state)
+        {
+            if (control is Form || control is not (ScrollableControl or ScrollBar or TextBoxBase or ListBox or ListView or TreeView))
+                return;
+            if (!state.NativeHooked)
+            {
+                state.NativeHooked = true;
+                control.HandleCreated += (_, _) =>
+                {
+                    ApplyNativeScrollbarTheme(control, state);
+                    // A ListView creates its native header after raising HandleCreated.
+                    if (control is ListView)
+                        control.BeginInvoke(() => ApplyNativeScrollbarTheme(control, state, force: true));
+                };
+                control.HandleDestroyed += (_, _) => state.NativeHandle = IntPtr.Zero;
+            }
+            ApplyNativeScrollbarTheme(control, state);
         }
 
         public static void Apply(Control control)
@@ -192,6 +244,7 @@ namespace logReader.UI
                 state.Hooked = true;
                 c.ControlAdded += (_, e) => { if (e.Control != null) Apply(e.Control); };
             }
+            StyleNativeScrollbars(c, state);
         }
 
         public static void StyleButton(Button button, bool primary = false)
@@ -396,5 +449,11 @@ namespace logReader.UI
 
         [DllImport("user32.dll")]
         private static extern bool RedrawWindow(IntPtr window, IntPtr updateRect, IntPtr updateRegion, uint flags);
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        private static extern int SetWindowTheme(IntPtr window, string? subAppName, string? subIdList);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
     }
 }

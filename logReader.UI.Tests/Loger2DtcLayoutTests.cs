@@ -43,6 +43,99 @@ public sealed class Loger2DtcLayoutTests
     [Theory]
     [InlineData("Dark")]
     [InlineData("Light")]
+    public void Main_default_fits_full_HD_without_initial_content_scrollbars(string theme) => Run(() =>
+    {
+        ThemeMode previous = ThemeManager.Mode;
+        try
+        {
+            ThemeManager.SetMode(Enum.Parse<ThemeMode>(theme), persist: false);
+            using var form = new MainForm { ShowInTaskbar = false };
+            form.Show();
+            DialogLayout.FitToWorkingArea(form, new Rectangle(0, 0, 1920, 1040));
+            Layout(form);
+            foreach (bool decoder in new[] { false, true })
+            {
+                Invoke(form, "SelectWorkspacePage", decoder);
+                Layout(form);
+                foreach (string name in new[] { decoder ? "decoderPage" : "sessionPage", "exportSettings" })
+                {
+                    var viewport = Assert.IsType<Panel>(Find(form, name));
+                    Assert.True(viewport.AutoScroll);
+                    Assert.False(viewport.VerticalScroll.Visible, $"Unexpected initial scrollbar in {name}: {viewport.ClientSize}, content {viewport.DisplayRectangle}.");
+                    Assert.False(viewport.HorizontalScroll.Visible);
+                }
+                AssertVisibleBounds(Field<Button>(form, "buttonProcess"));
+                AssertVisibleBounds(Field<Button>(form, "buttonDisplaySettings"));
+                AssertVisibleBounds(Field<Label>(form, "_readinessOutput"));
+            }
+            Capture(form, $"main-taller-default-{theme.ToLowerInvariant()}");
+        }
+        finally { ThemeManager.SetMode(previous, persist: false); }
+    });
+
+    [Theory]
+    [InlineData("Dark")]
+    [InlineData("Light")]
+    public void Main_keeps_scrolling_and_actions_accessible_on_short_screens(string theme) => Run(() =>
+    {
+        ThemeMode previous = ThemeManager.Mode;
+        try
+        {
+            ThemeManager.SetMode(Enum.Parse<ThemeMode>(theme), persist: false);
+            using var form = new MainForm { ShowInTaskbar = false };
+            form.Show();
+            var workArea = new Rectangle(0, 0, 1366, 728);
+            DialogLayout.FitToWorkingArea(form, workArea);
+            Layout(form);
+            Assert.True(workArea.Contains(form.Bounds));
+            var viewport = Assert.IsType<Panel>(Find(form, "exportSettings"));
+            Assert.True(viewport.AutoScroll);
+            Assert.True(viewport.VerticalScroll.Visible);
+            Assert.False(viewport.HorizontalScroll.Visible);
+            var lastSetting = Field<Label>(form, "_readinessOutput");
+            viewport.ScrollControlIntoView(lastSetting);
+            Layout(form);
+            Assert.True(viewport.AutoScrollPosition.Y < 0);
+            AssertVisibleBounds(lastSetting);
+            AssertVisibleBounds(Field<Button>(form, "buttonProcess"));
+            Capture(form, $"main-short-screen-{theme.ToLowerInvariant()}");
+        }
+        finally { ThemeManager.SetMode(previous, persist: false); }
+    });
+
+    [Fact]
+    public void Switching_native_theme_preserves_input_selection_and_scroll_position() => Run(() =>
+    {
+        ThemeMode previous = ThemeManager.Mode;
+        try
+        {
+            using var form = new MainForm { ShowInTaskbar = false };
+            form.Show();
+            form.Size = form.MinimumSize;
+            var input = Field<TextBox>(form, "textBoxCanLog");
+            input.Text = @"C:\fixtures\trace.trc";
+            input.Select(3, 6);
+            var viewport = Assert.IsType<Panel>(Find(form, "exportSettings"));
+            viewport.ScrollControlIntoView(Field<Label>(form, "_readinessOutput"));
+            Layout(form);
+            Point position = viewport.AutoScrollPosition;
+            foreach (ThemeMode theme in new[] { ThemeMode.Dark, ThemeMode.Light, ThemeMode.Dark })
+            {
+                ThemeManager.SetMode(theme, persist: false);
+                Layout(form);
+                Assert.Equal(theme == ThemeMode.Dark ? SystemColorMode.Dark : SystemColorMode.Classic, Application.ColorMode);
+                Assert.Equal(@"C:\fixtures\trace.trc", input.Text);
+                Assert.Equal(3, input.SelectionStart);
+                Assert.Equal(6, input.SelectionLength);
+                Assert.Equal(position, viewport.AutoScrollPosition);
+            }
+        }
+        finally { ThemeManager.SetMode(previous, persist: false); }
+    });
+
+    [Theory]
+    [InlineData("Dark")]
+    [InlineData("Light")]
     public void Display_settings_action_stays_reachable_in_export_inspector(string theme) => Run(() =>
     {
         ThemeMode previous = ThemeManager.Mode;

@@ -8,7 +8,7 @@ using System.Text.Json;
 
 // Loads either the preserved baseline or the current application. There is deliberately no
 // project reference: captures and checks cannot accidentally rebuild or change the target.
-internal static class Program
+internal static partial class Program
 {
     private static Assembly _ui = null!;
     private static Assembly _core = null!;
@@ -51,6 +51,8 @@ internal static class Program
             _core = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(bin, "logReader.dll"));
             _ui = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
             ApplyTheme(theme);
+            if (args.Contains("--scrollbars-only"))
+                return RunScrollbarAudit(assemblyPath);
             if (args.Contains("--profile-only"))
             {
                 var watch = Stopwatch.StartNew(); using var profile = Form("MainForm");
