@@ -11,6 +11,7 @@ namespace logReader.UI
         private readonly NumericUpDown _numDlc = new();
         private readonly RadioButton _rbStandard = new();
         private readonly RadioButton _rbExtended = new();
+        private readonly ComboBox? _dbfDataFormat;
         private readonly DataGridView _grid = new();
         private readonly Button _btnAdd = new();
         private readonly Button _btnEdit = new();
@@ -36,12 +37,25 @@ namespace logReader.UI
         private bool _saved;
         private readonly string _baseTitle;
 
-        public DbcMessageEditForm(DbcMessage? initial)
+        public DbcMessageEditForm(DbcMessage? initial) : this(initial, isDbf: false) { }
+
+        public DbcMessageEditForm(DbcMessage? initial, bool isDbf)
         {
             Message = initial != null ? initial.Clone() : new DbcMessage();
             _signals = new List<DbcSignal>(Message.Signals);
 
-            _baseTitle = initial == null ? "Новая посылка (DBC)" : "Редактирование посылки (DBC)";
+            if (isDbf)
+            {
+                _dbfDataFormat = new ComboBox
+                {
+                    Name = "dbfDataFormat", AccessibleName = "Data Format",
+                    DropDownStyle = ComboBoxStyle.DropDownList, Width = 132
+                };
+                _dbfDataFormat.Items.AddRange(["Little Endian", "Big Endian"]);
+            }
+
+            string format = isDbf ? "DBF" : "DBC";
+            _baseTitle = initial == null ? $"Новая посылка ({format})" : $"Редактирование посылки ({format})";
             Text = _baseTitle;
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new Size(1000, 500);
@@ -70,6 +84,8 @@ namespace logReader.UI
             };
             _rbStandard.CheckedChanged += (_, _) => { if (_rbStandard.Checked) MarkDirty(); };
             _rbExtended.CheckedChanged += (_, _) => { if (_rbExtended.Checked) MarkDirty(); };
+            if (_dbfDataFormat != null)
+                _dbfDataFormat.SelectedIndexChanged += (_, _) => MarkDirty();
         }
 
         private void MarkDirty()
@@ -130,6 +146,11 @@ namespace logReader.UI
             _rbExtended.Margin = new Padding(8, 3, 8, 0);
             fmtPanel.Controls.Add(_rbStandard);
             fmtPanel.Controls.Add(_rbExtended);
+            if (_dbfDataFormat != null)
+            {
+                fmtPanel.Controls.Add(MessageEditFormHelpers.MakeLabel("Data Format"));
+                fmtPanel.Controls.Add(_dbfDataFormat);
+            }
 
             var signalButtons = new FlowLayoutPanel
             {
@@ -280,6 +301,8 @@ namespace logReader.UI
             _numDlc.Value = Math.Clamp(m.Dlc, 1, 8);
             _rbExtended.Checked = m.IsExtended;
             _rbStandard.Checked = !m.IsExtended;
+            if (_dbfDataFormat != null)
+                _dbfDataFormat.SelectedIndex = (int)m.DbfDataFormat;
             RefreshGrid();
             _dirty = false;
             UpdateTitle();
@@ -588,6 +611,9 @@ namespace logReader.UI
                 Id = id,
                 IsExtended = isExtended,
                 Dlc = dlc,
+                DbfDataFormat = _dbfDataFormat == null
+                    ? Message.DbfDataFormat
+                    : (DbfMessageDataFormat)_dbfDataFormat.SelectedIndex,
                 Transmitter = Message.Transmitter ?? "Vector__XXX",
                 Signals = new List<DbcSignal>(_signals),
                 OriginId = Message.OriginId,

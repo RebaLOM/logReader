@@ -66,6 +66,37 @@ public sealed class DialogViewportTests
     });
 
     [Fact]
+    public void Dbf_message_editor_changes_data_format_without_changing_signal_byte_order() => Run(() =>
+    {
+        var message = new DbcMessage
+        {
+            Name = "Drive", Id = 0x100, Dlc = 3,
+            Signals =
+            [
+                new DbcSignal { Name = "IntelSignal", StartBit = 0, Length = 8, IsLittleEndian = true },
+                new DbcSignal { Name = "MotorolaSignal", StartBit = 15, Length = 16, IsLittleEndian = false },
+            ]
+        };
+        using var form = new DbcMessageEditForm(message, isDbf: true);
+        form.Show();
+        Pump(form);
+        var format = Assert.IsType<ComboBox>(Assert.Single(form.Controls.Find("dbfDataFormat", true)));
+        AssertVisible(form, format);
+        Assert.Equal("Little Endian", format.SelectedItem);
+
+        format.SelectedItem = "Big Endian";
+        Assert.IsType<Button>(form.AcceptButton).PerformClick();
+        Assert.Equal(DbfMessageDataFormat.BigEndian, form.Message.DbfDataFormat);
+        Assert.Equal([true, false], form.Message.Signals.Select(signal => signal.IsLittleEndian));
+
+        using var reopened = new DbcMessageEditForm(form.Message, isDbf: true);
+        var reopenedFormat = Assert.IsType<ComboBox>(Assert.Single(reopened.Controls.Find("dbfDataFormat", true)));
+        Assert.Equal("Big Endian", reopenedFormat.SelectedItem);
+        using var dbc = new DbcMessageEditForm(message);
+        Assert.Empty(dbc.Controls.Find("dbfDataFormat", true));
+    });
+
+    [Fact]
     public void Signal_color_column_reserves_the_whole_header() => Run(() =>
     {
         using var grid = new DataGridView();

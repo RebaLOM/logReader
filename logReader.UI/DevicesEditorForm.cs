@@ -286,7 +286,7 @@ namespace logReader.UI
         {
             if (UsesDbcModel)
             {
-                using var dlg = new DbcMessageEditForm(null);
+                using var dlg = new DbcMessageEditForm(null, isDbf: _kind == FileKind.Dbf);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
                 if (_dbcMessages.Any(x =>
@@ -333,7 +333,7 @@ namespace logReader.UI
             {
                 if (idx >= _dbcMessages.Count) return;
                 if (!ConfirmClassicDlc(_dbcMessages[idx].Dlc)) return;
-                using var dlg = new DbcMessageEditForm(_dbcMessages[idx]);
+                using var dlg = new DbcMessageEditForm(_dbcMessages[idx], isDbf: _kind == FileKind.Dbf);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
                 if (_dbcMessages

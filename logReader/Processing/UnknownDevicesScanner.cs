@@ -16,9 +16,16 @@ namespace logReader.Processing
             IEnumerable<Device> knownDevices,
             Action<string>? log = null,
             CancellationToken cancellationToken = default)
+            => ScanLogDevices(InputFiles(logPath), knownDevices, log, cancellationToken);
+
+        public static LogDeviceScanResult ScanLogDevices(
+            IEnumerable<string> files,
+            IEnumerable<Device> knownDevices,
+            Action<string>? log = null,
+            CancellationToken cancellationToken = default)
         {
             var knownIds = new HashSet<string>(knownDevices.Select(d => d.ID), StringComparer.OrdinalIgnoreCase);
-            var logIds = CollectLogIds(logPath, log, cancellationToken).Keys;
+            var logIds = CollectLogIds(files, log, cancellationToken).Keys;
 
             var missing = logIds.Where(id => !knownIds.Contains(id)).OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToList();
             var matched = logIds.Where(knownIds.Contains).OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToList();
@@ -30,20 +37,27 @@ namespace logReader.Processing
             string logPath,
             Action<string>? log = null,
             CancellationToken cancellationToken = default)
+            => CollectLogIds(InputFiles(logPath), log, cancellationToken);
+
+        public static Dictionary<string, int> CollectLogIds(
+            IEnumerable<string> files,
+            Action<string>? log = null,
+            CancellationToken cancellationToken = default)
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            if (string.IsNullOrWhiteSpace(logPath))
-                return counts;
-
-            IEnumerable<string> files = Directory.Exists(logPath)
-                ? LogFolderScanner.EnumerateSupportedLogFiles(logPath).OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                : File.Exists(logPath) ? new[] { logPath } : Array.Empty<string>();
-
             var context = new ProcessingContext(cancellationToken: cancellationToken);
-            foreach (var file in files)
+            foreach (var file in files.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                context.ThrowIfCancellationRequested();
                 ScanFile(file, counts, log, context);
+            }
             return counts;
         }
+
+        private static IEnumerable<string> InputFiles(string logPath)
+            => Directory.Exists(logPath)
+                ? LogFolderScanner.EnumerateSupportedLogFiles(logPath).OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                : File.Exists(logPath) ? [logPath] : [];
 
         private static void ScanFile(string filePath, Dictionary<string, int> counts, Action<string>? log, ProcessingContext context)
         {

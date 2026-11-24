@@ -14,7 +14,7 @@ namespace logReader.UI
         private Dictionary<string, bool[]> _paramEnabled = new();
 
         // Кэш описаний: перечитывается при смене пути или времени изменения файла (правка в Excel).
-        private readonly CachedFile<List<Device>> _devicesCache = new(path => DeviceFiles.LoadDevices(path));
+        private readonly CachedFile<List<Device>> _devicesCache = new(DeviceFiles.LoadDevices);
         private readonly CachedFile<CompositeRuntime> _compositesCache = new(path => DeviceFiles.LoadComposites(path));
         private List<Device>? _cachedDevices => _devicesCache.Value;
 
@@ -29,6 +29,8 @@ namespace logReader.UI
         }
 
         private readonly SaveOptions _saveOptions = new();
+        private string[] _selectedLogFiles = [];
+        private ToolTip _sourceFilesToolTip = null!;
         private readonly DisplaySettingsStore _displaySettingsStore;
         private DisplaySettings _displaySettings;
 
@@ -57,6 +59,8 @@ namespace logReader.UI
         }
 
         private bool IsBusy => _operation != null;
+        private bool IsBatchSource => _selectedLogFiles.Length != 0 || Directory.Exists(textBoxCanLog.Text.Trim());
+        private string SelectedFilesText => $"Выбрано файлов: {_selectedLogFiles.Length}";
 
         private static string EnsureOutputPathMatchesFormat(string path, OutputFormat outputFormat)
         {
@@ -97,7 +101,8 @@ namespace logReader.UI
 
         private void buttonSaveOptions_Click(object? sender, EventArgs e)
         {
-            string? folderPath = Directory.Exists(textBoxCanLog.Text.Trim()) ? textBoxCanLog.Text.Trim() : null;
+            string path = textBoxCanLog.Text.Trim();
+            string? folderPath = _selectedLogFiles.Length == 0 && Directory.Exists(path) ? path : null;
             using var dlg = new SaveOptionsForm(
                 _saveOptions.OutputFormat,
                 _saveOptions.BatchMode,
@@ -120,7 +125,8 @@ namespace logReader.UI
 
             _saveOptions.OutputFormat = dlg.SelectedOutputFormat;
             _saveOptions.BatchMode = dlg.SelectedBatchMode;
-            _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
+            if (_selectedLogFiles.Length == 0)
+                _saveOptions.FolderFormatFilter = dlg.SelectedFolderFormats;
             _saveOptions.DstConnect = dlg.SelectedDstConnectOptions;
             _saveOptions.IncludeDeviceIdHeaderRow = dlg.IncludeDeviceIdHeaderRow;
             _saveOptions.DtcTimeoutMs = dlg.DtcTimeoutMs;
@@ -129,7 +135,7 @@ namespace logReader.UI
 
             if (string.IsNullOrWhiteSpace(textBoxOutput.Text))
                 return;
-            if (Directory.Exists(textBoxCanLog.Text.Trim()))
+            if (IsBatchSource)
                 return;
             if (!LooksLikeFilePath(textBoxOutput.Text))
                 return;
@@ -236,7 +242,7 @@ namespace logReader.UI
             _paramEnabled = new();
         }
 
-        private enum LogSourceKind { None, File, Folder }
+        private enum LogSourceKind { None, Files, Folder }
 
         private LogSourceKind ShowPickLogSourceDialog()
         {
@@ -256,11 +262,11 @@ namespace logReader.UI
             };
 
             var layout = new TableLayoutPanel { AutoSize = true, ColumnCount = 3, RowCount = 2, Dock = DockStyle.Fill };
-            var lbl = new Label { Text = "Выберите один файл лога или папку с логами:", AutoSize = true, Margin = new Padding(3, 3, 3, 12) };
+            var lbl = new Label { Text = "Выберите файлы логов или папку", AutoSize = true, Margin = new Padding(3, 3, 3, 12) };
             layout.Controls.Add(lbl, 0, 0);
             layout.SetColumnSpan(lbl, 3);
 
-            var btnFile = new Button { Text = "&Файл...", AutoSize = true, MinimumSize = new Size(100, 26) };
+            var btnFile = new Button { Text = "&Файлы…", AutoSize = true, MinimumSize = new Size(100, 26) };
             var btnFolder = new Button { Text = "&Папка...", AutoSize = true, MinimumSize = new Size(100, 26) };
             var btnCancel = new Button { Text = "Отмена", AutoSize = true, MinimumSize = new Size(100, 26), DialogResult = DialogResult.Cancel };
             layout.Controls.Add(btnFile, 0, 1);
@@ -268,7 +274,7 @@ namespace logReader.UI
             layout.Controls.Add(btnCancel, 2, 1);
 
             var kind = LogSourceKind.None;
-            btnFile.Click += (_, _) => { kind = LogSourceKind.File; dlg.Close(); };
+            btnFile.Click += (_, _) => { kind = LogSourceKind.Files; dlg.Close(); };
             btnFolder.Click += (_, _) => { kind = LogSourceKind.Folder; dlg.Close(); };
 
             dlg.Controls.Add(layout);
@@ -286,17 +292,12 @@ namespace logReader.UI
             LogSourceKind kind = ShowPickLogSourceDialog();
             if (kind == LogSourceKind.None) return;
 
-            if (kind == LogSourceKind.File)
+            if (kind == LogSourceKind.Files)
             {
-                using var ofd = new OpenFileDialog { RestoreDirectory = true };
+                using var ofd = new OpenFileDialog { RestoreDirectory = true, Multiselect = true };
                 ofd.Filter = "Лог файлы (*.csv;*.trc;*.asc;*.txt)|*.csv;*.trc;*.asc;*.txt|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc|ASC (*.asc)|*.asc|CANfox / PCAN-View (*.txt)|*.txt";
-                if (ofd.ShowDialog(this) != DialogResult.OK) return;
-                textBoxCanLog.Text = ofd.FileName;
-
-                string dir = Path.GetDirectoryName(ofd.FileName) ?? "";
-                string ext = LogProcessingService.GetOutputExtension(_saveOptions.OutputFormat);
-                string name = Path.GetFileNameWithoutExtension(ofd.FileName) + "_result" + ext;
-                textBoxOutput.Text = Path.Combine(dir, name);
+                if (ofd.ShowDialog(this) == DialogResult.OK)
+                    SetLogFiles(ofd.FileNames);
                 return;
             }
 
@@ -304,8 +305,51 @@ namespace logReader.UI
             fbd.Description = "Выберите папку с логами (.csv, .trc, .asc, .txt CANfox)";
             if (fbd.ShowDialog(this) != DialogResult.OK) return;
 
-            textBoxCanLog.Text = fbd.SelectedPath;
-            textBoxOutput.Text = Path.Combine(fbd.SelectedPath, "result");
+            SetLogFolder(fbd.SelectedPath);
+        }
+
+        private void SetLogFiles(IEnumerable<string> paths)
+        {
+            string[] files = paths.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (files.Length == 0) return;
+
+            _selectedLogFiles = files.Length > 1 ? files : [];
+            string directory = Path.GetDirectoryName(files[0]) ?? "";
+            if (files.Length == 1)
+            {
+                string extension = LogProcessingService.GetOutputExtension(_saveOptions.OutputFormat);
+                string result = Path.GetFileNameWithoutExtension(files[0]) + "_result" + extension;
+                ApplyLogSource(files[0], Path.Combine(directory, result));
+            }
+            else
+            {
+                ApplyLogSource(SelectedFilesText, Path.Combine(directory, "result"));
+            }
+        }
+
+        private void SetLogFolder(string path)
+        {
+            _selectedLogFiles = [];
+            ApplyLogSource(path, Path.Combine(path, "result"));
+        }
+
+        private void ApplyLogSource(string sourceText, string outputPath)
+        {
+            ClearWorkspaceError();
+            textBoxCanLog.Text = sourceText;
+            _sourceFilesToolTip.SetToolTip(textBoxCanLog, string.Join(Environment.NewLine, _selectedLogFiles));
+            textBoxOutput.Text = outputPath;
+            buttonOpenOutput.Visible = false;
+            RefreshWorkspaceSummary();
+        }
+
+        private void textBoxCanLog_TextChanged(object? sender, EventArgs e)
+        {
+            if (_selectedLogFiles.Length != 0 && textBoxCanLog.Text != SelectedFilesText)
+            {
+                _selectedLogFiles = [];
+                _sourceFilesToolTip.SetToolTip(textBoxCanLog, "");
+            }
         }
 
         private void buttonViewLog_Click(object? sender, EventArgs e)
@@ -317,13 +361,15 @@ namespace logReader.UI
                 return;
             }
 
-            if (!Directory.Exists(path) && !File.Exists(path))
+            if (_selectedLogFiles.Length == 0 && !Directory.Exists(path) && !File.Exists(path))
             {
                 Log("Ошибка: файл лога не найден.");
                 return;
             }
 
-            using var viewForm = new CanLogViewForm(path);
+            using var viewForm = _selectedLogFiles.Length == 0
+                ? new CanLogViewForm(path)
+                : new CanLogViewForm(_selectedLogFiles);
             viewForm.ShowDialog(this);
         }
 
@@ -331,14 +377,16 @@ namespace logReader.UI
         {
             if (IsBusy || _closeWhenIdle) return;
             string path = textBoxCanLog.Text.Trim();
-            if (string.IsNullOrWhiteSpace(path) || (!File.Exists(path) && !Directory.Exists(path)))
+            if (_selectedLogFiles.Length == 0 && !File.Exists(path) && !Directory.Exists(path))
             {
-                Log("Ошибка: для диагностики DTC укажите существующий файл или папку логов.");
+                Log("Ошибка: для диагностики DTC выберите файлы или папку логов.");
                 return;
             }
 
-            using var dialog = new DtcDiagnosticsForm(path, _saveOptions.DtcTimeoutMs,
-                displayFormat: _displaySettings.DtcFormat) { Icon = Icon };
+            using var dialog = _selectedLogFiles.Length == 0
+                ? new DtcDiagnosticsForm(path, _saveOptions.DtcTimeoutMs, displayFormat: _displaySettings.DtcFormat)
+                : new DtcDiagnosticsForm(_selectedLogFiles, _saveOptions.DtcTimeoutMs, _displaySettings.DtcFormat);
+            dialog.Icon = Icon;
             dialog.ShowDialog(this);
             _saveOptions.DtcTimeoutMs = dialog.TimeoutMs;
         }
@@ -605,6 +653,18 @@ namespace logReader.UI
 
         private void buttonOutput_Click(object? sender, EventArgs e)
         {
+            if (IsBatchSource)
+            {
+                using var folder = new FolderBrowserDialog { Description = "Выберите папку для результатов" };
+                string path = textBoxOutput.Text.Trim();
+                string? initialDirectory = Directory.Exists(path) ? path : Path.GetDirectoryName(path);
+                if (Directory.Exists(initialDirectory))
+                    folder.SelectedPath = initialDirectory;
+                if (folder.ShowDialog(this) == DialogResult.OK)
+                    textBoxOutput.Text = folder.SelectedPath;
+                return;
+            }
+
             using var sfd = new SaveFileDialog { RestoreDirectory = true };
             sfd.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
             sfd.DefaultExt = LogProcessingService.GetOutputExtension(_saveOptions.OutputFormat).TrimStart('.');
@@ -630,7 +690,7 @@ namespace logReader.UI
             string t = outputPath.Trim();
             if (File.Exists(t))
             {
-                log("Ошибка: для обработки папки укажите каталог для результатов, а не файл.");
+                log("Ошибка: для пакетной обработки укажите папку для результатов.");
                 return false;
             }
 
@@ -643,7 +703,7 @@ namespace logReader.UI
             if (t.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
                 || t.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
-                log("Ошибка: для обработки папки укажите каталог для результатов (не путь к одному выходному файлу).");
+                log("Ошибка: для пакетной обработки укажите папку для результатов.");
                 return false;
             }
 
@@ -662,7 +722,8 @@ namespace logReader.UI
 
         private void textBoxOutput_TextChanged(object? sender, EventArgs e)
         {
-            SyncOutputFormatWithPath(textBoxOutput.Text);
+            if (!IsBatchSource)
+                SyncOutputFormatWithPath(textBoxOutput.Text);
             buttonOpenOutput.Visible = false;
         }
 
@@ -715,7 +776,7 @@ namespace logReader.UI
 
         private void buttonFormatConvert_Click(object? sender, EventArgs e)
         {
-            string initialPath = File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
+            string initialPath = _selectedLogFiles.Length == 0 && File.Exists(textBoxCanLog.Text) ? textBoxCanLog.Text : "";
             using var dialog = new FormatConversionDialog(_conversionPairs, initialPath, Log);
             dialog.ShowDialog(this);
         }
@@ -752,8 +813,11 @@ namespace logReader.UI
                 filterDevices.AddRange(composites.Blocks);
 
             string canLogPath = textBoxCanLog.Text.Trim();
+            string[] selectedFiles = _selectedLogFiles;
             LogDeviceScanResult? scan = await RunBusyAsync("Сверка с логом...", (context, token) =>
-                UnknownDevicesScanner.ScanLogDevices(canLogPath, devices, context.Log, token));
+                selectedFiles.Length == 0
+                    ? UnknownDevicesScanner.ScanLogDevices(canLogPath, devices, context.Log, token)
+                    : UnknownDevicesScanner.ScanLogDevices(selectedFiles, devices, context.Log, token));
             if (scan == null) return;
 
             var missingInDevices = scan.MissingInDevices;
@@ -868,15 +932,17 @@ namespace logReader.UI
             textBoxLog.Clear();
 
             string canInput = textBoxCanLog.Text.Trim();
-            bool isFolderInput = Directory.Exists(canInput);
+            string[] selectedFiles = _selectedLogFiles;
+            string? inputFolder = selectedFiles.Length == 0 && Directory.Exists(canInput) ? canInput : null;
+            bool isBatch = inputFolder != null || selectedFiles.Length != 0;
             OutputFormat outputFormat = _saveOptions.OutputFormat;
 
             if (string.IsNullOrWhiteSpace(canInput))
             {
-                Log("Ошибка: не указан файл лога или папка с логами.");
+                Log("Ошибка: выберите файлы или папку логов.");
                 return;
             }
-            if (!isFolderInput && !File.Exists(canInput))
+            if (!isBatch && !File.Exists(canInput))
             {
                 Log("Ошибка: файл лога не найден.");
                 return;
@@ -902,9 +968,9 @@ namespace logReader.UI
                 return;
             }
 
-            if (isFolderInput)
+            if (isBatch)
             {
-                await ProcessFolderAsync(canInput, devFull, allDevices, settings);
+                await ProcessBatchAsync(inputFolder, selectedFiles, devFull, allDevices, settings);
                 return;
             }
 
@@ -965,7 +1031,8 @@ namespace logReader.UI
             }
         }
 
-        private async Task ProcessFolderAsync(string inputFolder, string devFull, List<Device> allDevices, OutputSettings settings)
+        private async Task ProcessBatchAsync(string? inputFolder, IReadOnlyList<string> selectedFiles,
+            string devFull, List<Device> allDevices, OutputSettings settings)
         {
             if (!TryResolveOutputDirectoryForBatch(textBoxOutput.Text, Log, out string outputDir))
                 return;
@@ -977,7 +1044,7 @@ namespace logReader.UI
             }
 
             LogFormatKind formats = _saveOptions.FolderFormatFilter;
-            if (formats == LogFormatKind.None)
+            if (inputFolder != null && formats == LogFormatKind.None)
             {
                 Log("Ошибка: в «Параметрах экспорта» не выбран ни один формат логов для папки.");
                 return;
@@ -986,41 +1053,17 @@ namespace logReader.UI
             var batchMode = _saveOptions.BatchMode;
             var service = new LogProcessingService();
 
-            var outcome = await RunBusyAsync<BatchRun>("Поиск логов...", (context, token) =>
+            string stage = inputFolder != null ? "Поиск логов..." : "Выбранные логи";
+            var outcome = await RunBusyAsync<BatchRun>(stage, (context, token) =>
             {
-                // Определение формата читает начало каждого файла — в фоне, чтобы окно не зависало на большой папке.
-                var all = LogFolderScanner.EnumerateSupportedLogFiles(inputFolder)
-                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                if (all.Count == 0)
-                {
-                    context.Log("Ошибка: в папке не найдено файлов .csv, .trc, .asc или .txt.");
-                    return null;
-                }
-
-                var files = new List<string>();
-                foreach (var path in all)
-                {
-                    token.ThrowIfCancellationRequested();
-                    try
-                    {
-                        var kind = LogFormatDetector.Detect(path);
-                        if (kind != LogFormatKind.None && (formats & kind) != 0)
-                            files.Add(path);
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        context.Log($"Пропуск: {Path.GetFileName(path)} — {ex.Message}");
-                    }
-                }
-
+                IReadOnlyList<string> files = inputFolder != null
+                    ? FindFolderLogs(inputFolder, formats, context, token)
+                    : selectedFiles;
                 if (files.Count == 0)
-                {
-                    context.Log($"Ошибка: в папке найдено {all.Count} файл(ов), но нет файлов выбранных форматов.");
                     return null;
-                }
 
-                context.Log($"Папка с логами: найдено {all.Count} файл(ов), выбрано {files.Count}.");
+                if (inputFolder == null)
+                    context.Log($"Выбрано файлов: {files.Count}.");
                 context.Log($"Каталог результатов: {outputDir}");
                 return new BatchRun(service.ProcessFolderBatch(files, outputDir, devFull, batchMode, allDevices, settings, context));
             });
@@ -1034,6 +1077,36 @@ namespace logReader.UI
             Log($"Готово: создано файлов: {result.Created} из {result.Expected}"
                 + (result.Failed > 0 ? $", с ошибками: {result.Failed}." : "."));
             buttonOpenOutput.Visible = result.Created > 0;
+        }
+
+        private static IReadOnlyList<string> FindFolderLogs(string inputFolder, LogFormatKind formats,
+            ProcessingContext context, CancellationToken token)
+        {
+            var files = new List<string>();
+            int count = 0;
+            foreach (string path in LogFolderScanner.EnumerateSupportedLogFiles(inputFolder))
+            {
+                token.ThrowIfCancellationRequested();
+                count++;
+                try
+                {
+                    var kind = LogFormatDetector.Detect(path);
+                    if (kind != LogFormatKind.None && (formats & kind) != 0)
+                        files.Add(path);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    context.Log($"Пропуск: {Path.GetFileName(path)} — {ex.Message}");
+                }
+            }
+
+            if (count == 0)
+                context.Log("Ошибка: в папке не найдено файлов .csv, .trc, .asc или .txt.");
+            else if (files.Count == 0)
+                context.Log($"Ошибка: в папке найдено {count} файл(ов), но нет файлов выбранных форматов.");
+            else
+                context.Log($"Папка с логами: найдено {count} файл(ов), выбрано {files.Count}.");
+            return files;
         }
 
         private sealed record BatchRun(LogProcessingService.BatchOutcome Outcome);
@@ -1111,12 +1184,15 @@ namespace logReader.UI
     // Значение, загруженное из файла; считается актуальным, пока не изменились путь, размер и время записи.
     internal sealed class CachedFile<T> where T : class
     {
-        private readonly Func<string, T> _load;
+        private readonly Func<string, Action<string>, T> _load;
+        private List<string> _warnings = new();
         private string _path = "";
         private DateTime _stamp;
         private long _length;
 
-        public CachedFile(Func<string, T> load) => _load = load;
+        public CachedFile(Func<string, T> load) : this((path, _) => load(path)) { }
+
+        public CachedFile(Func<string, Action<string>, T> load) => _load = load;
 
         public T? Value { get; private set; }
 
@@ -1129,23 +1205,34 @@ namespace logReader.UI
 
         public T Get(string path, Action<string>? log = null)
         {
-            if (IsCurrent(path)) return Value!;
+            if (!IsCurrent(path))
+            {
+                var info = new FileInfo(path);
+                if (Value != null && string.Equals(_path, path, StringComparison.OrdinalIgnoreCase))
+                    log?.Invoke($"Файл изменён на диске и перечитан: {Path.GetFileName(path)}");
 
-            var info = new FileInfo(path);
-            if (Value != null && string.Equals(_path, path, StringComparison.OrdinalIgnoreCase))
-                log?.Invoke($"Файл изменён на диске и перечитан: {Path.GetFileName(path)}");
+                var warnings = new List<string>();
+                Value = _load(path, warnings.Add);
+                _warnings = warnings;
+                _path = path;
+                _stamp = info.LastWriteTimeUtc;
+                _length = info.Length;
+            }
 
-            Value = _load(path);
-            _path = path;
-            _stamp = info.LastWriteTimeUtc;
-            _length = info.Length;
-            return Value;
+            if (log != null)
+            {
+                foreach (string warning in _warnings)
+                    log(warning);
+            }
+
+            return Value!;
         }
 
         public void Clear()
         {
             Value = null;
             _path = "";
+            _warnings.Clear();
         }
     }
 }

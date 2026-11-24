@@ -48,7 +48,7 @@ public partial class MainForm
         BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, 4, 0, 4),
         AccessibleName = name switch
         {
-            "textBoxCanLog" => "Путь к логу или папке",
+            "textBoxCanLog" => "Источник логов",
             "textBoxDevices" => "Путь к описанию CAN-посылок",
             "textBoxComposites" => "Путь к составным параметрам",
             _ => "Путь результата"
@@ -424,18 +424,23 @@ public partial class MainForm
         if (!_workspaceReady || IsDisposed) return;
         var palette = ThemeManager.Current;
         var input = textBoxCanLog.Text.Trim();
-        bool hasSource = !string.IsNullOrWhiteSpace(input) && (File.Exists(input) || Directory.Exists(input));
+        bool hasSelection = _selectedLogFiles.Length != 0;
+        bool isFolder = !hasSelection && Directory.Exists(input);
+        bool hasSource = hasSelection || isFolder || File.Exists(input);
         bool hasDecoder = _cachedDevices is { Count: > 0 };
         bool hasOutput = !string.IsNullOrWhiteSpace(textBoxOutput.Text);
-        _sourceName.Text = hasSource ? Path.GetFileName(input.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : "Добавьте CAN-лог";
-        _sourceInfo.Text = hasSource ? Directory.Exists(input) ? "Пакетная обработка папки · CSV / TRC / ASC / TXT" : $"{Path.GetExtension(input).TrimStart('.').ToUpperInvariant()}  /  один файл" : "CSV · TRC · ASC · TXT CANfox / PCAN-View";
+        _sourceName.Text = hasSelection ? string.Join(", ", _selectedLogFiles.Select(Path.GetFileName))
+            : hasSource ? Path.GetFileName(input.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : "Добавьте CAN-лог";
+        _sourceInfo.Text = hasSelection ? "Пакетная обработка выбранных логов"
+            : isFolder ? "Пакетная обработка папки · CSV / TRC / ASC / TXT"
+            : hasSource ? $"{Path.GetExtension(input).TrimStart('.').ToUpperInvariant()}  /  один файл" : "CSV · TRC · ASC · TXT CANfox / PCAN-View";
         _decoderName.Text = hasDecoder ? Path.GetFileName(textBoxDevices.Text) : "Описание посылок не выбрано";
         _decoderInfo.Text = hasDecoder ? labelFilterStatus.Text + (string.IsNullOrWhiteSpace(textBoxComposites.Text) ? "" : "\nУказан путь составных параметров") : "Подключите XLSX, DBC или DBF в разделе декодирования.";
         _exportFormat.Text = _saveOptions.OutputFormat switch
         {
             OutputFormat.Xlsx => "Excel / XLSX", OutputFormat.Csv => "Табличные данные / CSV", _ => "DST Connect / CSV"
         };
-        _exportMode.Text = Directory.Exists(input) ? _saveOptions.BatchMode switch
+        _exportMode.Text = isFolder || hasSelection ? _saveOptions.BatchMode switch
         {
             BatchOutputMode.MergeToSingleFile => "Объединение логов в один файл",
             BatchOutputMode.SplitTrcByDate => "TRC: отдельные результаты по датам",
@@ -488,7 +493,8 @@ public partial class MainForm
     }
 
     private string WorkspaceInputs() => string.Join('\0',
-        textBoxCanLog.Text, textBoxDevices.Text, textBoxComposites.Text, textBoxOutput.Text);
+        textBoxCanLog.Text, textBoxDevices.Text, textBoxComposites.Text, textBoxOutput.Text,
+        string.Join('\0', _selectedLogFiles));
 
     private void ClearWorkspaceError()
     {
@@ -578,19 +584,26 @@ public partial class MainForm
 
     private void SourceDragEnter(object? sender, DragEventArgs e)
     {
-        if (!IsBusy && e.Data?.GetData(DataFormats.FileDrop) is string[] { Length: 1 }) e.Effect = DragDropEffects.Copy;
+        if (!IsBusy && e.Data?.GetData(DataFormats.FileDrop) is string[] { Length: > 0 }) e.Effect = DragDropEffects.Copy;
     }
 
     private void SourceDragDrop(object? sender, DragEventArgs e)
     {
-        if (IsBusy || e.Data?.GetData(DataFormats.FileDrop) is not string[] { Length: 1 } paths) return;
-        var path = paths[0];
-        if (!Directory.Exists(path) && !new[] { ".csv", ".trc", ".asc", ".txt" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+        if (IsBusy || e.Data?.GetData(DataFormats.FileDrop) is not string[] { Length: > 0 } paths) return;
+        if (paths.Length == 1 && Directory.Exists(paths[0]))
         {
-            Log("Ошибка: поддерживаются CSV, TRC, ASC, TXT CANfox или папка логов."); return;
+            SetLogFolder(paths[0]);
         }
-        textBoxCanLog.Text = path;
-        textBoxOutput.Text = Directory.Exists(path) ? Path.Combine(path, "result") : Path.Combine(Path.GetDirectoryName(path) ?? "", Path.GetFileNameWithoutExtension(path) + "_result" + LogProcessingService.GetOutputExtension(_saveOptions.OutputFormat));
+        else
+        {
+            string[] extensions = [".csv", ".trc", ".asc", ".txt"];
+            if (paths.Any(path => !File.Exists(path) || !extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)))
+            {
+                Log("Ошибка: перетащите файлы CSV, TRC, ASC, TXT CANfox или одну папку логов.");
+                return;
+            }
+            SetLogFiles(paths);
+        }
         SelectWorkspacePage(false);
     }
 

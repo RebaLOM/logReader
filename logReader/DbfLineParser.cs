@@ -10,9 +10,9 @@ namespace logReader
             public string Name { get; init; }
             public uint Id { get; init; }
             public int Dlc { get; init; }
-            public int SignalCount { get; init; }
+            public DbfMessageDataFormat DataFormat { get; init; }
             public bool IsExtended { get; init; }
-            public string FrameType { get; init; }
+            public string Transmitter { get; init; }
         }
 
         public readonly struct SignalFields
@@ -46,9 +46,13 @@ namespace logReader
                 return false;
             if (!int.TryParse(parts[2].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc))
                 return false;
-            if (!int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int sigCount))
+            if (!int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
                 return false;
-            if (!int.TryParse(parts[4].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int extFlag))
+            string dataFormat = parts[4].Trim();
+            if (dataFormat is not ("0" or "1"))
+                return false;
+            string frameType = parts[5].Trim().ToUpperInvariant();
+            if (frameType is not ("S" or "X"))
                 return false;
 
             header = new MessageHeader
@@ -56,9 +60,9 @@ namespace logReader
                 Name = parts[0].Trim(),
                 Id = id,
                 Dlc = dlc,
-                SignalCount = sigCount,
-                IsExtended = extFlag == 1,
-                FrameType = parts[5].Trim()
+                DataFormat = dataFormat == "1" ? DbfMessageDataFormat.LittleEndian : DbfMessageDataFormat.BigEndian,
+                IsExtended = frameType == "X",
+                Transmitter = parts.Length > 6 ? parts[6].Trim() : ""
             };
             return true;
         }
@@ -115,12 +119,31 @@ namespace logReader
                 Name = header.Name,
                 Id = header.Id,
                 IsExtended = header.IsExtended,
-                Dlc = header.Dlc
+                Dlc = header.Dlc,
+                DbfDataFormat = header.DataFormat,
+                Transmitter = header.Transmitter
             };
         }
 
-        public static DbcSignal ToDbcSignal(SignalFields fields)
+        public static DbcSignal? ToDbcSignal(SignalFields fields, int dlc)
         {
+            int payloadBytes = Math.Clamp(dlc, 0, Device.MaxDataLength);
+            if (fields.ByteIndex < 1 || fields.ByteIndex > payloadBytes
+                || fields.BitOffset is < 0 or > 7 || fields.Length is < 1 or > 64)
+                return null;
+
+            int startBit = (fields.ByteIndex - 1) * 8 + fields.BitOffset;
+            if (!fields.IsLittleEndian)
+            {
+                // BUSMASTER stores the Motorola LSB. Walk towards the MSB in wire order.
+                int msbPosition = (startBit ^ 7) - (fields.Length - 1);
+                if (msbPosition < 0) return null;
+                startBit = msbPosition ^ 7;
+            }
+
+            if (!BitMath.SignalFitsInDlc(startBit, fields.Length, fields.IsLittleEndian, payloadBytes * 8))
+                return null;
+
             bool isSigned = fields.Type == "I";
             var (physMin, physMax) = DbcPhysicalValue.PhysicalBoundsFromRaw(
                 fields.RawMin, fields.RawMax, fields.Scale, fields.Offset);
@@ -128,7 +151,7 @@ namespace logReader
             return new DbcSignal
             {
                 Name = fields.Name,
-                StartBit = (fields.ByteIndex - 1) * 8 + fields.BitOffset,
+                StartBit = startBit,
                 Length = fields.Length,
                 IsLittleEndian = fields.IsLittleEndian,
                 IsSigned = isSigned,
@@ -141,13 +164,16 @@ namespace logReader
             };
         }
 
-        public static string FormatStartMsg(DbcMessage message)
+        public static string FormatStartMsg(DbcMessage message, int signalCount)
         {
             string name = string.IsNullOrWhiteSpace(message.Name)
                 ? "Msg_" + message.Id.ToString("X", CultureInfo.InvariantCulture)
                 : message.Name;
 
-            return $"[START_MSG] {name},{message.Id},{message.Dlc},{message.Signals.Count},{(message.IsExtended ? 1 : 0)},X,";
+            int dataFormat = message.DbfDataFormat == DbfMessageDataFormat.BigEndian ? 0 : 1;
+            string frameType = message.IsExtended ? "X" : "S";
+            string transmitter = message.Transmitter == "Vector__XXX" ? "" : message.Transmitter;
+            return $"[START_MSG] {name},{message.Id},{message.Dlc},{signalCount},{dataFormat},{frameType},{transmitter}";
         }
 
         public static string FormatStartSignals(DbcSignal signal)
@@ -155,8 +181,11 @@ namespace logReader
             string type = signal.IsSigned ? "I" : (signal.Length == 1 ? "B" : "U");
             ComputeRawBounds(signal, out long rawMin, out long rawMax);
 
-            int byteIndex = signal.StartBit / 8 + 1;
-            int bitOffset = signal.StartBit % 8;
+            int startBit = signal.IsLittleEndian
+                ? signal.StartBit
+                : ((signal.StartBit ^ 7) + signal.Length - 1) ^ 7;
+            int byteIndex = startBit / 8 + 1;
+            int bitOffset = startBit % 8;
 
             return string.Join(",",
                 signal.Name,

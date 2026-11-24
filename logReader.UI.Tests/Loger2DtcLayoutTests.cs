@@ -40,6 +40,71 @@ public sealed class Loger2DtcLayoutTests
         Assert.True(diagnostic.Enabled);
     });
 
+    [Fact]
+    public void Main_exports_selected_logs_and_keeps_the_selection_when_the_picker_is_cancelled() => Run(() =>
+    {
+        var temp = Directory.CreateTempSubdirectory("loger-selected-logs-");
+        try
+        {
+            string first = Path.Combine(temp.FullName, "a.trc");
+            string second = Path.Combine(temp.FullName, "b.trc");
+            string third = Path.Combine(temp.FullName, "unselected.trc");
+            string dbf = Path.Combine(temp.FullName, "devices.dbf");
+            const string frame = "1) 10.0 Rx 0CFF0008 8 11 00 00 00 00 00 00 00\n";
+            foreach (string path in new[] { first, second, third }) File.WriteAllText(path, frame);
+            File.WriteAllText(dbf, "[START_MSG] Drive,218038280,8,1,1,X,\n" +
+                "[START_SIGNALS] Speed,8,1,0,U,255,0,1,0,1,rpm,,,\n[END_MSG]\n");
+
+            var store = new DisplaySettingsStore(Path.Combine(temp.FullName, "display.json"));
+            using var form = new MainForm(store) { ShowInTaskbar = false };
+            form.Show();
+            var source = Field<TextBox>(form, "textBoxCanLog");
+            var output = Field<TextBox>(form, "textBoxOutput");
+            Field<TextBox>(form, "textBoxDevices").Text = dbf;
+            var options = Field<object>(form, "_saveOptions");
+            options.GetType().GetProperty("FolderFormatFilter")!.SetValue(options, LogFormatKind.Asc);
+            Invoke(form, "SetLogFiles", (object)new[] { first, second, first });
+            Assert.Equal("Выбрано файлов: 2", source.Text);
+            Assert.Equal(Path.Combine(temp.FullName, "result"), output.Text);
+
+            using var timer = new System.Windows.Forms.Timer { Interval = 25 };
+            bool cancelled = false;
+            timer.Tick += (_, _) =>
+            {
+                var picker = Application.OpenForms.Cast<Form>().FirstOrDefault(window => window.Owner == form && window.Modal);
+                if (picker?.CancelButton is not Button cancel) return;
+                timer.Stop();
+                cancel.PerformClick();
+                cancelled = true;
+            };
+            timer.Start();
+            Field<Button>(form, "buttonCANlog").PerformClick();
+            timer.Stop();
+            Assert.True(cancelled);
+            Assert.Equal([first, second], Field<string[]>(form, "_selectedLogFiles"));
+
+            var journal = Field<TextBox>(form, "textBoxLog");
+            using var context = new WindowsFormsSynchronizationContext();
+            var previous = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(context);
+                Field<Button>(form, "buttonProcess").PerformClick();
+                Until(() => journal.Text.Contains("Готово:", StringComparison.Ordinal));
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+            Assert.Contains("Готово: создано файлов: 2 из 2.", journal.Text);
+            Assert.Equal(["a_trc_result.csv", "b_trc_result.csv"], Directory.GetFiles(output.Text)
+                .Select(Path.GetFileName).OrderBy(name => name, StringComparer.Ordinal));
+
+            Invoke(form, "SetLogFiles", (object)new[] { third });
+            Assert.Empty(Field<string[]>(form, "_selectedLogFiles"));
+            Assert.Equal(third, source.Text);
+            Assert.Equal(Path.Combine(temp.FullName, "unselected_result.csv"), output.Text);
+        }
+        finally { temp.Delete(recursive: true); }
+    });
+
     [Theory]
     [InlineData("Dark")]
     [InlineData("Light")]

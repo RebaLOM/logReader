@@ -15,7 +15,7 @@ namespace logReader
             if (!File.Exists(dbfPath))
                 throw new FileNotFoundException($"Файл не найден: {dbfPath}");
 
-            return LoadDevicesFromMessages(DbfFile.Read(dbfPath), log);
+            return LoadDevicesFromMessages(DbfFile.ReadDatabase(dbfPath, log).Messages, log);
         }
 
         public static List<Device> LoadDevicesFromMessages(IReadOnlyList<DbcMessage> messages, Action<string>? log = null)

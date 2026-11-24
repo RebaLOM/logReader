@@ -46,6 +46,31 @@ public class TrcBatchTests
         return File.ReadAllLines(Path.Combine(output, resultName));
     }
 
+    [Theory]
+    [InlineData(BatchOutputMode.PerInputFile, 2)]
+    [InlineData(BatchOutputMode.MergeToSingleFile, 1)]
+    [InlineData(BatchOutputMode.SplitTrcByDate, 1)]
+    public void Batch_modes_export_only_selected_logs(BatchOutputMode mode, int outputCount)
+    {
+        using var dir = new TempDir();
+        var (input, output, devices, dbc) = Setup(dir);
+        string first = Path.Combine(input, "a.trc");
+        string second = Path.Combine(input, "b.trc");
+        File.WriteAllText(first, Trc("26.04.2023 10:00:00.000.0", (10, 11)));
+        File.WriteAllText(second, Trc("26.04.2023 11:00:00.000.0", (10, 22)));
+        File.WriteAllText(Path.Combine(input, "unselected.trc"), Trc("27.04.2023 10:00:00.000.0", (10, 99)));
+
+        var outcome = new LogProcessingService().ProcessFolderBatch([first, second, first], output, dbc, mode, devices,
+            new OutputSettings { Format = OutputFormat.Csv }, new ProcessingContext());
+
+        Assert.Equal(new LogProcessingService.BatchOutcome(outputCount, outputCount, 0), outcome);
+        string[] files = Directory.GetFiles(output, "*.csv").OrderBy(path => path, StringComparer.Ordinal).ToArray();
+        Assert.Equal(outputCount, files.Length);
+        string[] values = files.SelectMany(path => File.ReadLines(path).Skip(1))
+            .Select(line => line.Split(';')[1]).ToArray();
+        Assert.Equal(["11", "22"], values);
+    }
+
     [Fact]
     public void Merged_trc_uses_absolute_time_ordered_by_start_time()
     {

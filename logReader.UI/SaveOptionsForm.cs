@@ -72,7 +72,7 @@ namespace logReader.UI
             });
             var batchHint = new Label
             {
-                Text = "При выборе папки этот режим определяет структуру результатов. Форматы входа выбираются ниже.",
+                Text = "Этот режим применяется к выбранным файлам или папке. Для папки можно выбрать форматы входа.",
                 Dock = DockStyle.Top, Height = 62, Tag = "muted", Padding = new Padding(0, 14, 0, 0)
             };
             var batchContent = new Panel { Dock = DockStyle.Fill };

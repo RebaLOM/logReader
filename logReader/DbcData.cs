@@ -57,12 +57,19 @@ namespace logReader
         };
     }
 
+    public enum DbfMessageDataFormat
+    {
+        LittleEndian,
+        BigEndian
+    }
+
     public sealed class DbcMessage
     {
         public string Name { get; set; } = "";
         public uint Id { get; set; }
         public bool IsExtended { get; set; } = true;
         public int Dlc { get; set; } = 8;
+        public DbfMessageDataFormat DbfDataFormat { get; set; } = DbfMessageDataFormat.LittleEndian;
         public string Transmitter { get; set; } = "Vector__XXX";
         public List<DbcSignal> Signals { get; set; } = new();
 
@@ -80,6 +87,7 @@ namespace logReader
             Id = Id,
             IsExtended = IsExtended,
             Dlc = Dlc,
+            DbfDataFormat = DbfDataFormat,
             Transmitter = Transmitter,
             Signals = Signals.Select(s => s.Clone()).ToList(),
             OriginId = OriginId,

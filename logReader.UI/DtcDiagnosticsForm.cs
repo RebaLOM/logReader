@@ -4,9 +4,9 @@ namespace logReader.UI;
 
 internal sealed class DtcDiagnosticsForm : Form
 {
-    private readonly string _sourcePath;
-    private readonly bool _sourceIsFolder;
-    private readonly Func<string, double, ProcessingContext, DtcAnalysisResult> _analyze;
+    private readonly string? _sourceFolder;
+    private readonly bool _showFullPaths;
+    private readonly Func<double, ProcessingContext, DtcAnalysisResult> _analyze;
     private readonly DtcDisplayFormat _displayFormat;
     private readonly NumericUpDown _timeout;
     private readonly Button _analyzeButton;
@@ -37,11 +37,26 @@ internal sealed class DtcDiagnosticsForm : Form
     internal DtcDiagnosticsForm(string sourcePath, double timeoutMs = 2000,
         Func<string, double, ProcessingContext, DtcAnalysisResult>? analyze = null,
         DtcDisplayFormat displayFormat = DtcDisplayFormat.Compact)
+        : this(sourcePath, Directory.Exists(sourcePath) ? sourcePath : null, false, timeoutMs,
+            (timeout, context) => analyze != null
+                ? analyze(sourcePath, timeout, context)
+                : DtcAnalysisService.Analyze(sourcePath, timeout, context), displayFormat)
+    {
+    }
+
+    internal DtcDiagnosticsForm(IReadOnlyList<string> sourceFiles, double timeoutMs, DtcDisplayFormat displayFormat)
+        : this($"Выбрано файлов: {sourceFiles.Count}", null, true, timeoutMs,
+            (timeout, context) => DtcAnalysisService.Analyze(sourceFiles, timeout, context), displayFormat)
+    {
+    }
+
+    private DtcDiagnosticsForm(string sourceText, string? sourceFolder, bool showFullPaths, double timeoutMs,
+        Func<double, ProcessingContext, DtcAnalysisResult> analyze, DtcDisplayFormat displayFormat)
     {
         _displayFormat = Enum.IsDefined(displayFormat) ? displayFormat : DtcDisplayFormat.Compact;
-        _sourcePath = sourcePath;
-        _sourceIsFolder = Directory.Exists(sourcePath);
-        _analyze = analyze ?? ((path, timeout, context) => DtcAnalysisService.Analyze(path, timeout, context));
+        _sourceFolder = sourceFolder;
+        _showFullPaths = showFullPaths;
+        _analyze = analyze;
         Text = "Диагностика DTC — LOGER";
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(900, 660);
@@ -53,7 +68,7 @@ internal sealed class DtcDiagnosticsForm : Form
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var source = new TextBox
         {
-            ReadOnly = true, Text = sourcePath, Dock = DockStyle.Fill,
+            ReadOnly = true, Text = sourceText, Dock = DockStyle.Fill,
             AccessibleName = "Источник диагностики DTC", Name = "dtcSource"
         };
         layout.Controls.Add(source, 0, 0);
@@ -344,7 +359,7 @@ internal sealed class DtcDiagnosticsForm : Form
         var context = new ProcessingContext(progress: progress, cancellationToken: cts.Token);
         try
         {
-            var result = await Task.Run(() => _analyze(_sourcePath, timeout, context), cts.Token);
+            var result = await Task.Run(() => _analyze(timeout, context), cts.Token);
             cts.Token.ThrowIfCancellationRequested();
             if (IsDisposed || Disposing || _closeWhenIdle) return;
             _result = result;
@@ -544,7 +559,8 @@ internal sealed class DtcDiagnosticsForm : Form
         return "Неполный";
     }
 
-    private string FileLabel(string path) => _sourceIsFolder ? Path.GetRelativePath(_sourcePath, path) : Path.GetFileName(path);
+    private string FileLabel(string path)
+        => _sourceFolder != null ? Path.GetRelativePath(_sourceFolder, path) : _showFullPaths ? path : Path.GetFileName(path);
     private static bool SameFile(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
     private sealed record FileChoice(string? Path, string Label)
     {

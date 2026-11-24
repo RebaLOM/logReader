@@ -168,7 +168,7 @@ public class DbcRoundTripTests
         using var dir = new TempDir();
         string content =
             "[NUMBER_OF_MESSAGES] 1\n\n" +
-            "[START_MSG] Msg,256,8,1,0,X,\n" +
+            "[START_MSG] Msg,256,8,1,1,S,\n" +
             "[START_SIGNALS] Sig,8,1,0,U,255,0,1,0,1,,,\n" +
             "[VALUE_DESCRIPTION] \"Off\",0\n" +
             "[END_MSG]\n\n" +
@@ -183,7 +183,94 @@ public class DbcRoundTripTests
         Assert.Contains("[NUMBER_OF_MESSAGES] 2", text);
         Assert.Contains("[VALUE_DESCRIPTION] \"Off\",0", text);
         Assert.Contains("256 S \"Comment\";", text);
-        Assert.Contains("[START_MSG] New,768,1,0,0,X,", text);
+        Assert.Contains("[START_MSG] New,768,1,0,1,S,", text);
+    }
+
+    [Theory]
+    [InlineData(1, 1, "S", DbfMessageDataFormat.LittleEndian)]
+    [InlineData(1, 0, "S", DbfMessageDataFormat.LittleEndian)]
+    [InlineData(0, 1, "X", DbfMessageDataFormat.BigEndian)]
+    [InlineData(0, 0, "X", DbfMessageDataFormat.BigEndian)]
+    public void Dbf_keeps_message_data_format_and_signal_byte_order_independent(
+        int formatFlag, int orderFlag, string frameType, DbfMessageDataFormat format)
+    {
+        using var dir = new TempDir();
+        bool intel = orderFlag == 1;
+        int byteIndex = intel ? 1 : 2;
+        string signalLine = $"[START_SIGNALS] Speed,16,{byteIndex},0,I,32767,-32768,{orderFlag},0,1,rpm,,,";
+        string path = dir.Write("speed.dbf", $"""
+            [START_MSG] Drive,256,2,1,{formatFlag},{frameType},ECU
+            {signalLine}
+            [END_MSG]
+            """);
+
+        var db = DbfFile.ReadDatabase(path);
+        var message = Assert.Single(db.Messages);
+        Assert.Equal(format, message.DbfDataFormat);
+        Assert.Equal(frameType == "X", message.IsExtended);
+        Assert.Equal("ECU", message.Transmitter);
+        var signal = Assert.Single(message.Signals);
+        Assert.Equal(intel, signal.IsLittleEndian);
+        Assert.Equal(intel ? 0 : 7, signal.StartBit);
+        Assert.True(signal.IsSigned);
+
+        message.Name = "UpdatedDrive";
+        DbfFile.WriteDatabase(path, db);
+        string updated = File.ReadAllText(path);
+        Assert.Contains($"[START_MSG] UpdatedDrive,256,2,1,{formatFlag},{frameType},ECU", updated);
+        Assert.Contains(signalLine, updated);
+
+        var device = Assert.Single(DeviceFiles.LoadDevices(path));
+        device.SetPayload(intel ? [0x80, 0xFF] : [0xFF, 0x80]);
+        device.Decode();
+        Assert.Equal(-128, Assert.Single(device.Values));
+    }
+
+    [Fact]
+    public void Dbf_unaligned_motorola_uses_the_least_significant_bit_and_scales_the_signed_value()
+    {
+        using var dir = new TempDir();
+        string path = dir.Write("unaligned.dbf", """
+            [START_MSG] Drive,256,2,1,1,S,
+            [START_SIGNALS] Speed,12,2,0,I,2047,-2048,0,-10,0.5,rpm,,,
+            [END_MSG]
+            """);
+
+        var message = Assert.Single(DbfFile.Read(path));
+        Assert.Equal(3, Assert.Single(message.Signals).StartBit);
+        string written = dir.File("written.dbf");
+        DbfFile.Write(written, [message]);
+        Assert.Contains("[START_SIGNALS] Speed,12,2,0,I,2047,-2048,0,-10,0.5,rpm,,,", File.ReadAllText(written));
+        var device = Assert.Single(DeviceFiles.LoadDevices(written));
+        device.SetPayload([0x0A, 0xBC]);
+        device.Decode();
+        Assert.Equal(-684, Assert.Single(device.Values));
+    }
+
+    [Fact]
+    public void Dbf_skips_signal_positions_outside_payload_and_preserves_the_source_line()
+    {
+        using var dir = new TempDir();
+        const string invalid = "[START_SIGNALS] LegacyPosition,16,1,7,I,32767,-32768,0,0,1,,,,";
+        string path = dir.Write("invalid.dbf", $"""
+            [START_MSG] Drive,256,2,2,1,S,
+            [START_SIGNALS] Flag,1,1,0,B,1,0,1,0,1,,,,
+            {invalid}
+            [END_MSG]
+            """);
+
+        var warnings = new List<string>();
+        var device = Assert.Single(DeviceFiles.LoadDevices(path, warnings.Add));
+        Assert.Equal(["Flag"], device.Headers);
+        Assert.Contains(warnings, message => message.Contains("LegacyPosition") && message.Contains("Drive"));
+
+        var db = DbfFile.ReadDatabase(path);
+        Assert.Single(db.Messages[0].Signals);
+        db.Messages[0].Name = "UpdatedDrive";
+        DbfFile.WriteDatabase(path, db);
+        string updated = File.ReadAllText(path);
+        Assert.Contains("[START_MSG] UpdatedDrive,256,2,2,1,S,", updated);
+        Assert.Contains(invalid, updated);
     }
 
     [Theory]
@@ -195,7 +282,7 @@ public class DbcRoundTripTests
     {
         using var dir = new TempDir();
         string path = dir.Write("speed.dbf", """
-            [START_MSG] MotorData,256,8,2,0,X,
+            [START_MSG] MotorData,256,8,2,1,S,
             [START_SIGNALS] UnsignedSpeed,16,1,0,U,65535,0,1,-30000,1,rpm,,,
             [START_SIGNALS] SignedSpeed,16,1,0,I,32767,-32768,1,-30000,1,rpm,,,
             [END_MSG]

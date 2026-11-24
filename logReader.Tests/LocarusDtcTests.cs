@@ -366,6 +366,21 @@ public sealed class LocarusDtcTests
     }
 
     [Fact]
+    public void Dtc_analysis_uses_only_the_selected_logs()
+    {
+        using var dir = new TempDir();
+        const string populated = "time;ErrorsQuantity;Err\n2026-07-06T06:19:49Z;1;32770.0\n";
+        string first = dir.Write("a.csv", populated);
+        string second = dir.Write("b.csv", "time;ErrorsQuantity;Err\n2026-07-06T06:19:49Z;0;-\n");
+        dir.Write("unselected.csv", populated);
+
+        var result = DtcAnalysisService.Analyze([first, second, first]);
+
+        Assert.Equal([first, second], result.Observations.Select(item => item.SourceFile));
+        Assert.Single(result.Summaries);
+    }
+
+    [Fact]
     public void Provided_dst_traces_have_1038_empty_trace_cycles_and_15_fmi_zero_counterrotation_cycles()
     {
         string? root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR");

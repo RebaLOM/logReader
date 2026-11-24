@@ -26,13 +26,15 @@ namespace logReader.UI
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             Icon = resources.GetObject("$this.Icon") as Icon;
             textBoxCanLog = WorkspacePath("textBoxCanLog", 0);
+            _sourceFilesToolTip = new ToolTip(components);
             textBoxDevices = WorkspacePath("textBoxDevices", 1);
             textBoxComposites = WorkspacePath("textBoxComposites", 2);
             textBoxOutput = WorkspacePath("textBoxOutput", 3);
+            textBoxCanLog.TextChanged += textBoxCanLog_TextChanged;
             textBoxDevices.TextChanged += textBoxDevices_TextChanged;
             textBoxComposites.TextChanged += textBoxComposites_TextChanged;
             textBoxOutput.TextChanged += textBoxOutput_TextChanged;
-            labelCANlog = WorkspaceLabel("Файл или папка логов", "labelCANlog");
+            labelCANlog = WorkspaceLabel("Файлы или папка логов", "labelCANlog");
             labelDevices = WorkspaceLabel("Описание CAN-посылок", "labelDevices");
             labelComposites = WorkspaceLabel("Составные параметры", "labelComposites");
             labelResult = WorkspaceLabel("Путь сохранения", "labelResult");

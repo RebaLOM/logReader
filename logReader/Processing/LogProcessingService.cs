@@ -64,10 +64,40 @@ namespace logReader.Processing
             int expected = 0;
             int failed = 0;
 
-            var kinds = files.ToDictionary(f => f, SafeDetect, StringComparer.OrdinalIgnoreCase);
-            var matrixCsvFiles = files.Where(p => kinds[p] == LogFormatKind.MatrixCsv).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
-            var trcFiles = files.Where(p => kinds[p] == LogFormatKind.Trc).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
-            var otherFiles = files.Where(p => kinds[p] is not (LogFormatKind.Trc or LogFormatKind.MatrixCsv)).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+            outputDir = Path.GetFullPath(outputDir);
+            var inputPaths = files.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var protectedPaths = new HashSet<string>(inputPaths, StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(devicesFullPath))
+                protectedPaths.Add(Path.GetFullPath(devicesFullPath));
+            var perFileOutputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var matrixCsvFiles = new List<string>();
+            var trcFiles = new List<string>();
+            var otherFiles = new List<string>();
+
+            foreach (string path in inputPaths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+            {
+                context.ThrowIfCancellationRequested();
+                string name = Path.GetFileName(path);
+                if (!File.Exists(path))
+                {
+                    RecordFailure(name, "Файл недоступен или не найден.");
+                    continue;
+                }
+                try
+                {
+                    switch (LogFormatDetector.Detect(path))
+                    {
+                        case LogFormatKind.MatrixCsv: matrixCsvFiles.Add(path); break;
+                        case LogFormatKind.Trc: trcFiles.Add(path); break;
+                        case LogFormatKind.None: RecordFailure(name, "Формат лога не распознан."); break;
+                        default: otherFiles.Add(path); break;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    RecordFailure(name, ex.Message);
+                }
+            }
 
             bool mergeMatrix = batchMode == BatchOutputMode.MergeToSingleFile && matrixCsvFiles.Count > 0;
             bool aggregateTrc = batchMode != BatchOutputMode.PerInputFile && trcFiles.Count > 0
@@ -79,6 +109,13 @@ namespace logReader.Processing
 
             ProcessingContext NextStep(string stage)
                 => context.Slice((double)stepIndex++ / Math.Max(1, totalSteps), 1.0 / Math.Max(1, totalSteps), stage);
+
+            void RecordFailure(string name, string reason)
+            {
+                expected++;
+                failed++;
+                context.Log($"Пропуск ({name}): {reason}");
+            }
 
             // Ошибка одного файла не должна обрывать весь пакет — отмена обрывает.
             void Track(Func<ProcessingResult> run, string label)
@@ -103,14 +140,14 @@ namespace logReader.Processing
 
             bool CanWrite(string outPath)
             {
-                if (string.Equals(Path.GetFullPath(outPath), devicesFullPath, StringComparison.OrdinalIgnoreCase))
+                if (protectedPaths.Contains(outPath))
                 {
-                    context.Log($"Пропуск: совпадает с файлом посылок — {Path.GetFileName(outPath)}");
+                    RecordFailure(Path.GetFileName(outPath), "путь результата совпадает с исходным файлом или файлом посылок.");
                     return false;
                 }
                 if (IsFileLocked(outPath))
                 {
-                    context.Log($"Пропуск (файл занят): {Path.GetFileName(outPath)}");
+                    RecordFailure(Path.GetFileName(outPath), "файл занят.");
                     return false;
                 }
                 return true;
@@ -120,8 +157,15 @@ namespace logReader.Processing
             {
                 foreach (string logPath in inputFiles)
                 {
+                    context.ThrowIfCancellationRequested();
                     var stepContext = NextStep(Path.GetFileName(logPath));
-                    string outPath = BuildBatchOutputPath(logPath, outputDir, settings.Format);
+                    string preferredPath = BuildBatchOutputPath(logPath, outputDir, settings.Format);
+                    string outPath = preferredPath;
+                    for (int suffix = 2; !perFileOutputs.Add(outPath); suffix++)
+                    {
+                        string name = Path.GetFileNameWithoutExtension(preferredPath);
+                        outPath = Path.Combine(outputDir, $"{name}_{suffix}{Path.GetExtension(preferredPath)}");
+                    }
                     if (!CanWrite(outPath)) continue;
 
                     context.Log($"--- {Path.GetFileName(logPath)} ---");
@@ -193,12 +237,6 @@ namespace logReader.Processing
             }
 
             return new BatchOutcome(created, expected, failed);
-        }
-
-        private static LogFormatKind SafeDetect(string path)
-        {
-            try { return LogFormatDetector.Detect(path); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return LogFormatKind.None; }
         }
 
         internal static bool IsFileLocked(string path)

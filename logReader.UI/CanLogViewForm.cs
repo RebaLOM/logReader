@@ -5,17 +5,30 @@ namespace logReader.UI
     // Статистика ID лога: чтение в фоне с отменой, виртуальный список — без тысяч дочерних контролов.
     public partial class CanLogViewForm : Form
     {
-        private readonly string _sourcePath;
+        private readonly Func<CancellationToken, Dictionary<string, int>> _collectCounts;
+        private readonly string? _sourceFolder;
         private readonly ListView _list = new();
         private readonly CancellationTokenSource _loading = new();
         private List<(string ID, int Count)> _packets = new();
         private List<(string ID, int Count)> _filtered = new();
 
         public CanLogViewForm(string sourcePath)
+            : this(token => UnknownDevicesScanner.CollectLogIds(sourcePath, cancellationToken: token),
+                Directory.Exists(sourcePath) ? sourcePath : null)
+        {
+        }
+
+        internal CanLogViewForm(IReadOnlyList<string> sourceFiles)
+            : this(token => UnknownDevicesScanner.CollectLogIds(sourceFiles, cancellationToken: token), null)
+        {
+        }
+
+        private CanLogViewForm(Func<CancellationToken, Dictionary<string, int>> collectCounts, string? sourceFolder)
         {
             InitializeComponent();
             Icon = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.Icon;
-            _sourcePath = sourcePath;
+            _collectCounts = collectCounts;
+            _sourceFolder = sourceFolder;
 
             _list.Dock = DockStyle.Fill;
             _list.View = View.Details;
@@ -46,11 +59,11 @@ namespace logReader.UI
             try
             {
                 var token = _loading.Token;
-                var counts = await Task.Run(() => logReader.Processing.UnknownDevicesScanner.CollectLogIds(_sourcePath, null, token), token);
+                var counts = await Task.Run(() => _collectCounts(token), token);
                 if (IsDisposed) return;
 
-                if (counts.Count == 0 && Directory.Exists(_sourcePath)
-                    && !logReader.Processing.LogFolderScanner.EnumerateSupportedLogFiles(_sourcePath).Any())
+                if (counts.Count == 0 && _sourceFolder != null
+                    && !LogFolderScanner.EnumerateSupportedLogFiles(_sourceFolder).Any())
                 {
                     ThemedMessageBox.Show(this, "В выбранной папке нет файлов .csv, .trc, .asc или .txt.",
                         "Нет логов", MessageBoxButtons.OK, MessageBoxIcon.Information);

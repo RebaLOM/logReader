@@ -344,6 +344,58 @@ public class ProcessingPipelineTests
     }
 
     [Fact]
+    public void Batch_keeps_results_from_distinct_inputs_with_the_same_name()
+    {
+        using var dir = new TempDir();
+        string first = Path.Combine(Directory.CreateDirectory(dir.File("a")).FullName, "drive.trc");
+        string second = Path.Combine(Directory.CreateDirectory(dir.File("b")).FullName, "drive.trc");
+        File.WriteAllText(first, TwoFramesTrc);
+        File.WriteAllText(second, TwoFramesTrc.Replace("11 00", "12 00", StringComparison.Ordinal));
+
+        var outcome = new LogProcessingService().ProcessFolderBatch([second, first], dir.Path, dir.File("devices.dbc"),
+            BatchOutputMode.PerInputFile, Devices(dir), Settings(OutputFormat.Csv), new ProcessingContext());
+
+        Assert.Equal(new LogProcessingService.BatchOutcome(2, 2, 0), outcome);
+        Assert.Equal("17", File.ReadLines(dir.File("drive_trc_result.csv")).Skip(1).First().Split(';')[1]);
+        Assert.Equal("18", File.ReadLines(dir.File("drive_trc_result_2.csv")).Skip(1).First().Split(';')[1]);
+    }
+
+    [Fact]
+    public void Batch_protects_a_selected_log_when_its_name_matches_a_result()
+    {
+        using var dir = new TempDir();
+        const string frames = ";0CFF0008;0CFF0009\n08:58:35.091;1100000000000000;2200000000000000\n";
+        string first = dir.Write("drive.csv", frames);
+        string second = dir.Write("drive_csv_result.csv", frames);
+
+        var outcome = new LogProcessingService().ProcessFolderBatch([first, second], dir.Path, dir.File("devices.dbc"),
+            BatchOutputMode.PerInputFile, Devices(dir), Settings(OutputFormat.Csv), new ProcessingContext());
+
+        Assert.Equal(new LogProcessingService.BatchOutcome(1, 2, 1), outcome);
+        Assert.Equal(frames, File.ReadAllText(second));
+        Assert.True(File.Exists(dir.File("drive_csv_result_csv_result.csv")));
+    }
+
+    [Fact]
+    public void Packet_count_and_missing_ids_use_the_selected_logs()
+    {
+        using var dir = new TempDir();
+        string first = dir.Write("a.trc", TwoFramesTrc);
+        string second = dir.Write("b.trc", TwoFramesTrc.Replace("0CFF0009", "0CFF0010", StringComparison.Ordinal));
+        dir.Write("unselected.trc", TwoFramesTrc.Replace("0CFF0009", "0CFF0011", StringComparison.Ordinal));
+
+        var counts = UnknownDevicesScanner.CollectLogIds([first, second, first]);
+        var scan = UnknownDevicesScanner.ScanLogDevices([first, second], Devices(dir));
+
+        Assert.Equal(3, counts.Count);
+        Assert.Equal(2, counts["0CFF0008"]);
+        Assert.Equal(1, counts["0CFF0009"]);
+        Assert.Equal(1, counts["0CFF0010"]);
+        Assert.Equal(["0CFF0008", "0CFF0009"], scan.MatchedInDevices);
+        Assert.Equal(["0CFF0010"], scan.MissingInDevices);
+    }
+
+    [Fact]
     public void Loger_result_csv_is_not_detected_as_input_log()
     {
         using var dir = new TempDir();

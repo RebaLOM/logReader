@@ -8,6 +8,9 @@ namespace logReader.Processing;
 internal static class DtcAnalysisService
 {
     public static DtcAnalysisResult Analyze(string path, double timeoutMs = 2000, ProcessingContext? context = null)
+        => Analyze(InputFiles(path), timeoutMs, context);
+
+    public static DtcAnalysisResult Analyze(IEnumerable<string> sourceFiles, double timeoutMs = 2000, ProcessingContext? context = null)
     {
         _ = new LocarusDtcDecoder(timeoutMs); // Validate the setting before opening a file.
         context ??= new ProcessingContext();
@@ -16,9 +19,7 @@ internal static class DtcAnalysisService
         var episodes = new List<DtcEpisode>();
         var summaries = new List<DtcSummary>();
         var warnings = new List<string>();
-        string[] paths = Directory.Exists(path)
-            ? LogFolderScanner.EnumerateSupportedLogFiles(path).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray()
-            : File.Exists(path) ? [path] : throw new FileNotFoundException("Файл или папка лога не найдены.", path);
+        string[] paths = sourceFiles.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (paths.Length == 0) warnings.Add("В папке нет поддерживаемых файлов логов.");
         for (int i = 0; i < paths.Length; i++)
         {
@@ -39,6 +40,23 @@ internal static class DtcAnalysisService
         }
         context.ReportProgress(1);
         return new DtcAnalysisResult(observations, episodes, summaries, warnings);
+    }
+
+    private static IEnumerable<string> InputFiles(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            foreach (string file in LogFolderScanner.EnumerateSupportedLogFiles(path).OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+                yield return file;
+        }
+        else if (File.Exists(path))
+        {
+            yield return path;
+        }
+        else
+        {
+            throw new FileNotFoundException("Файл или папка лога не найдены.", path);
+        }
     }
 
     private static void AnalyzeFile(string path, double timeout, ProcessingContext context, History history, List<string> warnings)

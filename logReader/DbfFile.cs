@@ -12,7 +12,9 @@ namespace logReader
 
         public static List<DbcMessage> Read(string path) => ReadDatabase(path).Messages;
 
-        public static DbcDatabase ReadDatabase(string path)
+        public static DbcDatabase ReadDatabase(string path) => ReadDatabase(path, log: null);
+
+        internal static DbcDatabase ReadDatabase(string path, Action<string>? log)
         {
             if (!File.Exists(path))
                 throw new FileNotFoundException($"Файл не найден: {path}");
@@ -43,9 +45,14 @@ namespace logReader
                     }
                     if (DbfLineParser.TryParseStartSignals(inner, out var fields))
                     {
-                        lastSignal = DbfLineParser.ToDbcSignal(fields);
-                        message.Signals.Add(lastSignal);
-                        continue;
+                        if (DbfLineParser.ToDbcSignal(fields, message.Dlc) is { } signal)
+                        {
+                            lastSignal = signal;
+                            message.Signals.Add(signal);
+                            continue;
+                        }
+
+                        log?.Invoke($"Предупреждение: сигнал '{fields.Name}' в посылке '{message.Name}' выходит за границы {message.Dlc} байт и пропущен.");
                     }
 
                     // [VALUE_DESCRIPTION] и прочие строки относятся к предыдущему сигналу.
@@ -77,6 +84,16 @@ namespace logReader
         public static void WriteDatabase(string path, DbcDatabase db)
         {
             DbcFile.ValidateMessages(db.Messages);
+            foreach (var message in db.Messages)
+            {
+                int payloadBits = Math.Clamp(message.Dlc, 0, Device.MaxDataLength) * 8;
+                foreach (var signal in message.Signals)
+                {
+                    if (signal.Length is < 1 or > 64
+                        || !BitMath.SignalFitsInDlc(signal.StartBit, signal.Length, signal.IsLittleEndian, payloadBits))
+                        throw new InvalidDataException($"Сигнал '{signal.Name}' в посылке '{message.Name}' выходит за границы {message.Dlc} байт.");
+                }
+            }
             string text = db.Source == null ? BuildNewFile(db.Messages) : BuildFromSource(db);
             var encoding = db.Source?.Encoding ?? new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
@@ -155,7 +172,10 @@ namespace logReader
 
         private static IEnumerable<string> FormatMessageLines(DbcMessage m)
         {
-            yield return DbfLineParser.FormatStartMsg(m);
+            // Count preserved signal definitions as well when rebuilding the message block.
+            int signalCount = m.Signals.Count + m.ExtraLines.Count(IsSignalLine)
+                + m.Signals.Sum(signal => signal.TrailingLines.Count(IsSignalLine));
+            yield return DbfLineParser.FormatStartMsg(m, signalCount);
             foreach (var extra in m.ExtraLines)
                 yield return extra;
             foreach (var s in m.Signals)
@@ -166,6 +186,9 @@ namespace logReader
             }
             yield return EndMsg;
         }
+
+        private static bool IsSignalLine(string line)
+            => line.TrimStart().StartsWith("[START_SIGNALS]", StringComparison.OrdinalIgnoreCase);
 
         private static string BuildNewFile(IReadOnlyList<DbcMessage> messages)
         {
