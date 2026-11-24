@@ -1,3 +1,5 @@
+using logReader.Processing;
+
 namespace logReader.Tests;
 
 public class MatrixCsvTimeTests
@@ -9,14 +11,11 @@ public class MatrixCsvTimeTests
         {
             Assert.True(Directory.Exists(root), "Configured real fixture directory does not exist.");
             var files = UserFixtureFiles.Enumerate(root, ".csv")
-                .Where(file => logReader.Processing.MatrixCsvLogParser.LooksLikeMatrixCsv(file)).ToArray();
+                .Where(file => MatrixCsvLogParser.LooksLikeMatrixCsv(file)).ToArray();
             Assert.NotEmpty(files);
             foreach (string file in files)
             {
-                var encoding = logReader.Processing.LogFileEncoding.Detect(file);
-                string? first = File.ReadLines(file, encoding).Skip(1).FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
-                Assert.NotNull(first);
-                string clock = first!.Split(';')[0].Trim().Replace(',', '.');
+                string clock = FirstDataRow(file).Split(';')[0].Trim().Replace(',', '.');
                 Assert.True(TimeOfDayParse.TryParse(clock, out var parsed), $"Unparsed first timestamp: {file}");
                 Assert.Equal(TimeSpan.Parse(clock, System.Globalization.CultureInfo.InvariantCulture), parsed);
             }
@@ -31,13 +30,17 @@ public class MatrixCsvTimeTests
         if (!File.Exists(path))
             return;
 
-        string? firstData = File.ReadLines(path)
-            .Skip(1)
-            .FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
-
-        Assert.NotNull(firstData);
-        string timeCell = firstData!.Split(';')[0];
+        string timeCell = FirstDataRow(path).Split(';')[0];
         Assert.True(TimeOfDayParse.TryParse(timeCell, out var t));
         Assert.Equal(257, t.Milliseconds);
+    }
+
+    private static string FirstDataRow(string path)
+    {
+        var encoding = LogFileEncoding.Detect(path);
+        using var lines = LogFileReader.ReadLines(path, encoding).GetEnumerator();
+        string? firstDataLine = MatrixCsvLogParser.FindHeader(lines)?.FirstDataLine;
+        Assert.NotNull(firstDataLine);
+        return firstDataLine;
     }
 }

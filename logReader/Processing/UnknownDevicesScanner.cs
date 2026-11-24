@@ -95,25 +95,22 @@ namespace logReader.Processing
 
         private static void ScanMatrixCsv(string filePath, Encoding enc, Dictionary<string, int> counts, ProcessingContext context)
         {
-            List<MatrixCsvColumn>? columns = null;
+            using var lines = LogFileReader.ReadLines(filePath, enc, context).GetEnumerator();
+            var header = MatrixCsvLogParser.FindHeader(lines);
+            if (header == null) return;
+
+            foreach (var col in header.Columns)
+                counts.TryAdd(col.Id, 0);
             Span<int> msgBytes = stackalloc int[8];
 
-            foreach (string line in LogFileReader.ReadLines(filePath, enc, context))
+            foreach (string line in MatrixCsvLogParser.ReadDataLines(lines, header))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-
-                if (columns == null)
-                {
-                    if (!MatrixCsvLogParser.TryReadHeader(line, out columns, out _)) return;
-                    foreach (var col in columns)
-                        counts.TryAdd(col.Id, 0);
-                    continue;
-                }
 
                 string[] parts = line.Split(';');
                 if (parts.Length < 2 || !MatrixCsvLogParser.TryParseTimeCell(parts[0], out _)) continue;
 
-                foreach (var col in columns)
+                foreach (var col in header.Columns)
                 {
                     if (col.ColumnIndex >= parts.Length) continue;
                     string cell = parts[col.ColumnIndex];

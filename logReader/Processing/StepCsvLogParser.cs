@@ -25,7 +25,7 @@ namespace logReader.Processing
                 var parts = line.Split(';');
 
                 // В первых строках результатов LOGER есть заголовок «Шаг»/«Время»/«Time».
-                if (checkedLines < 2 && parts.Any(p => p.Trim() is "Шаг" or "Время" or "Time"))
+                if (IsResultHeader(parts) || (checkedLines < 2 && parts.Any(p => p.Trim() is "Шаг" or "Время" or "Time")))
                     return false;
 
                 if (IsFrameRow(parts))
@@ -35,7 +35,10 @@ namespace logReader.Processing
             return false;
         }
 
-        private static bool IsFrameRow(string[] parts)
+        public static bool IsResultHeader(string[] parts)
+            => parts.Length >= 2 && parts[0].Trim() == "Шаг" && parts[1].Trim() == "Время";
+
+        public static bool IsFrameRow(string[] parts)
         {
             if (parts.Length < FirstByteColumn + 8) return false;
             if (parts[0].Length > 0 && !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)) return false;

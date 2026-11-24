@@ -99,6 +99,50 @@ public class ProcessingPipelineTests
         Assert.Empty(Directory.GetFiles(dir.Path, "out*"));
     }
 
+    [Theory]
+    [InlineData(OutputFormat.Csv)]
+    [InlineData(OutputFormat.Xlsx)]
+    public void Matrix_csv_with_preamble_preserves_it_before_the_decoded_table(OutputFormat format)
+    {
+        using var dir = new TempDir();
+        string[] preamble = ["Тест;Оператор;SN", "Ручное управление;\"Имя; смена\";0001", ";123;ABC", ""];
+        string input = dir.File("matrix.csv");
+        File.WriteAllText(input, string.Join('\n', preamble) + "\n;0CFF0008;;0CFF0009\n" +
+            "08:58:35.091;1100000000000000;;2200000000000000\n" +
+            "08:58:35.142;;;2300000000000000\n", LogFileEncoding.Windows1251);
+        string output = dir.File(format == OutputFormat.Csv ? "out.csv" : "out.xlsx");
+        var settings = new OutputSettings { Format = format, IncludeDeviceIdHeaderRow = true };
+
+        Assert.Equal(LogFormatKind.MatrixCsv, LogFormatDetector.Detect(input));
+        var result = new LogProcessingService().ProcessSingleFile(input, output, Devices(dir), settings, new ProcessingContext());
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(2, result.RowsWritten);
+
+        if (format == OutputFormat.Csv)
+        {
+            string[] expected =
+                [.. preamble, ";;0CFF0008;0CFF0009", "Шаг;Время;A1;B1", "1;08:58:35.091;17;34", "2;08:58:35.142;17;35"];
+            Assert.Equal(expected, File.ReadAllLines(output));
+            Assert.Equal(LogFormatKind.None, LogFormatDetector.Detect(output));
+        }
+        else
+        {
+            using var workbook = new XLWorkbook(output);
+            var sheet = workbook.Worksheet(1);
+            Assert.Equal("Тест", sheet.Cell(1, 1).GetString());
+            Assert.Equal("Имя; смена", sheet.Cell(2, 2).GetString());
+            Assert.Equal("0001", sheet.Cell(2, 3).GetString());
+            Assert.Equal("123", sheet.Cell(3, 2).GetString());
+            Assert.True(sheet.Row(4).IsEmpty());
+            Assert.Equal("0CFF0008", sheet.Cell(5, 3).GetString());
+            Assert.Equal("Шаг", sheet.Cell(6, 1).GetString());
+            Assert.Equal("B1", sheet.Cell(6, 4).GetString());
+            Assert.Equal("08:58:35.091", sheet.Cell(7, 2).GetString());
+            Assert.Equal(17, sheet.Cell(7, 3).GetDouble());
+            Assert.Equal(35, sheet.Cell(8, 4).GetDouble());
+        }
+    }
+
     [Fact]
     public void Legacy_csv_id_without_leading_zero_matches_extended_device()
     {
@@ -304,7 +348,8 @@ public class ProcessingPipelineTests
     {
         using var dir = new TempDir();
         string result = dir.Write("x_csv_result.csv", "Шаг;Время;A1\n1;10:15:30;12\n");
-        string legacy = dir.Write("legacy.csv", "1;10:15:30;0CFF0008;1;12;0;0;0;0;0;0;0\n");
+        string legacy = dir.Write("legacy.csv", "1;10:15:30;0CFF0008;1;12;0;0;0;0;0;0;0\n" +
+            ";;0CFF0009;1;34;0;0;0;0;0;0;0\n");
 
         Assert.Equal(LogFormatKind.None, LogFormatDetector.Detect(result));
         Assert.Equal(LogFormatKind.StepCsv, LogFormatDetector.Detect(legacy));

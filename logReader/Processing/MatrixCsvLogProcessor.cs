@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace logReader.Processing
 {
     // Табличный CSV (время × посылки): одна строка результата на строку лога.
@@ -28,8 +30,10 @@ namespace logReader.Processing
             foreach (var d in devices)
                 deviceByID[d.ID] = d;
 
-            var inputs = new List<(string Path, System.Text.Encoding Encoding, List<MatrixCsvColumn> Columns)>();
+            var inputs = new List<(string Path, Encoding Encoding, IReadOnlyList<MatrixCsvColumn> Columns)>();
+            var preamble = new List<string>();
             var seenIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var scanContext = new ProcessingContext(cancellationToken: context.CancellationToken);
 
             foreach (string csvPath in csvPaths)
             {
@@ -39,23 +43,27 @@ namespace logReader.Processing
                     continue;
                 }
 
-                System.Text.Encoding encoding;
-                try { encoding = LogFileEncoding.Detect(csvPath); }
+                try
+                {
+                    Encoding encoding = LogFileEncoding.Detect(csvPath);
+                    using var lines = LogFileReader.ReadLines(csvPath, encoding, scanContext).GetEnumerator();
+                    var inputPreamble = new List<string>();
+                    var header = MatrixCsvLogParser.FindHeader(lines, inputPreamble);
+                    if (header == null)
+                    {
+                        context.Log($"В файле «{Path.GetFileName(csvPath)}» не найдена строка с CAN ID (;ID1;ID2;...).");
+                        continue;
+                    }
+
+                    foreach (var column in header.Columns)
+                        seenIDs.Add(column.Id);
+                    inputs.Add((csvPath, encoding, header.Columns));
+                    preamble.AddRange(inputPreamble);
+                }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     context.Log($"Пропуск: ошибка чтения ({Path.GetFileName(csvPath)}): {ex.Message}");
-                    continue;
                 }
-
-                if (!TryReadHeaderLine(csvPath, encoding, out var columns, out string? headerError))
-                {
-                    context.Log($"Пропуск ({Path.GetFileName(csvPath)}): {headerError}");
-                    continue;
-                }
-
-                foreach (var column in columns)
-                    seenIDs.Add(column.Id);
-                inputs.Add((csvPath, encoding, columns));
             }
 
             if (inputs.Count == 0)
@@ -68,7 +76,7 @@ namespace logReader.Processing
                 return context.Fail("Нет совпадающих устройств — проверьте файл посылок.");
 
             using var writer = new StepOutputWriter(outputPath, settings.Format, outputColumns, settings.IncludeDeviceIdHeaderRow,
-                settings.IncludeDtc, settings.AutoIncludeDtc, settings.DtcDisplayFormat, context);
+                settings.IncludeDtc, settings.AutoIncludeDtc, settings.DtcDisplayFormat, context, preamble);
             int step = 0;
             Span<int> msgBytes = stackalloc int[8];
 
@@ -85,18 +93,15 @@ namespace logReader.Processing
 
                     var timeTracker = new MatrixCsvTimeTracker();
                     var dtc = settings.CollectDtc ? new DtcRowCollector(settings.DtcTimeoutMs) : null;
-                    bool headerSkipped = false;
                     var fileContext = context.Slice((double)f / inputs.Count, 1.0 / inputs.Count, Path.GetFileName(csvPath));
+                    using var lines = LogFileReader.ReadLines(csvPath, encoding, fileContext).GetEnumerator();
+                    var header = MatrixCsvLogParser.FindHeader(lines);
+                    if (header == null || !columns.SequenceEqual(header.Columns))
+                        return context.Fail($"Строка с CAN ID в файле «{Path.GetFileName(csvPath)}» изменилась во время обработки.");
 
-                    foreach (string line in LogFileReader.ReadLines(csvPath, encoding, fileContext))
+                    foreach (string line in MatrixCsvLogParser.ReadDataLines(lines, header))
                     {
                         if (string.IsNullOrWhiteSpace(line)) continue;
-
-                        if (!headerSkipped)
-                        {
-                            headerSkipped = true;
-                            continue;
-                        }
 
                         string[] parts = line.Split(';');
                         if (parts.Length < 2) continue;
@@ -154,30 +159,6 @@ namespace logReader.Processing
                 ? "Обработка завершена."
                 : $"Обработка завершена: объединено файлов {LogFormatUiNames.Csv}: {inputs.Count}, строк: {step}.");
             return ProcessingResult.Ok(outputPath, writer.RowsWritten);
-        }
-
-        private static bool TryReadHeaderLine(
-            string csvPath,
-            System.Text.Encoding encoding,
-            out List<MatrixCsvColumn> columns,
-            out string? error)
-        {
-            columns = new List<MatrixCsvColumn>();
-            error = null;
-
-            foreach (string line in LogFileReader.ReadLines(csvPath, encoding))
-            {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                if (MatrixCsvLogParser.TryReadHeader(line, out columns, out _))
-                    return true;
-
-                error = $"первая строка не похожа на заголовок {LogFormatUiNames.Csv} (;ID1;ID2;...).";
-                return false;
-            }
-
-            error = "файл пуст.";
-            return false;
         }
     }
 }

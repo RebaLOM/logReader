@@ -59,12 +59,16 @@ namespace logReader
         // Step-таблица: «Шаг»/«Время» всегда в строке с именами параметров;
         // includeDeviceIdRow — сверху строка с ID устройств. Возвращает номер первой строки данных.
         public static int BuildStepLogHeaders(IXLWorksheet ws, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow)
-        {
-            int headerRows = HeaderRowCount(includeDeviceIdRow);
-            int paramRow = headerRows;
+            => BuildStepLogHeaders(ws, columns, includeDeviceIdRow, rowOffset: 0);
 
-            WriteFixedColumn(ws, 1, "Шаг", paramRow, headerRows);
-            WriteFixedColumn(ws, 2, "Время", paramRow, headerRows);
+        internal static int BuildStepLogHeaders(IXLWorksheet ws, IReadOnlyList<OutputColumnGroup> columns,
+            bool includeDeviceIdRow, int rowOffset)
+        {
+            int firstHeaderRow = rowOffset + 1;
+            int paramRow = rowOffset + HeaderRowCount(includeDeviceIdRow);
+
+            WriteFixedColumn(ws, 1, "Шаг", firstHeaderRow, paramRow);
+            WriteFixedColumn(ws, 2, "Время", firstHeaderRow, paramRow);
 
             int col = 3;
             for (int g = 0; g < columns.Count; g++)
@@ -73,7 +77,7 @@ namespace logReader
                 XLColor bg = DeviceColors[g % DeviceColors.Length];
 
                 if (includeDeviceIdRow)
-                    WriteDeviceIdRow(ws, col, group.Device.ID, group.ParamIndexes.Length, bg);
+                    WriteDeviceIdRow(ws, col, group.Device.ID, group.ParamIndexes.Length, bg, firstHeaderRow);
 
                 foreach (var header in group.Headers)
                 {
@@ -83,8 +87,8 @@ namespace logReader
                 }
             }
 
-            ws.SheetView.FreezeRows(headerRows);
-            return headerRows + 1;
+            ws.SheetView.FreezeRows(paramRow);
+            return paramRow + 1;
         }
 
         // Time-series: у каждого устройства «Время» + параметры.
@@ -140,21 +144,21 @@ namespace logReader
                 cell.Value = device.Values[paramIndex];
         }
 
-        private static void WriteFixedColumn(IXLWorksheet ws, int col, string title, int titleRow, int headerRows)
+        private static void WriteFixedColumn(IXLWorksheet ws, int col, string title, int firstRow, int titleRow)
         {
-            for (int row = 1; row <= headerRows; row++)
+            for (int row = firstRow; row <= titleRow; row++)
                 StyleMergedHeader(ws, row, col, FixedColumnGray);
             ws.Cell(titleRow, col).Value = title;
         }
 
-        // Строка 1: ID устройства на blockCols колонок.
-        private static void WriteDeviceIdRow(IXLWorksheet ws, int startCol, string deviceId, int blockCols, XLColor bg)
+        // ID устройства на blockCols колонок.
+        private static void WriteDeviceIdRow(IXLWorksheet ws, int startCol, string deviceId, int blockCols, XLColor bg, int row = 1)
         {
             int devEndCol = startCol + blockCols - 1;
             if (startCol != devEndCol)
-                ws.Range(1, startCol, 1, devEndCol).Merge();
-            ws.Cell(1, startCol).Value = deviceId;
-            ApplyDeviceIdHeaderStyle(ws.Cell(1, startCol), bg);
+                ws.Range(row, startCol, row, devEndCol).Merge();
+            ws.Cell(row, startCol).Value = deviceId;
+            ApplyDeviceIdHeaderStyle(ws.Cell(row, startCol), bg);
         }
 
         private static void StyleMergedHeader(IXLWorksheet ws, int row, int col, XLColor bg)

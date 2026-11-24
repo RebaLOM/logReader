@@ -257,24 +257,49 @@ public class DtcOutputTests
         Assert.All(rows, row => Assert.Equal(firstSlot + 6, row.Length));
     }
 
-    [Fact]
-    public void Matrix_dtc_xlsx_is_text_and_no_extra_report_or_sheet_is_created()
+    [Theory]
+    [InlineData(OutputFormat.Csv, true)]
+    [InlineData(OutputFormat.Xlsx, false)]
+    [InlineData(OutputFormat.Xlsx, true)]
+    public void Matrix_preamble_and_dtc_share_the_output_file(OutputFormat format, bool autoInclude)
     {
         using var dir = new TempDir();
         var parts = Pack(32770, 1);
-        string input = dir.Write("matrix.csv", ";18FE2503;18FE2603\n" + $"10:00:00;{Hex(parts[0])};{Hex(parts[1])}\n");
-        string output = dir.File("out.xlsx");
-        var result = new MatrixCsvLogProcessor().Process(input, [], output, Settings(OutputFormat.Xlsx, idRow: true), new ProcessingContext());
-        Assert.True(result.Success);
-        using var workbook = new XLWorkbook(output);
-        Assert.Single(workbook.Worksheets);
-        var sheet = workbook.Worksheet(1);
-        Assert.Equal("DTC", sheet.Cell(1, 3).GetString());
-        Assert.Equal("DTC1", sheet.Cell(2, 3).GetString());
-        Assert.Equal(XLDataType.Text, sheet.Cell(3, 3).DataType);
-        Assert.Equal("SPN 32770 / FMI 0", sheet.Cell(3, 3).GetString());
-        Assert.Equal("", sheet.Cell(3, 4).GetString());
-        Assert.Equal(new[] { "matrix.csv", "out.xlsx" }, Directory.GetFiles(dir.Path).Select(Path.GetFileName).OrderBy(s => s));
+        const string preamble = "Тест;Оператор;SN";
+        string input = dir.Write("matrix.csv", $"{preamble}\n;18FE2503;18FE2603\n10:00:00;{Hex(parts[0])};{Hex(parts[1])}\n");
+        string output = dir.File(format == OutputFormat.Csv ? "out.csv" : "out.xlsx");
+        var settings = new OutputSettings
+        {
+            Format = format,
+            IncludeDtc = !autoInclude,
+            AutoIncludeDtc = autoInclude,
+            IncludeDeviceIdHeaderRow = true,
+            DtcDisplayFormat = DtcDisplayFormat.Detailed
+        };
+        var result = new MatrixCsvLogProcessor().Process(input, [], output, settings, new ProcessingContext());
+        Assert.True(result.Success, result.Error);
+
+        if (format == OutputFormat.Csv)
+        {
+            var lines = File.ReadAllLines(output);
+            Assert.Equal(preamble, lines[0]);
+            Assert.Equal("Шаг;Время;DTC1;DTC2;DTC3;DTC4;DTC5;DTC6", lines[2]);
+            Assert.Equal("1;10:00:00.000;SPN 32770 / FMI 0;;;;;", lines[3]);
+        }
+        else
+        {
+            using var workbook = new XLWorkbook(output);
+            Assert.Single(workbook.Worksheets);
+            var sheet = workbook.Worksheet(1);
+            Assert.Equal("SN", sheet.Cell(1, 3).GetString());
+            Assert.Equal("DTC", sheet.Cell(2, 3).GetString());
+            Assert.Equal("DTC1", sheet.Cell(3, 3).GetString());
+            Assert.Equal(XLDataType.Text, sheet.Cell(4, 3).DataType);
+            Assert.Equal("SPN 32770 / FMI 0", sheet.Cell(4, 3).GetString());
+            Assert.Equal("", sheet.Cell(4, 4).GetString());
+        }
+
+        Assert.Equal(new[] { "matrix.csv", Path.GetFileName(output) }, Directory.GetFiles(dir.Path).Select(Path.GetFileName).OrderBy(s => s));
     }
 
     [Fact]
@@ -408,13 +433,14 @@ public class DtcOutputTests
     {
         using var dir = new TempDir();
         var parts = Pack(100, 1);
-        string first = dir.Write("a.csv", ";18FE2503;18FE2603\n" + $"10:00:00;{Hex(parts[0])};{Hex(parts[1])}\n");
-        string second = dir.Write("b.csv", ";18FE2503;18FE2603\n10:00:00.001;;\n");
+        string first = dir.Write("a.csv", "Тест;Первый\n;18FE2503;18FE2603\n" + $"10:00:00;{Hex(parts[0])};{Hex(parts[1])}\n");
+        string second = dir.Write("b.csv", "Тест;Второй\n;18FE2503;18FE2603\n10:00:00.001;;\n");
         string matrixOutput = dir.File("matrix.csv");
         Assert.True(new MatrixCsvLogProcessor().ProcessMerged([first, second], [], matrixOutput, Settings(), new ProcessingContext()).Success);
-        var matrixRows = File.ReadAllLines(matrixOutput).Select(l => l.Split(';')).ToArray();
-        Assert.Equal("SPN 100 / FMI 0", matrixRows[1][2]);
-        Assert.Equal("", matrixRows[2][2]);
+        var matrixRows = File.ReadAllLines(matrixOutput);
+        Assert.Equal(new[] { "Тест;Первый", "Тест;Второй" }, matrixRows[..2]);
+        Assert.Equal("SPN 100 / FMI 0", matrixRows[3].Split(';')[2]);
+        Assert.Equal("", matrixRows[4].Split(';')[2]);
 
         string firstTrc = dir.Write("a.trc", CycleTrc());
         string secondTrc = dir.Write("b.trc", TrcFrame(1, 3, "0CFF0008", [17, 0, 0, 0, 0, 0, 0, 0]));

@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Microsoft.VisualBasic.FileIO;
 using System.Text;
 
 namespace logReader.Processing
@@ -10,6 +11,7 @@ namespace logReader.Processing
     {
         private readonly string _outputPath;
         private readonly IReadOnlyList<OutputColumnGroup> _columns;
+        private readonly IReadOnlyList<string> _preamble;
         private readonly bool _includeDeviceIdRow;
         private readonly bool _includeDtc;
         private readonly bool _autoIncludeDtc;
@@ -33,27 +35,30 @@ namespace logReader.Processing
 
         public StepOutputWriter(string outputPath, OutputFormat format, IReadOnlyList<OutputColumnGroup> columns, bool includeDeviceIdRow,
             bool includeDtc = false, bool autoIncludeDtc = false, DtcDisplayFormat dtcDisplayFormat = DtcDisplayFormat.Compact,
-            ProcessingContext? context = null)
+            ProcessingContext? context = null, IReadOnlyList<string>? preamble = null)
         {
             _outputPath = outputPath;
             _columns = columns;
+            _preamble = preamble ?? [];
             _includeDeviceIdRow = includeDeviceIdRow;
             _includeDtc = includeDtc;
             _autoIncludeDtc = autoIncludeDtc;
             _dtcDisplayFormat = dtcDisplayFormat;
             _context = context ?? new ProcessingContext();
 
-            if (format == OutputFormat.Xlsx)
-            {
-                _workbook = new XLWorkbook();
-                StartNewSheet();
-                return;
-            }
-
             try
             {
+                if (format == OutputFormat.Xlsx)
+                {
+                    _workbook = new XLWorkbook();
+                    StartNewSheet();
+                    return;
+                }
+
                 _csvTempPath = SafeFileWriter.CreateTempPath(outputPath);
                 _csv = new StreamWriter(_csvTempPath, false, CsvOutput.Encoding);
+                foreach (string line in _preamble)
+                    _csv.WriteLine(line);
                 WriteCsvHeaders(includeDeviceIdRow);
                 if (autoIncludeDtc && !includeDtc)
                 {
@@ -112,7 +117,8 @@ namespace logReader.Processing
                     foreach (var ws in _workbook.Worksheets)
                     {
                         if (HasDtcColumns && !_includeDtc)
-                            DtcOutput.WriteHeaders(ws, 3 + _columns.Sum(c => c.ParamIndexes.Length), _includeDeviceIdRow, false);
+                            DtcOutput.WriteHeaders(ws, 3 + _columns.Sum(c => c.ParamIndexes.Length), _includeDeviceIdRow, false,
+                                rowOffset: ws.Position == 1 ? _preamble.Count : 0);
                         ExcelLayoutBuilder.AutoFitColumns(ws);
                         ExcelLayoutBuilder.EnsureStepColumnMinWidth(ws);
                     }
@@ -157,6 +163,9 @@ namespace logReader.Processing
                 using (var diagnostics = new StreamReader(_dtcTempPath!, CsvOutput.Encoding))
                 using (var merged = new StreamWriter(mergedPath, false, CsvOutput.Encoding))
                 {
+                    for (int i = 0; i < _preamble.Count; i++)
+                        merged.WriteLine(numeric.ReadLine());
+
                     int recordIndex = 0;
                     int headerRows = _includeDeviceIdRow ? 2 : 1;
                     while (ReadCsvRecord(numeric) is { } record)
@@ -209,11 +218,39 @@ namespace logReader.Processing
         {
             string name = ExcelLayoutBuilder.SheetNameForPart(_sheetBaseName, _sheetPart);
             _sheet = _workbook!.Worksheets.Add(name);
-            _excelRow = ExcelLayoutBuilder.BuildStepLogHeaders(_sheet, _columns, _includeDeviceIdRow);
+            int preambleRows = _sheetPart == 1 ? _preamble.Count : 0;
+            for (int i = 0; i < preambleRows; i++)
+            {
+                string[] fields = ReadPreambleFields(_preamble[i]);
+                for (int j = 0; j < fields.Length; j++)
+                    if (fields[j].Length > 0)
+                        _sheet.Cell(i + 1, j + 1).Value = fields[j];
+            }
+            _excelRow = ExcelLayoutBuilder.BuildStepLogHeaders(_sheet, _columns, _includeDeviceIdRow, preambleRows);
             if (_includeDtc)
-                DtcOutput.WriteHeaders(_sheet, 3 + _columns.Sum(c => c.ParamIndexes.Length), _includeDeviceIdRow, false);
+                DtcOutput.WriteHeaders(_sheet, 3 + _columns.Sum(c => c.ParamIndexes.Length), _includeDeviceIdRow, false, preambleRows);
             SheetCount = _sheetPart;
             _sheetPart++;
+        }
+
+        private static string[] ReadPreambleFields(string line)
+        {
+            if (line.Contains('"'))
+            {
+                using var parser = new TextFieldParser(new StringReader(line)) { TrimWhiteSpace = false };
+                parser.SetDelimiters(CsvOutput.Delimiter.ToString());
+                try
+                {
+                    if (parser.ReadFields() is { } fields)
+                        return fields;
+                }
+                catch (MalformedLineException)
+                {
+                    // Сохраняем исходный текст, если кавычки в шапке использованы вне правил CSV.
+                }
+            }
+
+            return line.Split(CsvOutput.Delimiter);
         }
 
         private void WriteCsvHeaders(bool includeDeviceIdRow)

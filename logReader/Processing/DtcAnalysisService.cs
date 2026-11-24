@@ -102,21 +102,19 @@ internal static class DtcAnalysisService
 
     private static void AnalyzeMatrix(string path, Encoding encoding, double timeout, ProcessingContext context, History history)
     {
-        List<MatrixCsvColumn>? columns = null;
+        using var lines = LogFileReader.ReadLines(path, encoding, context).GetEnumerator();
+        var header = MatrixCsvLogParser.FindHeader(lines);
+        if (header == null) return;
+
+        var columns = header.Columns.Where(c => LocarusDtcDecoder.IsDiagnosticId(c.Id)).OrderBy(c => c.Id, StringComparer.Ordinal).ToList();
         var tracker = new MatrixCsvTimeTracker();
         var clock = new ClockTracker();
         var decoder = new LocarusDtcDecoder(timeout);
         int[] bytes = new int[8];
-        foreach (string line in LogFileReader.ReadLines(path, encoding, context))
+        foreach (string line in MatrixCsvLogParser.ReadDataLines(lines, header))
         {
             context.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(line)) continue;
-            if (columns == null)
-            {
-                if (MatrixCsvLogParser.TryReadHeader(line, out var all, out _))
-                    columns = all.Where(c => LocarusDtcDecoder.IsDiagnosticId(c.Id)).OrderBy(c => c.Id, StringComparer.Ordinal).ToList();
-                continue;
-            }
             string[] fields = line.Split(';');
             if (!tracker.TryAdvance(fields[0], out TimeSpan time)) continue;
             double ms = clock.Advance(time.TotalMilliseconds);

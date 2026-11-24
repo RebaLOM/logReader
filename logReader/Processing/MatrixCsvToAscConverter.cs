@@ -10,7 +10,9 @@ namespace logReader.Processing
             try
             {
                 var encoding = LogFileEncoding.Detect(csvPath);
-                if (!MatrixCsvLogParser.LooksLikeMatrixCsv(csvPath, encoding))
+                using var lines = LogFileReader.ReadLines(csvPath, encoding, context).GetEnumerator();
+                var header = MatrixCsvLogParser.FindHeader(lines);
+                if (header == null)
                     return context.Fail($"Ошибка: для конвертации нужен {LogFormatUiNames.Csv}, не {LogFormatUiNames.LegacyCsv}.");
 
                 // В табличном CSV нет даты — берём дату изменения файла.
@@ -22,25 +24,14 @@ namespace logReader.Processing
                 SafeFileWriter.Write(ascPath, tmp =>
                 {
                     using var writer = new StreamWriter(tmp, false, new System.Text.UTF8Encoding(false));
-                    List<MatrixCsvColumn> columns = new();
-                    bool headerRead = false;
                     var timeTracker = new MatrixCsvTimeTracker();
                     TimeSpan? baseTimeSpan = null;
                     Span<int> msgBytes = stackalloc int[8];
 
-                    foreach (string line in LogFileReader.ReadLines(csvPath, encoding, context))
+                    foreach (string line in MatrixCsvLogParser.ReadDataLines(lines, header))
                     {
                         if (string.IsNullOrWhiteSpace(line))
                             continue;
-
-                        if (!headerRead)
-                        {
-                            // Исключение отменяет публикацию: прежний файл назначения остаётся нетронутым.
-                            if (!MatrixCsvLogParser.TryReadHeader(line, out columns, out _))
-                                throw new InvalidDataException("Ошибка: не удалось прочитать заголовок CSV.");
-                            headerRead = true;
-                            continue;
-                        }
 
                         string[] parts = line.Split(';');
                         if (parts.Length < 2 || !timeTracker.TryAdvance(parts[0], out TimeSpan absoluteTime))
@@ -54,7 +45,7 @@ namespace logReader.Processing
 
                         double offsetSec = (absoluteTime - baseTimeSpan.Value).TotalSeconds;
 
-                        foreach (MatrixCsvColumn column in columns)
+                        foreach (MatrixCsvColumn column in header.Columns)
                         {
                             if (column.ColumnIndex >= parts.Length)
                                 continue;
@@ -86,10 +77,6 @@ namespace logReader.Processing
 
                 context.Log($"Конвертация завершена. Записано кадров: {frameCount:N0}.");
                 return ProcessingResult.Ok(ascPath, frameCount);
-            }
-            catch (InvalidDataException ex)
-            {
-                return context.Fail(ex.Message);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

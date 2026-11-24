@@ -4,8 +4,9 @@ using System.Text;
 namespace logReader.Processing
 {
     internal readonly record struct MatrixCsvColumn(int ColumnIndex, string Id);
+    internal sealed record MatrixCsvHeader(IReadOnlyList<MatrixCsvColumn> Columns, string? FirstDataLine);
 
-    // Широкий matrix-CSV: ID в первой строке, время слева, hex-payload в ячейках (цикл 20 мс).
+    // Табличный CSV: перед строкой CAN ID может быть шапка, в данных время слева и hex-payload в ячейках.
     internal static class MatrixCsvLogParser
     {
         public const int RowPeriodMs = 20;
@@ -13,14 +14,11 @@ namespace logReader.Processing
         public static bool LooksLikeMatrixCsv(string path, Encoding? encoding = null)
         {
             if (!File.Exists(path)) return false;
-            encoding ??= LogFileEncoding.Detect(path);
             try
             {
-                foreach (string line in LogFileReader.ReadLines(path, encoding))
-                {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    return TryReadHeader(line, out _, out _);
-                }
+                encoding ??= LogFileEncoding.Detect(path);
+                using var lines = LogFileReader.ReadLines(path, encoding).GetEnumerator();
+                return FindHeader(lines) != null;
             }
             catch (IOException)
             {
@@ -30,32 +28,69 @@ namespace logReader.Processing
             {
                 return false;
             }
+        }
 
-            return false;
+        // Проверяем строки до первой временной метки после объявления ID:
+        // в шапке тоже может встретиться строка с пустой первой ячейкой и hex-значениями.
+        public static MatrixCsvHeader? FindHeader(IEnumerator<string> lines, List<string>? preamble = null)
+        {
+            IReadOnlyList<MatrixCsvColumn>? columns = null;
+            int preambleLength = 0;
+            string? firstDataLine = null;
+            while (lines.MoveNext())
+            {
+                string line = lines.Current;
+                string[] parts = line.Split(';');
+                if (StepCsvLogParser.IsResultHeader(parts))
+                    return null;
+
+                if (columns != null && TryParseTimeCell(parts[0], out _))
+                {
+                    firstDataLine = line;
+                    break;
+                }
+
+                if (ReadColumns(parts) is { } candidate)
+                {
+                    columns = candidate;
+                    preambleLength = preamble?.Count ?? 0;
+                }
+                else if (columns == null && StepCsvLogParser.IsFrameRow(parts))
+                {
+                    return null;
+                }
+
+                preamble?.Add(line);
+            }
+
+            if (columns == null) return null;
+            preamble?.RemoveRange(preambleLength, preamble.Count - preambleLength);
+            return new MatrixCsvHeader(columns, firstDataLine);
+        }
+
+        public static IEnumerable<string> ReadDataLines(IEnumerator<string> lines, MatrixCsvHeader header)
+        {
+            if (header.FirstDataLine == null) yield break;
+            yield return header.FirstDataLine;
+            while (lines.MoveNext()) yield return lines.Current;
         }
 
         // Первая ячейка пустая, далее — CAN ID (hex); пустые колонки сохраняют индекс.
-        public static bool TryReadHeader(string line, out List<MatrixCsvColumn> columns, out List<string> ids)
+        private static List<MatrixCsvColumn>? ReadColumns(string[] parts)
         {
-            columns = new List<MatrixCsvColumn>();
-            ids = new List<string>();
-            if (string.IsNullOrWhiteSpace(line)) return false;
+            if (parts.Length < 3 || !string.IsNullOrWhiteSpace(parts[0])) return null;
 
-            string[] parts = line.Split(';');
-            if (parts.Length < 3) return false;
-            if (!string.IsNullOrWhiteSpace(parts[0])) return false;
-
+            var columns = new List<MatrixCsvColumn>();
             for (int i = 1; i < parts.Length; i++)
             {
                 string cell = parts[i].Trim();
                 if (string.IsNullOrEmpty(cell)) continue;
                 if (!CanToken.TryNormalizeId(cell, out string id, minHexLength: 1))
-                    return false;
+                    return null;
                 columns.Add(new MatrixCsvColumn(i, id));
-                ids.Add(id);
             }
 
-            return columns.Count >= 2;
+            return columns.Count >= 2 ? columns : null;
         }
 
         public static bool TryParseTimeCell(string? raw, out TimeSpan time)

@@ -19,16 +19,17 @@ internal static class DtcOutput
                 ? snapshot.Slots[i].Code?.ToDisplayString(format) ?? "" : "";
     }
 
-    internal static void WriteHeaders(IXLWorksheet sheet, int startColumn, bool includeDeviceId, bool timeColumn)
+    internal static void WriteHeaders(IXLWorksheet sheet, int startColumn, bool includeDeviceId, bool timeColumn, int rowOffset = 0)
     {
-        int headerRow = ExcelLayoutBuilder.HeaderRowCount(includeDeviceId);
+        int headerRow = rowOffset + ExcelLayoutBuilder.HeaderRowCount(includeDeviceId);
         int width = Headers.Length + (timeColumn ? 1 : 0);
         var color = ExcelLayoutBuilder.DeviceColors[0];
         if (includeDeviceId)
         {
-            sheet.Range(1, startColumn, 1, startColumn + width - 1).Merge();
-            sheet.Cell(1, startColumn).Value = "DTC";
-            ExcelLayoutBuilder.ApplyDeviceIdHeaderStyle(sheet.Cell(1, startColumn), color);
+            int idRow = rowOffset + 1;
+            sheet.Range(idRow, startColumn, idRow, startColumn + width - 1).Merge();
+            sheet.Cell(idRow, startColumn).Value = "DTC";
+            ExcelLayoutBuilder.ApplyDeviceIdHeaderStyle(sheet.Cell(idRow, startColumn), color);
         }
         var headers = timeColumn ? new[] { "Время DTC" }.Concat(Headers) : Headers;
         foreach (string header in headers)
