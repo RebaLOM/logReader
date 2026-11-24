@@ -257,10 +257,15 @@ namespace logReader.UI
             button.FlatAppearance.BorderColor = primary && button.Enabled ? p.Accent : p.Border;
             button.BackColor = !button.Enabled ? p.SurfaceAlt : primary ? p.Accent : tag == "nav-active" ? p.AccentSoft
                 : tag == "nav" ? p.Background : p.SurfaceAlt;
-            button.ForeColor = !button.Enabled ? p.Muted : primary ? p.AccentText : p.Text;
+            var state = States.GetOrCreateValue(button);
+            Color textColor = !button.Enabled ? p.Muted : primary ? p.AccentText : p.Text;
+            // WinForms' dark renderer records explicit text colors in ForeColorChanged.
+            // A button inheriting the same color needs an actual change on its first styling.
+            if (!state.Hooked && Application.IsDarkModeEnabled && button.ForeColor == textColor)
+                button.ForeColor = SystemColors.ControlText;
+            button.ForeColor = textColor;
             button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(255, 217, 98) : p.AccentSoft;
             button.FlatAppearance.MouseDownBackColor = primary ? Color.FromArgb(222, 177, 40) : p.SurfaceAlt;
-            var state = States.GetOrCreateValue(button);
             if (!state.Hooked)
             {
                 state.Hooked = true;

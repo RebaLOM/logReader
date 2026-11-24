@@ -133,6 +133,41 @@ public sealed class Loger2DtcLayoutTests
         finally { ThemeManager.SetMode(previous, persist: false); }
     });
 
+    [Fact]
+    public void First_switch_from_dark_start_draws_readable_button_text() => Run(() =>
+    {
+        ThemeMode previous = ThemeManager.Mode;
+        try
+        {
+            ThemeManager.SetMode(ThemeMode.Dark, persist: false);
+            using var form = new MainForm { ShowInTaskbar = false };
+            form.Show();
+            Layout(form);
+
+            ThemeManager.SetMode(ThemeMode.Light, persist: false);
+            Layout(form);
+
+            var textColor = ThemeManager.Current.Text;
+            foreach (string name in new[] { "navSession", "navDecoder", "buttonHelp", "buttonTheme", "buttonDecoderSetup" })
+            {
+                var button = Assert.IsType<Button>(Find(form, name));
+                Assert.Equal(textColor, button.ForeColor);
+                using var bitmap = new Bitmap(button.Width, button.Height);
+                button.DrawToBitmap(bitmap, button.ClientRectangle);
+                Rectangle caption = Rectangle.Inflate(button.ClientRectangle, -8, -6);
+                int textPixels = 0;
+                for (int y = caption.Top; y < caption.Bottom; y++)
+                    for (int x = caption.Left; x < caption.Right; x++)
+                        if (bitmap.GetPixel(x, y).GetBrightness() < 0.5f)
+                            textPixels++;
+
+                Assert.True(textPixels >= 10 && textPixels < caption.Width * caption.Height / 2,
+                    $"{button.Text}: expected a dark caption on a light background, found {textPixels} dark pixels.");
+            }
+        }
+        finally { ThemeManager.SetMode(previous, persist: false); }
+    });
+
     [Theory]
     [InlineData("Dark")]
     [InlineData("Light")]
