@@ -288,7 +288,7 @@ namespace logReader.UI
 
             if (kind == LogSourceKind.File)
             {
-                using OpenFileDialog ofd = new OpenFileDialog();
+                using var ofd = new OpenFileDialog { RestoreDirectory = true };
                 ofd.Filter = "Лог файлы (*.csv;*.trc;*.asc;*.txt)|*.csv;*.trc;*.asc;*.txt|CSV (*.csv)|*.csv|pCAN (*.trc)|*.trc|ASC (*.asc)|*.asc|CANfox / PCAN-View (*.txt)|*.txt";
                 if (ofd.ShowDialog(this) != DialogResult.OK) return;
                 textBoxCanLog.Text = ofd.FileName;
@@ -345,7 +345,7 @@ namespace logReader.UI
 
         private void buttonDevices_Click(object? sender, EventArgs e)
         {
-            using OpenFileDialog ofd = new OpenFileDialog();
+            using var ofd = new OpenFileDialog { RestoreDirectory = true };
             ofd.Filter = "Файлы посылок (*.xlsx;*.dbc;*.dbf)|*.xlsx;*.dbc;*.dbf|Excel files (*.xlsx)|*.xlsx|DBC files (*.dbc)|*.dbc|DBF files (*.dbf)|*.dbf";
             if (ofd.ShowDialog(this) == DialogResult.OK)
                 textBoxDevices.Text = ofd.FileName;
@@ -406,7 +406,7 @@ namespace logReader.UI
             if (kindDlg.ShowDialog(this) != DialogResult.OK) return;
             if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.None) return;
 
-            using SaveFileDialog sfd = new SaveFileDialog();
+            using var sfd = new SaveFileDialog { RestoreDirectory = true };
             if (kindDlg.SelectedKind == FileKindPromptForm.FileKind.Xlsx)
             {
                 sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
@@ -535,7 +535,7 @@ namespace logReader.UI
 
         private void buttonComposites_Click(object? sender, EventArgs e)
         {
-            using OpenFileDialog ofd = new OpenFileDialog();
+            using var ofd = new OpenFileDialog { RestoreDirectory = true };
             ofd.Filter = "Файл составных параметров (*.xlsx)|*.xlsx";
             if (ofd.ShowDialog(this) == DialogResult.OK)
                 textBoxComposites.Text = ofd.FileName;
@@ -549,7 +549,7 @@ namespace logReader.UI
             }
             else
             {
-                using SaveFileDialog sfd = new SaveFileDialog();
+                using var sfd = new SaveFileDialog { RestoreDirectory = true };
                 sfd.Filter = "Excel files (*.xlsx)|*.xlsx";
                 sfd.DefaultExt = "xlsx";
                 sfd.AddExtension = true;
@@ -605,7 +605,7 @@ namespace logReader.UI
 
         private void buttonOutput_Click(object? sender, EventArgs e)
         {
-            using SaveFileDialog sfd = new SaveFileDialog();
+            using var sfd = new SaveFileDialog { RestoreDirectory = true };
             sfd.Filter = "Excel files (*.xlsx)|*.xlsx|CSV files (*.csv)|*.csv";
             sfd.DefaultExt = LogProcessingService.GetOutputExtension(_saveOptions.OutputFormat).TrimStart('.');
             sfd.AddExtension = true;

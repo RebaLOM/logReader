@@ -352,7 +352,7 @@ namespace logReader.UI
         private void BrowseInputFile()
         {
             var pair = SelectedPair;
-            using var ofd = new OpenFileDialog();
+            using var ofd = new OpenFileDialog { RestoreDirectory = true };
             string sourceExt = pair.SourceExtension.TrimStart('.');
             ofd.Filter = $"{sourceExt.ToUpperInvariant()} (*{pair.SourceExtension})|*{pair.SourceExtension}|Все файлы (*.*)|*.*";
             if (ofd.ShowDialog(this) == DialogResult.OK)
@@ -362,7 +362,7 @@ namespace logReader.UI
         private void BrowseOutputFile()
         {
             var pair = SelectedPair;
-            using var sfd = new SaveFileDialog();
+            using var sfd = new SaveFileDialog { RestoreDirectory = true };
             string targetExt = pair.TargetExtension.TrimStart('.');
             sfd.Filter = $"{targetExt.ToUpperInvariant()} (*{pair.TargetExtension})|*{pair.TargetExtension}|Все файлы (*.*)|*.*";
             sfd.DefaultExt = targetExt;

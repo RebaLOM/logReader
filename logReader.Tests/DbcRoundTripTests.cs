@@ -185,4 +185,26 @@ public class DbcRoundTripTests
         Assert.Contains("256 S \"Comment\";", text);
         Assert.Contains("[START_MSG] New,768,1,0,0,X,", text);
     }
+
+    [Theory]
+    [InlineData(29999, -1, -1)]
+    [InlineData(32767, 2767, 2767)]
+    [InlineData(32768, 2768, -62768)]
+    [InlineData(32771, 2771, -62765)]
+    public void Dbf_signal_type_applies_to_the_wire_code_before_offset(int code, int unsignedValue, int signedValue)
+    {
+        using var dir = new TempDir();
+        string path = dir.Write("speed.dbf", """
+            [START_MSG] MotorData,256,8,2,0,X,
+            [START_SIGNALS] UnsignedSpeed,16,1,0,U,65535,0,1,-30000,1,rpm,,,
+            [START_SIGNALS] SignedSpeed,16,1,0,I,32767,-32768,1,-30000,1,rpm,,,
+            [END_MSG]
+            """);
+        var device = Assert.Single(DeviceFiles.LoadDevices(path));
+        device.SetPayload([code & 0xFF, code >> 8]);
+
+        device.Decode();
+
+        Assert.Equal(new double[] { unsignedValue, signedValue }, device.Values);
+    }
 }

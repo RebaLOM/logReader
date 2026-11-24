@@ -118,7 +118,7 @@ namespace logReader.UI
             _txtName.Size = new Size(450, 23);
             fieldsPanel.Controls.Add(_txtName);
 
-            fieldsPanel.Controls.Add(MakeLabel("Type:", 12, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Raw type", 12, 47));
             _cmbType.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbType.Items.AddRange(new object[] { "int (знаковый)", "uint (беззнаковый)" });
             _cmbType.Location = new Point(70, 44);
@@ -148,13 +148,13 @@ namespace logReader.UI
             fieldsPanel.Controls.Add(_numLength);
             fieldsPanel.Controls.Add(MakeLabel("Bits", 135, 80));
 
-            fieldsPanel.Controls.Add(MakeLabel("Min Val:", 165, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Raw min", 165, 80));
             _txtMinHex.ReadOnly = true;
             _txtMinHex.Location = new Point(242, 77);
             _txtMinHex.Size = new Size(70, 23);
             fieldsPanel.Controls.Add(_txtMinHex);
 
-            fieldsPanel.Controls.Add(MakeLabel("Max Val:", 325, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Raw max", 325, 80));
             _txtMaxHex.ReadOnly = true;
             _txtMaxHex.Location = new Point(402, 77);
             _txtMaxHex.Size = new Size(60, 23);
@@ -175,14 +175,15 @@ namespace logReader.UI
             _txtUnit.Size = new Size(150, 23);
             fieldsPanel.Controls.Add(_txtUnit);
 
-            fieldsPanel.Controls.Add(MakeLabel("Byte Order:", 12, 150));
+            fieldsPanel.Controls.Add(MakeLabel("Значение = код CAN × Factor + Offset", 12, 139));
+            fieldsPanel.Controls.Add(MakeLabel("Byte Order:", 12, 165));
             _rbIntel.Text = "Intel — little-endian";
-            _rbIntel.Location = new Point(12, 170);
+            _rbIntel.Location = new Point(12, 185);
             _rbIntel.AutoSize = true;
             fieldsPanel.Controls.Add(_rbIntel);
 
             _rbMotorola.Text = "Motorola — big-endian";
-            _rbMotorola.Location = new Point(12, 194);
+            _rbMotorola.Location = new Point(12, 209);
             _rbMotorola.AutoSize = true;
             fieldsPanel.Controls.Add(_rbMotorola);
 
