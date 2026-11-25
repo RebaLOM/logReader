@@ -38,9 +38,7 @@ namespace logReader.Processing
                 absolute ? TimeAxisKind.DateTime : TimeAxisKind.Milliseconds,
                 settings.CollectDtc ? settings.DtcTimeoutMs : null);
 
-            var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceById[d.ID] = d;
+            var deviceById = CanId.IndexDevices(devices, allowUntypedIds: true);
 
             Span<int> bytes = stackalloc int[Device.MaxDataLength];
             double sequentialOffsetMs = 0;
@@ -107,6 +105,7 @@ namespace logReader.Processing
             if (usedFiles == 0 || !aggregate.HasData)
                 return context.Fail("Ошибка: не удалось собрать данные из .trc для объединения.");
 
+            if (absolute) aggregate.SortByTime();
             return ProcessingResult.Ok("", aggregate.MaxRows);
         }
 
@@ -148,9 +147,7 @@ namespace logReader.Processing
             var filter = settings.Filter;
             var outputDevices = CompositeOutput.WithComposites(devices, composites);
 
-            var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceById[d.ID] = d;
+            var deviceById = CanId.IndexDevices(devices, allowUntypedIds: true);
 
             Span<int> bytes = stackalloc int[Device.MaxDataLength];
 
@@ -236,6 +233,8 @@ namespace logReader.Processing
             if (usedFiles == 0 || !aggregatesByDate.Values.Any(a => a.HasData))
                 return context.Fail("Ошибка: не удалось собрать данные из .trc для разбивки по датам.");
 
+            foreach (var collector in aggregatesByDate.Values)
+                collector.SortByTime();
             return ProcessingResult.Ok("", aggregatesByDate.Count);
         }
 
@@ -254,7 +253,7 @@ namespace logReader.Processing
             CompositeOutput.EmitTriggered(composites, id, time, collector, filter);
 
             if (!deviceById.TryGetValue(id, out Device? device)) return;
-            if (!filter.IsDeviceEnabled(id)) return;
+            if (!filter.IsDeviceEnabled(device.ID)) return;
 
             device.SetPayload(bytes);
             device.Decode();

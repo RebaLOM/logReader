@@ -24,11 +24,14 @@ namespace logReader
             Array.Fill(Values, double.NaN);
         }
 
+        protected int PayloadLength { get; private set; } = MaxDataLength;
+
         public virtual void Decode() { }
 
         public void SetPayload(ReadOnlySpan<int> bytes)
         {
             int n = Math.Min(bytes.Length, MaxDataLength);
+            PayloadLength = n;
             bytes[..n].CopyTo(RawBytes);
             Array.Clear(RawBytes, n, MaxDataLength - n);
         }
@@ -106,6 +109,7 @@ namespace logReader
 
             long? muxValue = null;
             if (_multiplexor != null
+                && FitsPayload(_multiplexor)
                 && BitExtractor.TryExtract(RawBytes, low, _multiplexor.StartBit, _multiplexor.LengthBit,
                     _multiplexor.IsLittleEndian, out ulong muxRaw))
             {
@@ -127,9 +131,21 @@ namespace logReader
             }
         }
 
+        private bool FitsPayload(FieldInstruction instruction)
+        {
+            int start = instruction.StartBit;
+            int length = instruction.LengthBit;
+            if (start < 0 || length is < 1 or > 64 || start >= PayloadLength * 8) return false;
+
+            int lastBit = instruction.IsLittleEndian
+                ? start + length - 1
+                : (start & ~7) + 8 * ((length + 6 - (start & 7)) / 8);
+            return lastBit < PayloadLength * 8;
+        }
+
         private void DecodeNum(FieldInstruction instr, ulong low, int idx)
         {
-            if (!BitExtractor.TryExtract(RawBytes, low, instr.StartBit, instr.LengthBit, instr.IsLittleEndian, out ulong raw))
+            if (!FitsPayload(instr) || !BitExtractor.TryExtract(RawBytes, low, instr.StartBit, instr.LengthBit, instr.IsLittleEndian, out ulong raw))
             {
                 SetError(idx);
                 return;
@@ -157,7 +173,7 @@ namespace logReader
 
         private void DecodeBin(FieldInstruction instr, int idx)
         {
-            if (instr.ByteLow < 0 || instr.ByteLow >= RawBytes.Length
+            if (instr.ByteLow < 0 || instr.ByteLow >= PayloadLength
                 || instr.StartBit < 0 || instr.LengthBit <= 0
                 || instr.StartBit + instr.LengthBit > 8)
             {

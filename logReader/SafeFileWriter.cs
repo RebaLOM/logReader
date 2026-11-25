@@ -17,13 +17,15 @@ namespace logReader
             return string.IsNullOrEmpty(dir) ? tmpName : Path.Combine(dir, tmpName);
         }
 
-        public static void Write(string path, Action<string> writeToPath, bool keepBackup = false)
+        public static void Write(string path, Action<string> writeToPath, bool keepBackup = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureDirectory(path);
             string tmpPath = CreateTempPath(path);
             try
             {
                 writeToPath(tmpPath);
+                cancellationToken.ThrowIfCancellationRequested();
                 Publish(tmpPath, path, keepBackup);
             }
             finally

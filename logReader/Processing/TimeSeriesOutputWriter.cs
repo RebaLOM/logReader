@@ -103,6 +103,27 @@ namespace logReader.Processing
         internal static bool IsError(double value)
             => BitConverter.DoubleToInt64Bits(value) == BitConverter.DoubleToInt64Bits(ErrorMarker);
 
+        public void SortByTime()
+        {
+            foreach (var series in _series.Values)
+            {
+                if (Enumerable.Range(1, Math.Max(0, series.Times.Count - 1))
+                    .All(i => series.Times[i - 1] <= series.Times[i])) continue;
+
+                var ordered = Enumerable.Range(0, series.Times.Count)
+                    .OrderBy(i => series.Times[i]).Select(i => (series.Times[i], series.Rows[i])).ToArray();
+                for (int i = 0; i < ordered.Length; i++)
+                    (series.Times[i], series.Rows[i]) = ordered[i];
+            }
+            if (DtcRows is { Count: > 1 } rows
+                && Enumerable.Range(1, rows.Count - 1).Any(i => rows[i - 1].Time > rows[i].Time))
+            {
+                var ordered = rows.OrderBy(row => row.Time).ToArray();
+                rows.Clear();
+                rows.AddRange(ordered);
+            }
+        }
+
         public bool HasData => _series.Values.Any(s => s.Times.Count > 0) || DtcRows?.Count > 0;
 
         public int MaxRows => Math.Max(_series.Count == 0 ? 0 : _series.Values.Max(s => s.Times.Count), DtcRows?.Count ?? 0);
@@ -212,16 +233,9 @@ namespace logReader.Processing
                 int col = 1;
                 foreach (var (group, series) in columns)
                 {
-                    int written = 0;
-                    for (int r = dataStart; r < dataEnd && r < series.Times.Count; r++)
-                    {
-                        int excelRow = firstDataRow + (r - dataStart);
-                        ws.Cell(excelRow, col).Value = series.Times[r];
-                        double[] values = series.Rows[r];
-                        for (int i = 0; i < values.Length; i++)
-                            SetValue(ws.Cell(excelRow, col + 1 + i), values[i]);
-                        written++;
-                    }
+                    int written = Math.Max(0, Math.Min(dataEnd, series.Times.Count) - dataStart);
+                    if (written > 0)
+                        ws.Cell(firstDataRow, col).InsertData(ExcelRows(series, dataStart, written, context));
 
                     if (timeFormat != null && written > 0)
                         ws.Range(firstDataRow, col, firstDataRow + written - 1, col).Style.NumberFormat.Format = timeFormat;
@@ -232,6 +246,7 @@ namespace logReader.Processing
                 {
                     for (int r = dataStart; r < dataEnd && r < dtcRows.Count; r++)
                     {
+                        if ((r & 1023) == 0) context.ThrowIfCancellationRequested();
                         int excelRow = firstDataRow + r - dataStart;
                         ws.Cell(excelRow, col).Value = dtcRows[r].Time;
                         DtcOutput.WriteFields(ws, excelRow, col + 1, dtcRows[r].Snapshot, dtcDisplayFormat);
@@ -248,9 +263,13 @@ namespace logReader.Processing
             SafeFileWriter.Write(outputPath, tmp =>
             {
                 foreach (var ws in workbook.Worksheets)
+                {
+                    context.ThrowIfCancellationRequested();
                     ExcelLayoutBuilder.AutoFitColumns(ws);
+                }
+                context.ThrowIfCancellationRequested();
                 workbook.SaveAs(tmp);
-            });
+            }, cancellationToken: context.CancellationToken);
         }
 
         private static void WriteCsv(
@@ -323,17 +342,29 @@ namespace logReader.Processing
                     }
                     CsvOutput.WriteRow(writer, row);
                 }
-            });
+            }, cancellationToken: context.CancellationToken);
         }
 
         // Числа — с запятой для Excel/Power BI; колонка «Время» идёт через TimeAxisFormat без замены.
         private static string FormatValue(double v)
             => TimeSeriesCollector.IsError(v) ? "ERR" : ValueFormatter.FormatCsv(v);
 
-        private static void SetValue(IXLCell cell, double v)
+        private static IEnumerable<object?[]> ExcelRows(TimeSeriesCollector.Series series, int start, int count,
+            ProcessingContext context)
         {
-            if (TimeSeriesCollector.IsError(v)) cell.Value = "ERR";
-            else if (!double.IsNaN(v)) cell.Value = v;
+            for (int row = start; row < start + count; row++)
+            {
+                if ((row & 1023) == 0) context.ThrowIfCancellationRequested();
+                var values = series.Rows[row];
+                var cells = new object?[values.Length + 1];
+                cells[0] = series.Times[row];
+                for (int i = 0; i < values.Length; i++)
+                {
+                    double value = values[i];
+                    cells[i + 1] = TimeSeriesCollector.IsError(value) ? "ERR" : double.IsNaN(value) ? null : value;
+                }
+                yield return cells;
+            }
         }
     }
 }

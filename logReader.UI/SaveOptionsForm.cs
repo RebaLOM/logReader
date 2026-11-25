@@ -238,7 +238,7 @@ namespace logReader.UI
             };
 
             SelectedFolderFormats = currentFolderFormats == LogFormatKind.None ? LogFormatKind.All : currentFolderFormats;
-            BuildFormatsList(logFolderPath);
+            PrepareFormatsList(logFolderPath, buttonOk);
             UpdateDstPanelVisibility();
             UpdateOkEnabledState(buttonOk);
             UiScaling.Apply(this);
@@ -263,21 +263,47 @@ namespace logReader.UI
             public override string ToString() => Label;
         }
 
-        private void BuildFormatsList(string? logFolderPath)
+        private void PrepareFormatsList(string? folder, Button ok)
         {
-            _suppressFormatsEvents = true;
-            _formatsList.Items.Clear();
-
-            string? folder = string.IsNullOrWhiteSpace(logFolderPath) ? null : logFolderPath.Trim();
-            if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
             {
                 _formatsList.Enabled = false;
                 _formatsHint.Text = "Доступно при выборе папки с логами.";
-                _suppressFormatsEvents = false;
                 return;
             }
 
-            var inv = LogFolderScanner.Scan(folder);
+            _formatsHint.Text = "Поиск логов в папке…";
+            Shown += async (_, _) =>
+            {
+                using var cancellation = new CancellationTokenSource();
+                EventHandler cancelScan = (_, _) => cancellation.Cancel();
+                Disposed += cancelScan;
+                try
+                {
+                    var inventory = await Task.Run(() => LogFolderScanner.Scan(folder, cancellation.Token), cancellation.Token);
+                    if (!IsDisposed) PopulateFormatsList(inventory);
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    if (!IsDisposed)
+                    {
+                        _formatsList.Enabled = false;
+                        _formatsHint.Text = "Не удалось прочитать папку: " + ex.Message;
+                    }
+                }
+                finally
+                {
+                    Disposed -= cancelScan;
+                    if (!IsDisposed) UpdateOkEnabledState(ok);
+                }
+            };
+        }
+
+        private void PopulateFormatsList(LogFolderInventory inv)
+        {
+            _suppressFormatsEvents = true;
+            _formatsList.Items.Clear();
             int total = inv.Counts.Values.Sum();
 
             _formatsList.Enabled = true;
@@ -448,7 +474,7 @@ namespace logReader.UI
             IncludeDeviceIdHeaderRow = _chkIncludeDeviceIdRow.Checked;
             DtcInclusion = (DtcInclusionMode)_comboDtcInclusion.SelectedIndex;
             DtcTimeoutMs = (double)_numDtcTimeout.Value * 1000;
-            SelectedFolderFormats = _formatsList.Enabled ? GetFormatsSelectionFromList() : LogFormatKind.All;
+            if (_formatsList.Enabled) SelectedFolderFormats = GetFormatsSelectionFromList();
         }
     }
 }

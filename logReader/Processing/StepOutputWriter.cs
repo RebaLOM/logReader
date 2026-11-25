@@ -124,7 +124,7 @@ namespace logReader.Processing
                     }
                     _workbook.SaveAs(tmp);
                     _context.ThrowIfCancellationRequested();
-                });
+                }, cancellationToken: _context.CancellationToken);
                 return;
             }
 

@@ -33,6 +33,7 @@ internal static partial class Program
         // Theme preference IO is confined to this run, even when the target has persisted themes.
         Environment.SetEnvironmentVariable("LOGER_SETTINGS_PATH", Path.Combine(_output, "preferences.json"));
         Environment.SetEnvironmentVariable("LOGER_PREFERENCES_PATH", Path.Combine(_output, "preferences.json"));
+        Environment.SetEnvironmentVariable("LOGER_DISPLAY_SETTINGS_PATH", Path.Combine(_output, "display-settings.json"));
         Environment.SetEnvironmentVariable("LOGER_THEME", theme);
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
         Application.EnableVisualStyles();
@@ -130,7 +131,7 @@ internal static partial class Program
             {
                 Field<TextBox>(main, "textBoxCanLog").Text = "";
                 Field<Button>(main, "buttonProcess").PerformClick(); Pump();
-                Require(Field<TextBox>(main, "textBoxLog").Text.Contains("не указан"), "Missing-input journal error was not shown.");
+                Require(Field<TextBox>(main, "textBoxLog").Text.Contains("выберите файлы или папку логов"), "Missing-input journal error was not shown.");
             });
             CheckWorkspaceErrorFeedback(main, trc, dbc);
             Check("UI processes fixture and restores idle controls", () =>
@@ -250,10 +251,18 @@ internal static partial class Program
             File.WriteAllText(Path.Combine(folder, "canfox.txt"), "2023.04.26 10:15:30.010 - 0CFF0008 8 11 00 00 00 00 00 00 00\n");
             using var options = SaveForm(folder); Show(options);
             var list = Field<CheckedListBox>(options, "_formatsList");
+            Until(() => list.Items.Count == 6, "folder format inventory", 5000);
             Require(list.Items.Count == 6, "Expected All + all five supported input format options.");
             Require(list.CheckedItems.Count == 6, "Initial format-selection semantics changed.");
             Capture(options, "save-options-all-formats");
-            Field<ComboBox>(options, "_comboOutputFormat").SelectedIndex = 2; Pump();
+            var outputFormat = Field<ComboBox>(options, "_comboOutputFormat");
+            Require(outputFormat.Focus(), "Output format could not receive focus.");
+            Capture(options, "save-options-format-focused");
+            outputFormat.DroppedDown = true;
+            Pump();
+            Require(outputFormat.DroppedDown, "The output format list did not open from the focused control.");
+            outputFormat.DroppedDown = false;
+            outputFormat.SelectedIndex = 2; Pump();
             Capture(options, "save-options-dst-all-formats");
             // In a redesigned dialog every existing format fits without scrolling at 96DPI.
             if (_ui.GetType("logReader.UI.ThemeManager") != null)
@@ -293,6 +302,7 @@ internal static partial class Program
             {
                 var watch = Stopwatch.StartNew(); using var form = scenario.Create(); Show(form);
                 if (scenario.Name == "log-inspector") Until(() => Field<TextBox>(form, "textBoxSearch").Enabled, "log-inspector load", 15000);
+                if (scenario.Name == "save-options") WaitForFolderOptions(form);
                 Measurements.Add(new { name = scenario.Name, shownMs = watch.Elapsed.TotalMilliseconds });
                 Capture(form, scenario.Name);
                 if (scenario.Name == "log-inspector")
@@ -326,7 +336,7 @@ internal static partial class Program
         Check("workspace error status survives refresh and theme; processing failures stay errors", () =>
         {
             string error = state.Text;
-            Require(error.Contains("не указан") && state.ForeColor == Danger(), "Validation did not set an error status.");
+            Require(error.Contains("выберите файлы или папку логов") && state.ForeColor == Danger(), "Validation did not set an error status.");
             main.GetType().GetMethod("RefreshWorkspaceSummary", Members)!.Invoke(main, null);
             Require(state.Text == error && state.ForeColor == Danger(), "Refresh replaced error with readiness.");
             themeButton.PerformClick(); Pump();
@@ -444,6 +454,7 @@ internal static partial class Program
                 using var form = Form("SaveOptionsForm", EnumValue("OutputFormat", mode), EnumValue("BatchOutputMode", "PerInputFile"),
                     Activator.CreateInstance(_core.GetType("logReader.DstConnectOptions")!)!, folder, EnumValue("LogFormatKind", "All"), false);
                 Show(form);
+                WaitForFolderOptions(form);
                 Require(Field<ComboBox>(form, "_comboOutputFormat").SelectedIndex == Array.IndexOf(new[] { "Xlsx", "Csv", "CsvDstConnect" }, mode), "Showing changed the selected " + mode + " format.");
                 ((Button)form.AcceptButton!).PerformClick(); Pump();
                 Require(GetProperty(form, "SelectedOutputFormat")!.ToString() == mode, "Initial format was not committed unchanged.");
@@ -455,6 +466,7 @@ internal static partial class Program
             Check("save options output and batch mode " + selection, () =>
             {
                 using var form = SaveForm(folder); Show(form);
+                WaitForFolderOptions(form);
                 Field<ComboBox>(form, "_comboOutputFormat").SelectedIndex = selection;
                 Field<ComboBox>(form, "_comboBatchMode").SelectedIndex = selection;
                 Field<CheckBox>(form, "_chkIncludeDeviceIdRow").Checked = true;
@@ -474,6 +486,9 @@ internal static partial class Program
 
     private static Form SaveForm(string folder) => Form("SaveOptionsForm", EnumValue("OutputFormat", "Csv"), EnumValue("BatchOutputMode", "PerInputFile"),
         Activator.CreateInstance(_core.GetType("logReader.DstConnectOptions")!)!, folder, EnumValue("LogFormatKind", "All"), false);
+
+    private static void WaitForFolderOptions(Form form)
+        => Until(() => ((Button)form.AcceptButton!).Enabled, "folder format inventory", 5000);
 
     private static void CheckThemeAndKeyboard(Form main, string requestedTheme)
     {

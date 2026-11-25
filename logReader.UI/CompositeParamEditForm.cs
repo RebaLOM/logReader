@@ -258,7 +258,7 @@ namespace logReader.UI
 
                 string rawSrc = (row.Cells["SourceID"].Value?.ToString() ?? "").Trim();
                 if (string.IsNullOrWhiteSpace(rawSrc)) continue;
-                if (!CanId.TryNormalize(rawSrc, out string src))
+                if (!CanId.TryNormalize(rawSrc, out string src, allowTrailingX: true))
                 { Warn($"Кусок '{rawSrc}': SourceID должен быть CAN ID в hex (до 1FFFFFFF)."); return; }
 
                 if (!TryParseInt(row.Cells["Byte"].Value, out int b) || b < 0 || b > 7)

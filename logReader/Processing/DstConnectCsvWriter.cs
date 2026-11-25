@@ -81,8 +81,10 @@ namespace logReader.Processing
                     CsvOutput.WriteRow(writer, headerRow);
 
                     var line = new List<string>(columns.Count + 2);
+                    int written = 0;
                     foreach (var row in rows.OrderBy(r => r.StepMs))
                     {
+                        if ((written++ & 1023) == 0) context.ThrowIfCancellationRequested();
                         line.Clear();
                         // Time — H:mm:ss.fff (точка в дробной части часов); Step/значения — ru-RU.
                         line.Add(FormatClockTime(startTime, row.StepMs));
@@ -93,7 +95,7 @@ namespace logReader.Processing
                             line.AddRange(DtcOutput.Fields(dtcStates.TryGetValue(row, out var dtc) ? dtc : null, dtcDisplayFormat));
                         CsvOutput.WriteRow(writer, line);
                     }
-                });
+                }, cancellationToken: context.CancellationToken);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

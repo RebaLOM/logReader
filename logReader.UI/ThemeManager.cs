@@ -197,7 +197,8 @@ namespace logReader.UI
                     rich.BorderStyle = BorderStyle.None;
                     break;
                 case ComboBox combo:
-                    combo.FlatStyle = FlatStyle.Flat;
+                    combo.FlatStyle = Mode == ThemeMode.Light ? FlatStyle.Standard : FlatStyle.Flat;
+                    combo.BackColor = Mode == ThemeMode.Light ? p.SurfaceAlt : p.Surface;
                     if (combo.DropDownStyle == ComboBoxStyle.DropDownList)
                     {
                         combo.DrawMode = DrawMode.OwnerDrawFixed;
@@ -398,7 +399,8 @@ namespace logReader.UI
             combo.DrawItem += (_, e) =>
             {
                 bool selected = (e.State & DrawItemState.Selected) != 0;
-                using var brush = new SolidBrush(selected ? Current.AccentSoft : Current.Surface);
+                bool edit = (e.State & DrawItemState.ComboBoxEdit) != 0;
+                using var brush = new SolidBrush(edit ? combo.BackColor : selected ? Current.AccentSoft : Current.Surface);
                 e.Graphics.FillRectangle(brush, e.Bounds);
                 string text = e.Index < 0 ? combo.Text : combo.GetItemText(combo.Items[e.Index]) ?? "";
                 TextRenderer.DrawText(e.Graphics, text, combo.Font, Rectangle.Inflate(e.Bounds, -4, 0),

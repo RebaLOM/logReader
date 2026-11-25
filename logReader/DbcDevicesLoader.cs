@@ -27,7 +27,7 @@ namespace logReader
 
             foreach (var message in messages)
             {
-                string deviceId = CanId.Format(message.Id);
+                string deviceId = CanId.FrameKey(message.Id, message.IsExtended);
 
                 if (!seenMessageIds.Add(deviceId))
                     logger($"Предупреждение: дубликат 0x{deviceId} — сигналы будут объединены.");

@@ -43,6 +43,11 @@ namespace logReader
                         end++;
                         break;
                     }
+                    if (DbfLineParser.TryParseStartMsg(inner, out _))
+                    {
+                        log?.Invoke($"Предупреждение: у посылки '{message.Name}' отсутствует [END_MSG].");
+                        break;
+                    }
                     if (DbfLineParser.TryParseStartSignals(inner, out var fields))
                     {
                         if (DbfLineParser.ToDbcSignal(fields, message.Dlc) is { } signal)

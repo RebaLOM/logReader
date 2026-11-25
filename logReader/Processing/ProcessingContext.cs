@@ -67,6 +67,7 @@ namespace logReader.Processing
     {
         public OutputFormat Format { get; init; } = OutputFormat.Csv;
         public OutputFilter Filter { get; init; } = OutputFilter.All;
+        internal string? CompositesSourcePath { get; init; }
         public CompositeRuntime? Composites { get; init; }
         public bool IncludeDeviceIdHeaderRow { get; init; }
         public bool IncludeDtc { get; init; }

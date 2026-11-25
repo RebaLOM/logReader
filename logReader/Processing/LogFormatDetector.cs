@@ -44,29 +44,34 @@ namespace logReader.Processing
 
     internal static class LogFormatDetector
     {
-        public static LogFormatKind Detect(string path)
+        public static LogFormatKind Detect(string path, Encoding? encoding = null, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string ext = Path.GetExtension(path);
             if (ext.Equals(".trc", StringComparison.OrdinalIgnoreCase))
-                return LogFormatKind.Trc;
+            {
+                return File.Exists(path) && CanfoxLogParser.LooksLikeCanfoxLog(path, encoding ?? LogFileEncoding.Detect(path), cancellationToken)
+                    ? LogFormatKind.CanfoxTxt
+                    : LogFormatKind.Trc;
+            }
             if (ext.Equals(".asc", StringComparison.OrdinalIgnoreCase))
                 return LogFormatKind.Asc;
 
             if (ext.Equals(".csv", StringComparison.OrdinalIgnoreCase))
             {
-                Encoding enc = LogFileEncoding.Detect(path);
-                if (MatrixCsvLogParser.LooksLikeMatrixCsv(path, enc))
+                Encoding enc = encoding ?? LogFileEncoding.Detect(path);
+                if (MatrixCsvLogParser.LooksLikeMatrixCsv(path, enc, cancellationToken))
                     return LogFormatKind.MatrixCsv;
                 // Результаты обработки (Шаг;Время;…) тоже .csv — их нельзя снова брать как входной лог.
-                return StepCsvLogParser.LooksLikeStepCsv(path, enc)
+                return StepCsvLogParser.LooksLikeStepCsv(path, enc, cancellationToken)
                     ? LogFormatKind.StepCsv
                     : LogFormatKind.None;
             }
 
             if (ext.Equals(".txt", StringComparison.OrdinalIgnoreCase))
             {
-                Encoding enc = LogFileEncoding.Detect(path);
-                return CanfoxLogParser.LooksLikeCanfoxLog(path, enc)
+                Encoding enc = encoding ?? LogFileEncoding.Detect(path);
+                return CanfoxLogParser.LooksLikeCanfoxLog(path, enc, cancellationToken)
                     ? LogFormatKind.CanfoxTxt
                     : LogFormatKind.None;
             }
@@ -87,15 +92,16 @@ namespace logReader.Processing
             }
         }
 
-        public static LogFolderInventory Scan(string folderPath)
+        public static LogFolderInventory Scan(string folderPath, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var counts = new Dictionary<LogFormatKind, int>();
             var filesByKind = new Dictionary<LogFormatKind, List<string>>();
 
             foreach (string path in EnumerateSupportedLogFiles(folderPath))
             {
                 LogFormatKind kind;
-                try { kind = LogFormatDetector.Detect(path); }
+                try { kind = LogFormatDetector.Detect(path, cancellationToken: cancellationToken); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     continue;

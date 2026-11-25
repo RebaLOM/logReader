@@ -55,6 +55,7 @@ try {
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $taskOutput
     $start.EnvironmentVariables['LOGER_PREFERENCES_PATH'] = [IO.Path]::Combine($taskOutput, 'preferences.json')
+    $start.EnvironmentVariables['LOGER_DISPLAY_SETTINGS_PATH'] = [IO.Path]::Combine($taskOutput, 'display-settings.json')
     $start.EnvironmentVariables['LOGER_THEME'] = $Theme
     $taskProcess = [Diagnostics.Process]::Start($start)
     Wait-Condition { $taskProcess.Refresh(); $taskProcess.MainWindowHandle -ne [IntPtr]::Zero } 'LOGER main HWND'
@@ -160,8 +161,12 @@ try {
     Wait-Condition { -not (Find-Control 'textBoxCanLog' 'Путь к логу или папке').Current.IsOffscreen } 'source editor visibility'
     Set-ControlValue (Find-Control 'textBoxCanLog' 'Путь к логу или папке') ''
     Invoke-Control $processButton
-    Wait-Condition { (Get-ControlValue $journal).Contains('не указан') } 'journal validation error'
-    Record 'UIA journal exposes actionable missing-input validation'
+    Wait-Condition { (Get-ControlValue $journal).Contains('выберите файлы или папку логов') } 'journal validation error'
+    Wait-Condition {
+        $workspaceStatus = Find-Control 'workspaceState'
+        $workspaceStatus -and $workspaceStatus.Current.Name -like '*выберите файлы или папку логов*'
+    } 'workspace validation error'
+    Record 'UIA journal and workspace status expose actionable missing-input validation'
 
     # Prove preference loading in a fresh process, with no environment theme override.
     $savedTheme = (Get-Content -LiteralPath $preferences -Raw -Encoding UTF8 | ConvertFrom-Json).Theme
@@ -176,6 +181,7 @@ try {
     $restart.UseShellExecute = $false
     $restart.WorkingDirectory = $taskOutput
     $restart.EnvironmentVariables['LOGER_PREFERENCES_PATH'] = $preferences
+    $restart.EnvironmentVariables['LOGER_DISPLAY_SETTINGS_PATH'] = [IO.Path]::Combine($taskOutput, 'display-settings.json')
     $restart.EnvironmentVariables.Remove('LOGER_THEME')
     $taskProcess = [Diagnostics.Process]::Start($restart)
     Wait-Condition { $taskProcess.Refresh(); $taskProcess.MainWindowHandle -ne [IntPtr]::Zero } 'fresh preference-loading HWND'

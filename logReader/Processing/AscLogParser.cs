@@ -118,14 +118,13 @@ namespace logReader.Processing
             if (string.IsNullOrWhiteSpace(raw)) return false;
             string token = raw.Trim();
             bool extendedMark = token.EndsWith("x", StringComparison.OrdinalIgnoreCase);
-            if (extendedMark) token = token[..^1];
-
             if (!decimalIds)
-                return CanToken.TryNormalizeId(token, out id);
+                return CanToken.TryNormalizeId(token, out id, allowTrailingX: true);
+            if (extendedMark) token = token[..^1];
 
             if (!uint.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value) || value > CanId.MaxExtendedId)
                 return false;
-            id = CanId.Format(value);
+            id = CanId.FrameKey(value, extendedMark || value > CanId.MaxStandardId);
             return true;
         }
 

@@ -32,7 +32,7 @@ namespace logReader.Processing
                         VectorCanFdAscWriter.WriteFrame(writer, offsetSec, dir, idRaw, bytesBuffer, parsedByteCount);
                         frameCount++;
                     }
-                });
+                }, cancellationToken: context.CancellationToken);
 
                 context.Log($"Конвертация завершена. Записано кадров: {frameCount:N0}.");
                 return ProcessingResult.Ok(ascPath, frameCount);

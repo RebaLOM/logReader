@@ -104,9 +104,9 @@ namespace logReader.Processing
             }
             // Покрытие блока считается по ID, которые реально есть в логе: иначе DBC «на всю машину»
             // опускает покрытие ниже порога и детектор по повтору якорной посылки не срабатывает.
-            var targetIds = devices
-                .Where(d => filter.IsDeviceEnabled(d.ID) && idPool.ContainsKey(d.ID))
-                .Select(d => d.ID)
+            var deviceById = CanId.IndexDevices(devices, allowUntypedIds: true);
+            var targetIds = idPool.Keys
+                .Where(id => deviceById.TryGetValue(id, out Device? device) && filter.IsDeviceEnabled(device.ID))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var blockDetection = TrcBlockDetector.Detect(
@@ -120,9 +120,6 @@ namespace logReader.Processing
             var columnsByDevice = columns
                 .GroupBy(c => c.Device)
                 .ToDictionary(g => g.Key, g => g.ToArray());
-            var deviceById = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceById[d.ID] = d;
 
             var tracker = new DstConnectBlockTracker(options, blockDetection, columns.Count, includeDtc);
             var dtcDecoder = includeDtc ? new LocarusDtcDecoder(settings.DtcTimeoutMs) : null;
@@ -164,7 +161,7 @@ namespace logReader.Processing
                 var bytes = payload.AsSpan(0, frame.DataLength);
                 dtcDecoder?.OnFrame(frame.Id, bytes, frame.TimeMs);
 
-                if (deviceById.TryGetValue(frame.Id, out Device? device) && filter.IsDeviceEnabled(frame.Id))
+                if (deviceById.TryGetValue(frame.Id, out Device? device) && filter.IsDeviceEnabled(device.ID))
                 {
                     device.SetPayload(bytes);
                     device.Decode();

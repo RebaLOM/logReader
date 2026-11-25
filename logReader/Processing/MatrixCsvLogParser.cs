@@ -10,15 +10,29 @@ namespace logReader.Processing
     internal static class MatrixCsvLogParser
     {
         public const int RowPeriodMs = 20;
+        private const int ProbeLineLimit = 512;
 
-        public static bool LooksLikeMatrixCsv(string path, Encoding? encoding = null)
+        public static bool LooksLikeMatrixCsv(string path, Encoding? encoding = null, CancellationToken cancellationToken = default)
         {
             if (!File.Exists(path)) return false;
             try
             {
                 encoding ??= LogFileEncoding.Detect(path);
                 using var lines = LogFileReader.ReadLines(path, encoding).GetEnumerator();
-                return FindHeader(lines) != null;
+                var header = FindHeader(lines, maxLines: ProbeLineLimit, cancellationToken: cancellationToken);
+                if (header == null) return false;
+
+                Span<int> bytes = stackalloc int[8];
+                foreach (string line in ReadDataLines(lines, header).Take(ProbeLineLimit))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var parts = line.Split(';');
+                    if (!TryParseTimeCell(parts[0], out _)) continue;
+                    foreach (var column in header.Columns)
+                        if (column.ColumnIndex < parts.Length && TryParsePayloadHex(parts[column.ColumnIndex], bytes))
+                            return true;
+                }
+                return false;
             }
             catch (IOException)
             {
@@ -32,16 +46,19 @@ namespace logReader.Processing
 
         // Проверяем строки до первой временной метки после объявления ID:
         // в шапке тоже может встретиться строка с пустой первой ячейкой и hex-значениями.
-        public static MatrixCsvHeader? FindHeader(IEnumerator<string> lines, List<string>? preamble = null)
+        public static MatrixCsvHeader? FindHeader(IEnumerator<string> lines, List<string>? preamble = null,
+            int maxLines = int.MaxValue, CancellationToken cancellationToken = default)
         {
             IReadOnlyList<MatrixCsvColumn>? columns = null;
             int preambleLength = 0;
             string? firstDataLine = null;
-            while (lines.MoveNext())
+            for (int i = 0; i < maxLines && lines.MoveNext(); i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string line = lines.Current;
                 string[] parts = line.Split(';');
-                if (StepCsvLogParser.IsResultHeader(parts))
+                if (StepCsvLogParser.IsResultHeader(parts) || parts[0].Trim() is "Время" or "Время DTC"
+                    || (parts.Length >= 2 && parts[0].Trim() == "Time" && parts[1].Trim() == "Step"))
                     return null;
 
                 if (columns != null && TryParseTimeCell(parts[0], out _))
@@ -63,7 +80,7 @@ namespace logReader.Processing
                 preamble?.Add(line);
             }
 
-            if (columns == null) return null;
+            if (columns == null || firstDataLine == null) return null;
             preamble?.RemoveRange(preambleLength, preamble.Count - preambleLength);
             return new MatrixCsvHeader(columns, firstDataLine);
         }
@@ -85,7 +102,7 @@ namespace logReader.Processing
             {
                 string cell = parts[i].Trim();
                 if (string.IsNullOrEmpty(cell)) continue;
-                if (!CanToken.TryNormalizeId(cell, out string id, minHexLength: 1))
+                if (!CanToken.TryNormalizeId(cell, out string id, allowTrailingX: true))
                     return null;
                 columns.Add(new MatrixCsvColumn(i, id));
             }

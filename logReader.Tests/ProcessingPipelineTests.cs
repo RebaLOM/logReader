@@ -3,6 +3,7 @@ using logReader.Processing;
 
 namespace logReader.Tests;
 
+[Collection("Excel sheet limit")]
 public class ProcessingPipelineTests
 {
     [Theory]
@@ -421,3 +422,6 @@ public class ProcessingPipelineTests
         Assert.True(filter.IsParamEnabled("0CFF0008", 0));
     }
 }
+
+[CollectionDefinition("Excel sheet limit", DisableParallelization = true)]
+public sealed class ExcelSheetLimitCollection;

@@ -91,6 +91,7 @@ internal sealed class DtcDiagnosticsForm : Form
         layout.Controls.Add(actions, 0, 1);
         _counts = new Label
         {
+            Name = "dtcCounts",
             Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(3, 6, 3, 6),
             Text = "DTC1–DTC6 — позиции в списке. Пусто — свободно; Н/Д — неизвестно."
         };
@@ -445,8 +446,11 @@ internal sealed class DtcDiagnosticsForm : Form
             _summaryGrid.Invalidate();
         }
         finally { _updating = false; }
-        _counts.Text = $"Кодов в файлах: {_result.Summaries.Count}; показано: {_summaries.Length}. "
-            + $"Интервалов: {_result.Episodes.Count}; снимков: {_result.Observations.Count}. "
+        int codes = file == null ? _result.Summaries.Count : _result.Summaries.Count(s => SameFile(s.SourceFile, file));
+        int episodes = file == null ? _result.Episodes.Count : _result.Episodes.Count(e => SameFile(e.SourceFile, file));
+        int observations = file == null ? _result.Observations.Count : _result.Observations.Count(o => SameFile(o.SourceFile, file));
+        _counts.Text = $"{(file == null ? "Все файлы" : "Выбранный файл")} · кодов: {codes}; показано: {_summaries.Length}. "
+            + $"Интервалов: {episodes}; снимков: {observations}. "
             + "Пусто — свободно; Н/Д — неизвестно.";
         UpdateDetails();
         if (query.Length == 0)

@@ -316,6 +316,8 @@ try {
     $start.UseShellExecute = $false
     $start.RedirectStandardError = $true
     $start.WorkingDirectory = [IO.Path]::GetDirectoryName($app)
+    $start.EnvironmentVariables['LOGER_DISPLAY_SETTINGS_PATH'] = Join-Path $output 'sandbox/display-settings.json'
+    $start.EnvironmentVariables['LOGER_PREFERENCES_PATH'] = Join-Path $output 'sandbox/theme-preferences.json'
     if ($Theme) { $start.EnvironmentVariables['LOGER_THEME'] = $Theme }
     foreach ($pair in @(@('APPDATA', 'Roaming'), @('LOCALAPPDATA', 'Local'), @('TEMP', 'Temp'), @('TMP', 'Temp'))) {
         $directory = Join-Path $output ('sandbox/' + $pair[1])
@@ -334,7 +336,8 @@ try {
     [DtcUiNative]::Click($saveOptionsButton)
     $options = Wait-Condition { [DtcUiNative]::Window($process.Id, 'Параметры сохранения') } 'save options'
     $inclusion = [DtcUiNative]::Find($options, 'dtcInclusionMode', 'Добавление DTC')
-    Check 'Automatic DTC output selected in save options by default' ([DtcUiNative]::SelectedComboIndex($inclusion) -eq 0) 'Авто'
+    $inclusionIndex = [DtcUiNative]::SelectedComboIndex($inclusion)
+    Check 'Automatic DTC output selected in save options by default' ($inclusionIndex -eq 0) $inclusionIndex
     $timeout = [DtcUiNative]::Find($options, 'dtcTimeoutSeconds', 'Допустимый разрыв данных DTC, секунд')
     $defaultSeconds = [DtcUiNative]::Number($timeout)
     Check 'DTC timeout defaults to two seconds' ($defaultSeconds -eq 2) $defaultSeconds
@@ -347,7 +350,8 @@ try {
     $automatic = [DtcUiNative]::Find($display, 'autoIncludeDtc', 'Автоматически добавлять DTC при наличии ошибок')
     Check 'Display settings only control the code format' ($null -eq $automatic) 'DTC inclusion is in save options'
     $displayFormat = [DtcUiNative]::Find($display, 'dtcDisplayFormat', 'Формат отображения DTC')
-    Check 'Compact DTC format selected by default' ([DtcUiNative]::SelectedComboIndex($displayFormat) -eq 0) '12345.0'
+    $displayFormatIndex = [DtcUiNative]::SelectedComboIndex($displayFormat)
+    Check 'Compact DTC format selected by default' ($displayFormatIndex -eq 0) $displayFormatIndex
     [DtcUiNative]::Capture($display, (Join-Path $output 'display-settings-default.png'))
     [DtcUiNative]::Click([DtcUiNative]::Find($display, 'displaySettingsCancel', 'Отмена'))
     [DtcUiNative]::SetText([DtcUiNative]::Find($main, 'textBoxCanLog', ''), $sourcePath)
@@ -358,7 +362,10 @@ try {
     $summary = [DtcUiNative]::Find($diagnostics, 'dtcSummary', 'Сводка кодов DTC')
     $summaryCount = [DtcUiNative]::Rows($summary)
     Check 'Real source diagnostic summary read' ($ExpectedSummaryRows -lt 0 -or $summaryCount -eq $ExpectedSummaryRows) $summaryCount
-    $countsText = [DtcUiNative]::Text([DtcUiNative]::FindPrefix($diagnostics, 'Кодов в файлах:'))
+    $countsControl = [DtcUiNative]::Find($diagnostics, 'dtcCounts', '')
+    if (!$countsControl) { $countsControl = [DtcUiNative]::FindPrefix($diagnostics, 'Все файлы · кодов:') }
+    $countsText = [DtcUiNative]::Text($countsControl)
+    Check 'Initial counts cover all files' ($countsText -match '^Все файлы · кодов: \d+; показано: \d+\.') $countsText
     foreach ($prefix in @('Диагностические посылки прочитаны', 'Посылки прочитаны', 'Диагностические снимки не найдены', 'Анализ завершён')) {
         $statusControl = [DtcUiNative]::FindPrefix($diagnostics, $prefix)
         if ($statusControl) { $statusText = [DtcUiNative]::Text($statusControl); break }
@@ -380,7 +387,10 @@ try {
     if ($FilterFile) {
         $fileIndex = [DtcUiNative]::SelectFile([DtcUiNative]::Find($diagnostics, 'dtcFileFilter', 'Фильтр по исходному файлу'), $FilterFile)
         Wait-Condition { [DtcUiNative]::Rows($summary) -eq 0 -and [DtcUiNative]::SelectedTab($diagnostics) -eq 1 } 'zero-count file filter opens snapshots' | Out-Null
-        $filteredCounts = [DtcUiNative]::Text([DtcUiNative]::FindPrefix($diagnostics, 'Кодов в файлах:'))
+        $filteredCountsControl = [DtcUiNative]::Find($diagnostics, 'dtcCounts', '')
+        if (!$filteredCountsControl) { $filteredCountsControl = [DtcUiNative]::FindPrefix($diagnostics, 'Выбранный файл · кодов:') }
+        $filteredCounts = [DtcUiNative]::Text($filteredCountsControl)
+        Check 'File filter scopes all counters to the selected log' ($filteredCounts -match '^Выбранный файл · кодов: 0; показано: 0\. Интервалов: 0; снимков: [1-9]\d*\.') $filteredCounts
         $filteredStatus = [DtcUiNative]::Text([DtcUiNative]::FindPrefix($diagnostics, 'Диагностические посылки прочитаны'))
         Check 'Folder file filter opens zero-count snapshots' ($filteredStatus -eq 'Диагностические посылки прочитаны; подтверждённых ошибок нет') ([pscustomobject]@{ File = $FilterFile; Index = $fileIndex; Status = $filteredStatus })
         [DtcUiNative]::Capture($diagnostics, (Join-Path $output 'diagnostics-file-filter.png'))
@@ -413,6 +423,7 @@ try {
         if ($SearchSpn) {
             $matched = $false
             for ($row = 0; $row -lt $rows -and !$matched; $row++) {
+                if ($RequireCompleteRaw -and [DtcUiNative]::Cell($states, $row, 3) -ne 'Полный') { continue }
                 for ($column = 4; $column -lt 10; $column++) {
                     $codeText = [DtcUiNative]::Cell($states, $row, $column)
                     if ($codeText.StartsWith($SearchSpn + '.') -or $codeText.Contains('SPN ' + $SearchSpn + ' /')) {

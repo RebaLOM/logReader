@@ -98,18 +98,11 @@ public class TrcBlockDetectorTests
         Assert.InRange(blocks, 45, 52);
     }
 
-    [Fact]
+    [RealFixtureFact("LOGER_TEST_DATA_ROOT")]
     public void Real_trc_examples_with_user_period_20ms()
     {
-        string examplesDir = UserFixtureFiles.Root ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-            "trc examples");
-
-        if (UserFixtureFiles.Root != null)
-            Assert.True(Directory.Exists(examplesDir), "Configured real fixture directory does not exist.");
-        if (!Directory.Exists(examplesDir))
-            return;
-
+        string examplesDir = UserFixtureFiles.Root!;
+        Assert.True(Directory.Exists(examplesDir), "Configured real fixture directory does not exist.");
         int tested = 0;
         foreach (string file in UserFixtureFiles.Enumerate(examplesDir, ".trc"))
         {
@@ -128,7 +121,7 @@ public class TrcBlockDetectorTests
             Assert.Equal(20, result.BlockPeriodMs);
             tested++;
         }
-        if (UserFixtureFiles.Root != null) Assert.True(tested > 0, "No usable real TRC files were exercised.");
+        Assert.True(tested > 0, "No usable real TRC files were exercised.");
         Console.WriteLine($"REAL FIXTURES: 20 ms period checked in {tested} TRC files (up to 5000 parsed frames per file).");
     }
 

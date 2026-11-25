@@ -48,7 +48,7 @@ namespace logReader.UI
             {
                 _dbfDataFormat = new ComboBox
                 {
-                    Name = "dbfDataFormat", AccessibleName = "Data Format",
+                    Name = "dbfDataFormat", AccessibleName = "Порядок байтов посылки",
                     DropDownStyle = ComboBoxStyle.DropDownList, Width = 132
                 };
                 _dbfDataFormat.Items.AddRange(["Little Endian", "Big Endian"]);
@@ -148,7 +148,7 @@ namespace logReader.UI
             fmtPanel.Controls.Add(_rbExtended);
             if (_dbfDataFormat != null)
             {
-                fmtPanel.Controls.Add(MessageEditFormHelpers.MakeLabel("Data Format"));
+                fmtPanel.Controls.Add(MessageEditFormHelpers.MakeLabel("Порядок байтов посылки"));
                 fmtPanel.Controls.Add(_dbfDataFormat);
             }
 

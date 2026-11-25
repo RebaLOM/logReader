@@ -171,7 +171,8 @@ public sealed class DisplaySettingsTests
                     Assert.True(label.Height >= label.PreferredSize.Height, $"Clipped label: {label.Text}");
             }
             Assert.Equal(ThemeManager.Current.Background, form.BackColor);
-            Assert.Equal(ThemeManager.Current.Surface, Find<ComboBox>(form, "dtcDisplayFormat").BackColor);
+            var combo = Find<ComboBox>(form, "dtcDisplayFormat");
+            Assert.Equal(ThemeManager.Mode == ThemeMode.Light ? ThemeManager.Current.SurfaceAlt : ThemeManager.Current.Surface, combo.BackColor);
             Assert.Equal(ThemeManager.Current.Accent, Find<Button>(form, "displaySettingsOk").BackColor);
         }
         finally { ThemeManager.SetMode(previous, persist: false); }

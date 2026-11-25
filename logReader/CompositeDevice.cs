@@ -36,11 +36,15 @@
         public override void Decode()
         {
             for (int i = 0; i < Signals.Count; i++)
-                Values[i] = Compute(Signals[i]);
+            {
+                Values[i] = Compute(Signals[i], out bool missingByte);
+                FieldErrors[i] = missingByte;
+            }
         }
 
-        private double Compute(CompositeSignal sig)
+        private double Compute(CompositeSignal sig, out bool missingByte)
         {
+            missingByte = false;
             if (sig.Pieces.Count == 0 || !_runtime.AllSourcesSeen(sig))
                 return double.NaN;
 
@@ -48,7 +52,11 @@
             int totalBits = 0;
             foreach (var p in sig.Pieces)
             {
-                int b = _runtime.GetByte(p.SourceId, p.Byte) & 0xFF;
+                if (!_runtime.TryGetByte(p.SourceId, p.Byte, out int b))
+                {
+                    missingByte = true;
+                    return double.NaN;
+                }
                 int len = Math.Clamp(p.BitLen, 1, 8);
                 int start = Math.Clamp(p.BitStart, 0, 7);
                 int mask = (1 << len) - 1;
@@ -71,7 +79,7 @@
     public sealed class CompositeRuntime
     {
         private readonly Dictionary<string, int[]> _bytes = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _seen = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> _payloadLengths = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<CompositeDevice>> _triggerToBlocks =
             new(StringComparer.OrdinalIgnoreCase);
 
@@ -91,21 +99,29 @@
                 : (IReadOnlyList<CompositeDevice>)Array.Empty<CompositeDevice>();
 
         public int GetByte(string sourceId, int byteIndex)
+            => TryGetByte(sourceId, byteIndex, out int value) ? value : 0;
+
+        internal bool TryGetByte(string sourceId, int byteIndex, out int value)
         {
-            if (byteIndex < 0 || byteIndex > 7) return 0;
-            return _bytes.TryGetValue(sourceId, out var arr) ? arr[byteIndex] : 0;
+            value = 0;
+            if (byteIndex < 0 || !_payloadLengths.TryGetValue(sourceId, out int length) || byteIndex >= length)
+                return false;
+
+            value = _bytes[sourceId][byteIndex];
+            return true;
         }
 
         public bool AllSourcesSeen(CompositeSignal sig)
         {
             foreach (var p in sig.Pieces)
-                if (!_seen.Contains(p.SourceId)) return false;
+                if (!_payloadLengths.ContainsKey(p.SourceId))
+                    return false;
             return true;
         }
 
         public void Reset()
         {
-            _seen.Clear();
+            _payloadLengths.Clear();
             foreach (var arr in _bytes.Values)
                 Array.Clear(arr, 0, arr.Length);
             foreach (var block in Blocks)
@@ -117,7 +133,7 @@
             if (!_bytes.TryGetValue(id, out var arr)) return;
             for (int i = 0; i < 8; i++)
                 arr[i] = i < count ? (bytes[i] & 0xFF) : 0;
-            _seen.Add(id);
+            _payloadLengths[id] = Math.Min(count, arr.Length);
         }
 
         public void OnMessage(string id, int[] bytes)

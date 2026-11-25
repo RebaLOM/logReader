@@ -8,7 +8,8 @@ namespace logReader.Processing
             List<Device> devices,
             string outputPath,
             OutputSettings settings,
-            ProcessingContext context)
+            ProcessingContext context,
+            LogFormatKind? format = null)
         {
             if (!File.Exists(trcPath)) return context.Fail($"Ошибка: файл не найден: {trcPath}");
 
@@ -20,14 +21,14 @@ namespace logReader.Processing
             composites?.Reset();
 
             var encoding = LogFileEncoding.Detect(trcPath);
-            bool isCanfox = CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding);
+            bool isCanfox = format.HasValue
+                ? format == LogFormatKind.CanfoxTxt
+                : CanfoxLogParser.LooksLikeCanfoxLog(trcPath, encoding, context.CancellationToken);
 
             if (!isCanfox && TrcLogParser.ParseStartTime(trcPath, encoding) == null)
                 context.Log("Предупреждение: в .trc нет Start time — время в выводе как мс от начала записи.");
 
-            var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceByID[d.ID] = d;
+            var deviceByID = CanId.IndexDevices(devices, allowUntypedIds: true);
 
             // pCAN TRC — мс от начала записи; CANfox — время суток.
             var collector = new TimeSeriesCollector(
@@ -77,7 +78,7 @@ namespace logReader.Processing
                     CompositeOutput.EmitTriggered(composites, id, timeVal, collector, filter);
 
                     if (!deviceByID.TryGetValue(id, out Device? device)) continue;
-                    if (!filter.IsDeviceEnabled(id)) continue;
+                    if (!filter.IsDeviceEnabled(device.ID)) continue;
 
                     device.SetPayload(bytes[..parsedByteCount]);
                     device.Decode();

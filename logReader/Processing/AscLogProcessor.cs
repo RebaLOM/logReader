@@ -25,9 +25,7 @@ namespace logReader.Processing
             if (format.BaseTimeTicks == null)
                 context.Log("Предупреждение: не найдено стартовое время (строка 'date ...'). Время будет считаться от 00:00:00.000.");
 
-            var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceByID[d.ID] = d;
+            var deviceByID = CanId.IndexDevices(devices);
 
             var collector = new TimeSeriesCollector(
                 CompositeOutput.WithComposites(devices, composites), filter, TimeAxisKind.TimeOfDay,
@@ -68,7 +66,7 @@ namespace logReader.Processing
                     CompositeOutput.EmitTriggered(composites, id, timeVal, collector, filter);
 
                     if (!deviceByID.TryGetValue(id, out Device? device)) continue;
-                    if (!filter.IsDeviceEnabled(id)) continue;
+                    if (!filter.IsDeviceEnabled(device.ID)) continue;
 
                     device.SetPayload(bytes[..parsedByteCount]);
                     device.Decode();

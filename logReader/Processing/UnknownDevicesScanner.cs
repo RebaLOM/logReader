@@ -63,9 +63,9 @@ namespace logReader.Processing
         {
             try
             {
-                var kind = LogFormatDetector.Detect(filePath);
-                if (kind == LogFormatKind.None) return;
                 Encoding enc = LogFileEncoding.Detect(filePath);
+                var kind = LogFormatDetector.Detect(filePath, enc, context.CancellationToken);
+                if (kind == LogFormatKind.None) return;
 
                 if (kind == LogFormatKind.MatrixCsv)
                 {

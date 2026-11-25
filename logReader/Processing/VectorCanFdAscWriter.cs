@@ -19,13 +19,15 @@ namespace logReader.Processing
         public static string FormatId(string idHex)
         {
             string id = idHex.Trim().ToUpperInvariant();
-            if (id.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            if (id.StartsWith("0X", StringComparison.Ordinal))
                 id = id[2..];
+            if (id.EndsWith('X'))
+                return id[..^1] + "x";
 
             if (!ulong.TryParse(id, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong idValue))
                 return id;
 
-            return idValue > 0x7FFUL ? id + "x" : id;
+            return idValue > CanId.MaxStandardId ? id + "x" : id;
         }
 
         // Код DLC CAN FD для длины данных (9..15 → 12, 16, 20, 24, 32, 48, 64 байт).

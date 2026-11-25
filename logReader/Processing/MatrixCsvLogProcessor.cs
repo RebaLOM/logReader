@@ -26,9 +26,7 @@ namespace logReader.Processing
             if (csvPaths.Count == 0)
                 return context.Fail("Ошибка: не указаны файлы CSV.");
 
-            var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceByID[d.ID] = d;
+            var deviceByID = CanId.IndexDevices(devices, allowUntypedIds: true);
 
             var inputs = new List<(string Path, Encoding Encoding, IReadOnlyList<MatrixCsvColumn> Columns)>();
             var preamble = new List<string>();
@@ -69,7 +67,8 @@ namespace logReader.Processing
             if (inputs.Count == 0)
                 return context.Fail($"Ошибка: не найдено пригодных файлов {LogFormatUiNames.Csv}.");
 
-            var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
+            var matchedDevices = seenIDs.Select(id => deviceByID.GetValueOrDefault(id)).ToHashSet();
+            var activeDevices = devices.Where(matchedDevices.Contains).ToList();
             var activeBlocks = CanLogProcessor.ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
             var outputColumns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
             if (outputColumns.Count == 0 && !settings.CollectDtc)

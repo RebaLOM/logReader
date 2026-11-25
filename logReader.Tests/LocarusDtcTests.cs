@@ -380,11 +380,10 @@ public sealed class LocarusDtcTests
         Assert.Single(result.Summaries);
     }
 
-    [Fact]
+    [RealFixtureFact("LOGER_DTC_TEST_DATA_DIR")]
     public void Provided_dst_traces_have_1038_empty_trace_cycles_and_15_fmi_zero_counterrotation_cycles()
     {
-        string? root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR");
-        if (string.IsNullOrWhiteSpace(root)) return;
+        string root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR")!;
         Assert.True(Directory.Exists(root), "LOGER_DTC_TEST_DATA_DIR должен указывать непосредственно на папку DST.");
         Assert.Equal(9, Directory.GetFiles(root, "*.trc").Length);
         var counterrotation = DtcAnalysisService.Analyze(Path.Combine(root, "контрвращение_085008.trc"));

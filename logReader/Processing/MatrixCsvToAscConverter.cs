@@ -26,6 +26,8 @@ namespace logReader.Processing
                     using var writer = new StreamWriter(tmp, false, new System.Text.UTF8Encoding(false));
                     var timeTracker = new MatrixCsvTimeTracker();
                     TimeSpan? baseTimeSpan = null;
+                    TimeSpan? previousTime = null;
+                    TimeSpan dayOffset = TimeSpan.Zero;
                     Span<int> msgBytes = stackalloc int[8];
 
                     foreach (string line in MatrixCsvLogParser.ReadDataLines(lines, header))
@@ -43,7 +45,10 @@ namespace logReader.Processing
                             VectorCanFdAscWriter.WriteHeader(writer, fileDate.Add(absoluteTime));
                         }
 
-                        double offsetSec = (absoluteTime - baseTimeSpan.Value).TotalSeconds;
+                        if (previousTime.HasValue && previousTime.Value - absoluteTime > TimeSpan.FromHours(12))
+                            dayOffset += TimeSpan.FromDays(1);
+                        previousTime = absoluteTime;
+                        double offsetSec = (absoluteTime + dayOffset - baseTimeSpan.Value).TotalSeconds;
 
                         foreach (MatrixCsvColumn column in header.Columns)
                         {
@@ -68,7 +73,7 @@ namespace logReader.Processing
                     hasData = baseTimeSpan.HasValue;
                     if (!hasData)
                         VectorCanFdAscWriter.WriteHeader(writer, DateTime.Today);
-                });
+                }, cancellationToken: context.CancellationToken);
 
                 if (!hasData)
                     context.Log("Предупреждение: в CSV нет строк данных. Создан пустой ASC.");

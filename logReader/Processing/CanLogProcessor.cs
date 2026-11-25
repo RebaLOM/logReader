@@ -20,9 +20,7 @@ namespace logReader.Processing
             DeviceFiles.ResetState(devices);
             composites?.Reset();
 
-            var deviceByID = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
-            foreach (var d in devices)
-                deviceByID[d.ID] = d;
+            var deviceByID = CanId.IndexDevices(devices, allowUntypedIds: true);
 
             var encoding = LogFileEncoding.Detect(csvPath);
 
@@ -35,7 +33,8 @@ namespace logReader.Processing
                     seenIDs.Add(id);
             }
 
-            var activeDevices = devices.Where(d => seenIDs.Contains(d.ID)).ToList();
+            var matchedDevices = seenIDs.Select(id => deviceByID.GetValueOrDefault(id)).ToHashSet();
+            var activeDevices = devices.Where(matchedDevices.Contains).ToList();
             var activeBlocks = ActiveCompositeBlocks(composites, settings.Filter, seenIDs);
             var columns = settings.Filter.BuildColumns(activeDevices.Concat(activeBlocks));
             if (columns.Count == 0 && !settings.CollectDtc)
@@ -84,7 +83,7 @@ namespace logReader.Processing
 
                     if (parts.Length < 4 || !StepCsvLogParser.IsAccepted(parts[3]))
                         continue;
-                    if (!CanId.TryNormalize(parts[2], out string id))
+                    if (!CanId.TryNormalize(parts[2], out string id, allowTrailingX: true))
                         continue;
                     if (parts.Length < StepCsvLogParser.FirstByteColumn + 8)
                     {

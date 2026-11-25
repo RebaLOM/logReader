@@ -14,27 +14,32 @@ namespace logReader.Processing
             OutputSettings settings,
             ProcessingContext context)
         {
+            string fullOutputPath = Path.GetFullPath(outputPath);
+            if (fullOutputPath.Equals(Path.GetFullPath(logPath), StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrWhiteSpace(settings.CompositesSourcePath)
+                    && fullOutputPath.Equals(Path.GetFullPath(settings.CompositesSourcePath), StringComparison.OrdinalIgnoreCase)))
+                return context.Fail("Ошибка: путь результата совпадает с подключённым входным файлом.");
+
             string ext = Path.GetExtension(logPath);
-            bool isTrc = ext.Equals(".trc", StringComparison.OrdinalIgnoreCase);
+            var kind = LogFormatDetector.Detect(logPath, cancellationToken: context.CancellationToken);
 
             if (settings.Format == OutputFormat.CsvDstConnect)
             {
-                if (!isTrc)
+                if (kind != LogFormatKind.Trc)
                     return context.Fail("Ошибка: CSV ДСТ Коннект применим только к файлам .trc.");
 
                 context.Log("Формат: CSV ДСТ Коннект (pCAN .trc)");
                 return new DstConnectTrcProcessor().Process(logPath, allDevices, outputPath, settings, context);
             }
 
-            var kind = LogFormatDetector.Detect(logPath);
             switch (kind)
             {
                 case LogFormatKind.Trc:
                     context.Log("Формат: pCAN Viewer");
-                    return new PCanLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                    return new PCanLogProcessor().Process(logPath, allDevices, outputPath, settings, context, kind);
                 case LogFormatKind.CanfoxTxt:
                     context.Log("Формат: CANfox (PCAN-View / CAN.txt)");
-                    return new PCanLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
+                    return new PCanLogProcessor().Process(logPath, allDevices, outputPath, settings, context, kind);
                 case LogFormatKind.Asc:
                     context.Log("Формат: ASC");
                     return new AscLogProcessor().Process(logPath, allDevices, outputPath, settings, context);
@@ -69,6 +74,8 @@ namespace logReader.Processing
             var protectedPaths = new HashSet<string>(inputPaths, StringComparer.OrdinalIgnoreCase);
             if (!string.IsNullOrWhiteSpace(devicesFullPath))
                 protectedPaths.Add(Path.GetFullPath(devicesFullPath));
+            if (!string.IsNullOrWhiteSpace(settings.CompositesSourcePath))
+                protectedPaths.Add(Path.GetFullPath(settings.CompositesSourcePath));
             var perFileOutputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var matrixCsvFiles = new List<string>();
             var trcFiles = new List<string>();
@@ -85,7 +92,7 @@ namespace logReader.Processing
                 }
                 try
                 {
-                    switch (LogFormatDetector.Detect(path))
+                    switch (LogFormatDetector.Detect(path, cancellationToken: context.CancellationToken))
                     {
                         case LogFormatKind.MatrixCsv: matrixCsvFiles.Add(path); break;
                         case LogFormatKind.Trc: trcFiles.Add(path); break;
@@ -142,7 +149,7 @@ namespace logReader.Processing
             {
                 if (protectedPaths.Contains(outPath))
                 {
-                    RecordFailure(Path.GetFileName(outPath), "путь результата совпадает с исходным файлом или файлом посылок.");
+                    RecordFailure(Path.GetFileName(outPath), "путь результата совпадает с подключённым входным файлом.");
                     return false;
                 }
                 if (IsFileLocked(outPath))

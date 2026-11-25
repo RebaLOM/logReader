@@ -46,7 +46,7 @@ namespace logReader.UI
             _currentSignalName = currentSignalName ?? initial?.Name;
             Signal = initial != null ? initial.Clone() : new DbcSignal();
 
-            Text = "Signal Details";
+            Text = "Свойства сигнала";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
             MaximizeBox = false;
@@ -113,70 +113,70 @@ namespace logReader.UI
                 Size = new Size(540, 250)
             };
 
-            fieldsPanel.Controls.Add(MakeLabel("Name:", 12, 14));
+            fieldsPanel.Controls.Add(MakeLabel("Имя:", 12, 14));
             _txtName.Location = new Point(70, 11);
             _txtName.Size = new Size(450, 23);
             fieldsPanel.Controls.Add(_txtName);
 
-            fieldsPanel.Controls.Add(MakeLabel("Raw type", 12, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Тип кода", 12, 47));
             _cmbType.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbType.Items.AddRange(new object[] { "int (знаковый)", "uint (беззнаковый)" });
             _cmbType.Location = new Point(70, 44);
             _cmbType.Size = new Size(160, 23);
             fieldsPanel.Controls.Add(_cmbType);
 
-            fieldsPanel.Controls.Add(MakeLabel("Byte Index:", 245, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Байт:", 245, 47));
             _numByteIndex.Minimum = 0;
             _numByteIndex.Maximum = _messageDlc - 1;
             _numByteIndex.Location = new Point(325, 44);
             _numByteIndex.Size = new Size(55, 23);
             fieldsPanel.Controls.Add(_numByteIndex);
 
-            fieldsPanel.Controls.Add(MakeLabel("Start Bit:", 395, 47));
+            fieldsPanel.Controls.Add(MakeLabel("Бит:", 395, 47));
             _numStartBitInByte.Minimum = 0;
             _numStartBitInByte.Maximum = 7;
             _numStartBitInByte.Location = new Point(470, 44);
             _numStartBitInByte.Size = new Size(50, 23);
             fieldsPanel.Controls.Add(_numStartBitInByte);
 
-            fieldsPanel.Controls.Add(MakeLabel("Length:", 12, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Длина:", 12, 80));
             _numLength.Minimum = 1;
             _numLength.Maximum = 64;
             _numLength.Value = 8;
             _numLength.Location = new Point(70, 77);
             _numLength.Size = new Size(60, 23);
             fieldsPanel.Controls.Add(_numLength);
-            fieldsPanel.Controls.Add(MakeLabel("Bits", 135, 80));
+            fieldsPanel.Controls.Add(MakeLabel("бит", 135, 80));
 
-            fieldsPanel.Controls.Add(MakeLabel("Raw min", 165, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Мин. код", 165, 80));
             _txtMinHex.ReadOnly = true;
             _txtMinHex.Location = new Point(242, 77);
             _txtMinHex.Size = new Size(70, 23);
             fieldsPanel.Controls.Add(_txtMinHex);
 
-            fieldsPanel.Controls.Add(MakeLabel("Raw max", 325, 80));
+            fieldsPanel.Controls.Add(MakeLabel("Макс. код", 325, 80));
             _txtMaxHex.ReadOnly = true;
             _txtMaxHex.Location = new Point(402, 77);
             _txtMaxHex.Size = new Size(60, 23);
             fieldsPanel.Controls.Add(_txtMaxHex);
 
-            fieldsPanel.Controls.Add(MakeLabel("Offset:", 12, 113));
+            fieldsPanel.Controls.Add(MakeLabel("Сдвиг:", 12, 113));
             _txtOffset.Location = new Point(70, 110);
             _txtOffset.Size = new Size(80, 23);
             fieldsPanel.Controls.Add(_txtOffset);
 
-            fieldsPanel.Controls.Add(MakeLabel("Factor:", 165, 113));
-            _txtFactor.Location = new Point(220, 110);
-            _txtFactor.Size = new Size(90, 23);
+            fieldsPanel.Controls.Add(MakeLabel("Множитель:", 165, 113));
+            _txtFactor.Location = new Point(238, 110);
+            _txtFactor.Size = new Size(72, 23);
             fieldsPanel.Controls.Add(_txtFactor);
 
-            fieldsPanel.Controls.Add(MakeLabel("Unit:", 325, 113));
-            _txtUnit.Location = new Point(370, 110);
-            _txtUnit.Size = new Size(150, 23);
+            fieldsPanel.Controls.Add(MakeLabel("Единица:", 325, 113));
+            _txtUnit.Location = new Point(386, 110);
+            _txtUnit.Size = new Size(134, 23);
             fieldsPanel.Controls.Add(_txtUnit);
 
-            fieldsPanel.Controls.Add(MakeLabel("Значение = код CAN × Factor + Offset", 12, 139));
-            fieldsPanel.Controls.Add(MakeLabel("Byte Order:", 12, 165));
+            fieldsPanel.Controls.Add(MakeLabel("Значение = код CAN × множитель + сдвиг", 12, 139));
+            fieldsPanel.Controls.Add(MakeLabel("Порядок байтов:", 12, 165));
             _rbIntel.Text = "Intel — little-endian";
             _rbIntel.Location = new Point(12, 185);
             _rbIntel.AutoSize = true;
@@ -193,7 +193,7 @@ namespace logReader.UI
             _payloadGrid.Location = new Point(12, 258);
             _payloadGrid.Anchor = AnchorStyles.Top | AnchorStyles.Left;
 
-            _btnOk.Text = "OK";
+            _btnOk.Text = "Применить";
             _btnOk.Location = new Point(360, 515);
             _btnOk.Size = new Size(80, 30);
             _btnOk.Click += (_, _) => OnOk();

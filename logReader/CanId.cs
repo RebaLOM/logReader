@@ -16,6 +16,9 @@ namespace logReader
         public static string Format(uint id)
             => Format(id, id > MaxStandardId);
 
+        internal static string FrameKey(uint id, bool isExtended)
+            => isExtended && id <= MaxStandardId ? Format(id) + "x" : Format(id, isExtended);
+
         // Свести разные записи одного ID к одному виду: "CFF0008" и "0CFF0008" → "0CFF0008".
         public static bool TryNormalize(string? raw, out string id, bool allowTrailingX = false, int minHexLength = 1)
         {
@@ -27,7 +30,8 @@ namespace logReader
             if (token.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 token = token[2..];
 
-            if (allowTrailingX && token.EndsWith("x", StringComparison.OrdinalIgnoreCase))
+            bool explicitlyExtended = allowTrailingX && token.EndsWith("x", StringComparison.OrdinalIgnoreCase);
+            if (explicitlyExtended)
                 token = token[..^1];
 
             if (token.Length < minHexLength)
@@ -46,15 +50,27 @@ namespace logReader
             if (value > MaxExtendedId)
                 return false;
 
-            // Ключ сопоставления — по числовому значению ID (11/29 бит — флаг кадра, не строка).
-            // Иначе "00000100" из лога и "100" из standard-конфига не совпадали.
-            bool looksExtended = value > MaxStandardId;
-            id = Format(value, looksExtended);
+            id = FrameKey(value, explicitlyExtended || value > MaxStandardId);
             return true;
+        }
+
+        // Без явного признака типа выбираем стандартный ID. Если описан только
+        // расширенный вариант с тем же числом, сохраняем совместимость со старыми логами.
+        internal static Dictionary<string, Device> IndexDevices(IEnumerable<Device> devices, bool allowUntypedIds = false)
+        {
+            var result = new Dictionary<string, Device>(StringComparer.OrdinalIgnoreCase);
+            foreach (var device in devices) result[device.ID] = device;
+            if (allowUntypedIds)
+            {
+                foreach (var device in devices)
+                    if (device.ID.EndsWith("x", StringComparison.OrdinalIgnoreCase))
+                        result.TryAdd(device.ID[..^1], device);
+            }
+            return result;
         }
 
         // Для ключей из пользовательских файлов: нормализованный ID или исходный текст в верхнем регистре.
         public static string NormalizeOrUpper(string? raw)
-            => TryNormalize(raw, out string id) ? id : (raw ?? "").Trim().ToUpperInvariant();
+            => TryNormalize(raw, out string id, allowTrailingX: true) ? id : (raw ?? "").Trim().ToUpperInvariant();
     }
 }

@@ -112,7 +112,7 @@ namespace logReader.Processing
                 }
             }
 
-            if (lengthIndex >= tokens.Length || !CanToken.TryNormalizeId(tokens[idIndex], out id))
+            if (lengthIndex >= tokens.Length || !CanToken.TryNormalizeId(tokens[idIndex], out id, allowTrailingX: true))
                 return false;
             if (!int.TryParse(tokens[lengthIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out int lengthField) || lengthField < 0)
                 return false;

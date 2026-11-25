@@ -997,6 +997,12 @@ namespace logReader.UI
                 Log("Ошибка: файл вывода совпадает с файлом лога. Укажите другой путь.");
                 return;
             }
+            if (!string.IsNullOrWhiteSpace(settings.CompositesSourcePath)
+                && outFull.Equals(Path.GetFullPath(settings.CompositesSourcePath), StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Ошибка: файл вывода совпадает с файлом составных параметров. Укажите другой путь.");
+                return;
+            }
             if (outFull.Equals(devFull, StringComparison.OrdinalIgnoreCase))
             {
                 Log("Ошибка: файл вывода совпадает с файлом посылок. Укажите другой путь.");
@@ -1090,7 +1096,7 @@ namespace logReader.UI
                 count++;
                 try
                 {
-                    var kind = LogFormatDetector.Detect(path);
+                    var kind = LogFormatDetector.Detect(path, cancellationToken: token);
                     if (kind != LogFormatKind.None && (formats & kind) != 0)
                         files.Add(path);
                 }
@@ -1114,6 +1120,7 @@ namespace logReader.UI
         // Снимок фильтров и настроек: фоновая обработка не видит последующих правок в окнах.
         private OutputSettings BuildOutputSettings(OutputFormat outputFormat) => new()
         {
+            CompositesSourcePath = textBoxComposites.Text.Trim(),
             Format = outputFormat,
             Filter = OutputFilter.From(_deviceEnabled, _paramEnabled),
             Composites = EnsureCompositesLoaded(),

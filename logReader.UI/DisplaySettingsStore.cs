@@ -23,6 +23,9 @@ internal sealed class DisplaySettingsStore
 
     internal DisplaySettingsStore(string? path = null)
     {
+        string? environmentPath = Environment.GetEnvironmentVariable("LOGER_DISPLAY_SETTINGS_PATH");
+        if (path == null && !string.IsNullOrWhiteSpace(environmentPath))
+            path = environmentPath;
         _path = Path.GetFullPath(path ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LOGER", "Loger2", "display-settings.json"));

@@ -217,11 +217,10 @@ public sealed class DtcDisplaySettingsTests
         Assert.Contains("DTC1", File.ReadLines(output).First());
     }
 
-    [Fact]
+    [RealFixtureFact("LOGER_DTC_TEST_DATA_DIR")]
     public void Provided_dst_csv_automatic_mode_includes_only_counterrotation_and_preserves_all_nine_sources()
     {
-        string? root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR");
-        if (string.IsNullOrWhiteSpace(root)) return;
+        string root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR")!;
         Assert.True(Directory.Exists(root), "LOGER_DTC_TEST_DATA_DIR должен указывать непосредственно на папку DST.");
         string[] sources = Directory.GetFiles(root, "*.trc", SearchOption.TopDirectoryOnly).Order().ToArray();
         Assert.Equal(9, sources.Length);
@@ -256,13 +255,12 @@ public sealed class DtcDisplaySettingsTests
         foreach (string source in sources) Assert.Equal(sourceHashes[source], FileHash(source));
     }
 
-    [Theory]
+    [RealFixtureTheory("LOGER_DTC_TEST_DATA_DIR")]
     [InlineData("контрвращение_085008.trc", true)]
     [InlineData("trace_2025-10-16T06_45_04_085033.trc", false)]
     public void Provided_dst_xlsx_automatic_mode_uses_compact_text_or_preserves_the_numeric_sheet(string file, bool hasErrors)
     {
-        string? root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR");
-        if (string.IsNullOrWhiteSpace(root)) return;
+        string root = Environment.GetEnvironmentVariable("LOGER_DTC_TEST_DATA_DIR")!;
         string source = Path.Combine(root, file);
         string originalHash = FileHash(source);
         using var dir = new TempDir();

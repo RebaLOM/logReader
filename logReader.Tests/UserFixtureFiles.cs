@@ -1,5 +1,23 @@
 namespace logReader.Tests;
 
+internal sealed class RealFixtureFactAttribute : FactAttribute
+{
+    public RealFixtureFactAttribute(string variable)
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variable)))
+            Skip = $"Set {variable} to run this real-data test.";
+    }
+}
+
+internal sealed class RealFixtureTheoryAttribute : TheoryAttribute
+{
+    public RealFixtureTheoryAttribute(string variable)
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variable)))
+            Skip = $"Set {variable} to run this real-data test.";
+    }
+}
+
 internal static class UserFixtureFiles
 {
     public static string? Root => Environment.GetEnvironmentVariable("LOGER_TEST_DATA_ROOT");

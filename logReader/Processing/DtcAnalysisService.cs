@@ -68,7 +68,7 @@ internal static class DtcAnalysisService
             AnalyzeVendor(path, encoding, header, context, history, warnings);
             return;
         }
-        LogFormatKind format = LogFormatDetector.Detect(path);
+        LogFormatKind format = LogFormatDetector.Detect(path, encoding, context.CancellationToken);
         if (format == LogFormatKind.MatrixCsv) { AnalyzeMatrix(path, encoding, timeout, context, history); return; }
         if (format == LogFormatKind.StepCsv) { AnalyzeSteps(path, encoding, timeout, context, history); return; }
         if (format is not (LogFormatKind.Trc or LogFormatKind.Asc or LogFormatKind.CanfoxTxt))

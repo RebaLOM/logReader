@@ -8,7 +8,7 @@ namespace logReader.Processing
     {
         private const int PeekLineCount = 120;
 
-        private static bool IsDataDateToken(string token)
+        private static bool IsDataDateToken(ReadOnlySpan<char> token)
         {
             return token.Length == 10
                    && char.IsDigit(token[0])
@@ -23,12 +23,13 @@ namespace logReader.Processing
                    && char.IsDigit(token[9]);
         }
 
-        internal static bool LooksLikeCanfoxLog(string filePath, Encoding encoding)
+        internal static bool LooksLikeCanfoxLog(string filePath, Encoding encoding, CancellationToken cancellationToken = default)
         {
             Span<int> bytes = stackalloc int[Device.MaxDataLength];
             int n = 0;
             foreach (var line in LogFileReader.ReadLines(filePath, encoding))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (++n > PeekLineCount) break;
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 if (TryParseCanfoxFrameLine(line, out _, out _, bytes, out _))
@@ -60,18 +61,19 @@ namespace logReader.Processing
             id = "";
             parsedByteCount = 0;
 
-            if (string.IsNullOrWhiteSpace(line)) return false;
+            var content = line.AsSpan().TrimStart();
+            if (content.Length < 11 || !char.IsWhiteSpace(content[10]) || !IsDataDateToken(content[..10]))
+                return false;
 
             var tokens = line.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length < 5) return false;
 
-            if (!IsDataDateToken(tokens[0])
-                || !DateOnly.TryParseExact(tokens[0], "yyyy.MM.dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+            if (!DateOnly.TryParseExact(tokens[0], "yyyy.MM.dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
                 return false;
             if (!TryParseHmsFff(tokens[1], out timeDayFraction)) return false;
             if (!tokens[2].Equals("-", StringComparison.Ordinal)) return false;
 
-            if (!CanToken.TryNormalizeId(tokens[3], out id)) return false;
+            if (!CanToken.TryNormalizeId(tokens[3], out id, allowTrailingX: true)) return false;
 
             if (!int.TryParse(tokens[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int dlc) || dlc < 0)
                 return false;
